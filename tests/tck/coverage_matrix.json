@@ -1,0 +1,41 @@
+{
+  "tck_version": "2024.2",
+  "last_updated": "2026-01-30",
+  "features": {
+    "Match1_Nodes": {
+      "status": "planned",
+      "description": "Basic node matching",
+      "scenarios": {}
+    },
+    "Match2_Relationships": {
+      "status": "planned",
+      "description": "Basic relationship matching with directionality",
+      "scenarios": {}
+    },
+    "Match3_VariableLength": {
+      "status": "unsupported",
+      "reason": "Variable-length paths not in v1 scope",
+      "scenarios": {}
+    },
+    "Where1_Filtering": {
+      "status": "planned",
+      "description": "Boolean predicates and comparisons",
+      "scenarios": {}
+    },
+    "Return1_Projection": {
+      "status": "planned",
+      "description": "Basic result projection",
+      "scenarios": {}
+    },
+    "Limit1": {
+      "status": "planned",
+      "description": "Result limiting",
+      "scenarios": {}
+    },
+    "Skip1": {
+      "status": "planned",
+      "description": "Result offset",
+      "scenarios": {}
+    }
+  }
+}
