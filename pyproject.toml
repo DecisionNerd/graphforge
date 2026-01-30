@@ -13,9 +13,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-org/graphforge"
-Repository = "https://github.com/your-org/graphforge"
-Issues = "https://github.com/your-org/graphforge/issues"
+Homepage = "https://github.com/DecisionNerd/graphforge"
+Repository = "https://github.com/DecisionNerd/graphforge"
+Issues = "https://github.com/DecisionNerd/graphforge/issues"
 
 [build-system]
 requires = ["hatchling"]
