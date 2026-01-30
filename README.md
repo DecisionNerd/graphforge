@@ -1,7 +1,9 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/graphforge-0.1.0-2d3748?style=for-the-badge&labelColor=1a202c" alt="Version" />
+  <img src="https://img.shields.io/pypi/v/graphforge?style=for-the-badge" alt="PyPI version" />
   <img src="https://img.shields.io/badge/python-3.10+-3776ab?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge" alt="License" />
+  <img src="https://img.shields.io/badge/pydantic-2.6+-e92063?style=for-the-badge&logo=pydantic&logoColor=white" alt="Pydantic" />
+  <img src="https://img.shields.io/badge/openCypher%20TCK%20target-2024.2-6c4f7c?style=for-the-badge" alt="openCypher TCK target" />
 </p>
 
 <h1 align="center">GraphForge</h1>
