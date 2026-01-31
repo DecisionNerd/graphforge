@@ -57,6 +57,11 @@ class QueryExecutor:
         for op in operators:
             rows = self._execute_operator(op, rows)
 
+        # If the last operator was not Project or Aggregate (no RETURN clause),
+        # return empty results (Cypher semantics: queries without RETURN produce no output)
+        if operators and not isinstance(operators[-1], (Project, Aggregate)):
+            return []
+
         return rows
 
     def _execute_operator(self, op, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
