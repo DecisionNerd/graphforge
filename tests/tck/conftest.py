@@ -192,8 +192,14 @@ def verify_no_side_effects(tck_context):
 
 
 def _parse_value(value_str: str):
-    """Parse a value string into appropriate CypherValue."""
+    """Parse a value string into appropriate CypherValue or node pattern."""
     value_str = value_str.strip()
+
+    # Node pattern: (:Label {prop: 'value'}) or ({prop: 'value'})
+    if value_str.startswith("(") and value_str.endswith(")"):
+        # Return a special marker dict that represents a node pattern
+        # This will be used for comparison in _row_to_comparable
+        return {"_node_pattern": value_str}
 
     # String
     if value_str.startswith("'") and value_str.endswith("'"):
@@ -245,14 +251,54 @@ def _parse_data_table(datatable: list[list[str]]) -> list[dict]:
     return results
 
 
+def _parse_node_pattern(pattern: str) -> dict:
+    """Parse a node pattern like (:A) or (:B {name: 'b'}) into comparable dict."""
+    import re
+
+    # Remove outer parentheses
+    pattern = pattern.strip()[1:-1].strip()
+
+    labels = []
+    properties = {}
+
+    # Extract labels (start with :)
+    label_match = re.match(r"^(:[^{}\s]+(?:\s*:\s*[^{}\s]+)*)", pattern)
+    if label_match:
+        label_str = label_match.group(1)
+        labels = [l.strip() for l in label_str.split(":") if l.strip()]
+        pattern = pattern[len(label_str):].strip()
+
+    # Extract properties {key: 'value', ...}
+    if pattern.startswith("{") and pattern.endswith("}"):
+        prop_str = pattern[1:-1].strip()
+        if prop_str:
+            # Parse key: value pairs
+            # Simple parser for TCK format
+            for pair in re.split(r",\s*(?![^']*'(?:[^']*'[^']*')*[^']*$)", prop_str):
+                if ":" in pair:
+                    key, val = pair.split(":", 1)
+                    key = key.strip()
+                    val = val.strip()
+                    # Remove quotes from string values
+                    if val.startswith("'") and val.endswith("'"):
+                        properties[key] = val[1:-1]
+                    else:
+                        properties[key] = val
+
+    return {"labels": sorted(labels), "properties": properties}
+
+
 def _row_to_comparable(row: dict) -> dict:
     """Convert a result row to a comparable dictionary.
 
-    Handles CypherValues, NodeRefs, etc.
+    Handles CypherValues, NodeRefs, node patterns, etc.
     """
     comparable = {}
     for key, value in row.items():
-        if isinstance(value, (CypherInt, CypherFloat, CypherString, CypherBool)):
+        # Handle node pattern marker from _parse_value
+        if isinstance(value, dict) and "_node_pattern" in value:
+            comparable[key] = _parse_node_pattern(value["_node_pattern"])
+        elif isinstance(value, (CypherInt, CypherFloat, CypherString, CypherBool)):
             comparable[key] = value.value
         elif isinstance(value, CypherNull):
             comparable[key] = None

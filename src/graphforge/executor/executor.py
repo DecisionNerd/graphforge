@@ -187,6 +187,8 @@ class QueryExecutor:
 
     def _execute_project(self, op: Project, input_rows: list[ExecutionContext]) -> list[dict]:
         """Execute Project operator."""
+        from graphforge.ast.expression import Variable
+
         result = []
 
         for ctx in input_rows:
@@ -194,8 +196,18 @@ class QueryExecutor:
             for i, return_item in enumerate(op.items):
                 # Extract expression and alias from ReturnItem
                 value = evaluate_expression(return_item.expression, ctx)
-                # Use alias if provided, otherwise generate default column name
-                key = return_item.alias if return_item.alias else f"col_{i}"
+
+                # Determine column name
+                if return_item.alias:
+                    # Explicit alias provided
+                    key = return_item.alias
+                elif isinstance(return_item.expression, Variable):
+                    # No alias, but expression is a variable - use variable name
+                    key = return_item.expression.name
+                else:
+                    # No alias, complex expression - generate default
+                    key = f"col_{i}"
+
                 row[key] = value
             result.append(row)
 

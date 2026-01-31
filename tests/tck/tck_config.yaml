@@ -16,8 +16,7 @@ supported:
   clauses/match/Match1.feature:
     - "[1] Match non-existent nodes returns empty"
     - "[2] Matching all nodes"
-    - "[5] Matching nodes with a label"
-    - "[8] Matching labeled nodes with properties"
+    - "[6] Use multiple MATCH clauses to do a Cartesian product"
 
   clauses/match/Match2.feature:
     - "[1] Matching relationships"
