@@ -8,6 +8,9 @@ This module defines the operators used in logical query plans:
 - Limit: Limit result rows
 - Skip: Skip result rows
 - Create: Create nodes and relationships
+- Set: Update properties
+- Delete: Delete nodes and relationships
+- Merge: Create or match patterns
 """
 
 from dataclasses import dataclass
@@ -142,3 +145,42 @@ class Create:
     """
 
     patterns: list[Any]  # List of node and relationship patterns to create
+
+
+@dataclass
+class Set:
+    """Operator for updating properties.
+
+    Updates properties on nodes and relationships.
+
+    Attributes:
+        items: List of (property_access, expression) tuples
+    """
+
+    items: list[tuple[Any, Any]]  # List of (property_access, expression) tuples
+
+
+@dataclass
+class Delete:
+    """Operator for deleting graph elements.
+
+    Removes nodes and relationships from the graph.
+
+    Attributes:
+        variables: List of variable names to delete
+    """
+
+    variables: list[str]  # List of variable names to delete
+
+
+@dataclass
+class Merge:
+    """Operator for merging patterns.
+
+    Creates patterns if they don't exist, or matches them if they do.
+
+    Attributes:
+        patterns: List of patterns to merge
+    """
+
+    patterns: list[Any]  # List of node and relationship patterns to merge

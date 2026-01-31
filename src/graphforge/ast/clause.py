@@ -3,6 +3,9 @@
 This module defines the major query clauses:
 - MatchClause: MATCH patterns
 - CreateClause: CREATE patterns
+- SetClause: SET property updates
+- DeleteClause: DELETE nodes/relationships
+- MergeClause: MERGE patterns
 - WhereClause: WHERE predicates
 - ReturnClause: RETURN projections
 - LimitClause: LIMIT row count
@@ -32,6 +35,42 @@ class CreateClause:
     Examples:
         CREATE (n:Person {name: 'Alice'})
         CREATE (a)-[r:KNOWS]->(b)
+    """
+
+    patterns: list[Any]  # List of NodePattern or RelationshipPattern
+
+
+@dataclass
+class SetClause:
+    """SET clause for updating properties.
+
+    Examples:
+        SET n.age = 30
+        SET n.age = 30, n.name = 'Alice'
+    """
+
+    items: list[tuple[Any, Any]]  # List of (property_access, expression) tuples
+
+
+@dataclass
+class DeleteClause:
+    """DELETE clause for removing nodes and relationships.
+
+    Examples:
+        DELETE n
+        DELETE n, r
+    """
+
+    variables: list[str]  # List of variable names to delete
+
+
+@dataclass
+class MergeClause:
+    """MERGE clause for creating or matching patterns.
+
+    Examples:
+        MERGE (n:Person {name: 'Alice'})
+        MERGE (a)-[r:KNOWS]->(b)
     """
 
     patterns: list[Any]  # List of NodePattern or RelationshipPattern

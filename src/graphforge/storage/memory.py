@@ -251,8 +251,8 @@ class Graph:
         import copy
 
         return {
-            "nodes": copy.copy(self._nodes),
-            "edges": copy.copy(self._edges),
+            "nodes": copy.deepcopy(self._nodes),
+            "edges": copy.deepcopy(self._edges),
             "outgoing": copy.deepcopy(dict(self._outgoing)),
             "incoming": copy.deepcopy(dict(self._incoming)),
             "label_index": copy.deepcopy(dict(self._label_index)),

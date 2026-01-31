@@ -53,15 +53,18 @@ Modern data science and ML workflows increasingly produce **graph-shaped data**�
 - **RETURN**, **LIMIT**, **SKIP**, **ORDER BY** ✓
 - **Aggregations** (COUNT, SUM, AVG, MIN, MAX) ✓
 - **CREATE** clause for creating nodes and relationships ✓
+- **SET** clause for updating properties ✓
+- **DELETE** clause for removing nodes and relationships ✓
+- **MERGE** clause for idempotent creates ✓
 - **Python builder API** for graph construction ✓
 - **SQLite persistence** with WAL mode ✓
 - **ACID transactions** with begin/commit/rollback ✓
 
 ### Planned v1 Additions
 
-- **SET**, **DELETE**, **MERGE** (additional Cypher mutations)
 - **MATCH-CREATE** combinations for connecting existing nodes
 - Optional Pydantic-backed data models for validation
+- DETACH DELETE for cascading deletes
 
 ---
 
@@ -119,6 +122,15 @@ db.execute("CREATE (a:Person {name: 'Alice'})-[r:KNOWS {since: 2015}]->(b:Person
 # Query with RETURN
 results = db.execute("CREATE (n:Person {name: 'Charlie'}) RETURN n.name AS name")
 print(results[0]['name'].value)  # Charlie
+
+# Update properties with SET
+db.execute("MATCH (n:Person {name: 'Alice'}) SET n.age = 31, n.city = 'NYC'")
+
+# Idempotent creates with MERGE
+db.execute("MERGE (n:Person {name: 'Alice'})")  # Matches existing node, doesn't create duplicate
+
+# Delete nodes and relationships
+db.execute("MATCH (n:Person {name: 'Charlie'}) DELETE n")
 ```
 
 **Persistence:** Graphs can persist across sessions using SQLite:

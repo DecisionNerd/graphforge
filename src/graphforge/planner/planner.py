@@ -3,18 +3,21 @@
 This module converts parsed AST into executable logical plans.
 """
 
-from graphforge.ast.clause import CreateClause, LimitClause, MatchClause, OrderByClause, ReturnClause, SkipClause, WhereClause
+from graphforge.ast.clause import CreateClause, DeleteClause, LimitClause, MatchClause, MergeClause, OrderByClause, ReturnClause, SetClause, SkipClause, WhereClause
 from graphforge.ast.expression import FunctionCall
 from graphforge.ast.pattern import Direction, NodePattern, RelationshipPattern
 from graphforge.ast.query import CypherQuery
 from graphforge.planner.operators import (
     Aggregate,
     Create,
+    Delete,
     ExpandEdges,
     Filter,
     Limit,
+    Merge,
     Project,
     ScanNodes,
+    Set,
     Skip,
     Sort,
 )
@@ -42,6 +45,9 @@ class QueryPlanner:
         # Collect clauses by type
         match_clauses = []
         create_clauses = []
+        merge_clauses = []
+        set_clause = None
+        delete_clause = None
         where_clause = None
         return_clause = None
         order_by_clause = None
@@ -53,6 +59,12 @@ class QueryPlanner:
                 match_clauses.append(clause)
             elif isinstance(clause, CreateClause):
                 create_clauses.append(clause)
+            elif isinstance(clause, MergeClause):
+                merge_clauses.append(clause)
+            elif isinstance(clause, SetClause):
+                set_clause = clause
+            elif isinstance(clause, DeleteClause):
+                delete_clause = clause
             elif isinstance(clause, WhereClause):
                 where_clause = clause
             elif isinstance(clause, ReturnClause):
@@ -75,17 +87,29 @@ class QueryPlanner:
         for create in create_clauses:
             operators.append(Create(patterns=create.patterns))
 
-        # 3. WHERE
+        # 3. MERGE
+        for merge in merge_clauses:
+            operators.append(Merge(patterns=merge.patterns))
+
+        # 4. WHERE
         if where_clause:
             operators.append(Filter(predicate=where_clause.predicate))
 
-        # 4. ORDER BY (before projection!)
+        # 5. SET
+        if set_clause:
+            operators.append(Set(items=set_clause.items))
+
+        # 6. DELETE
+        if delete_clause:
+            operators.append(Delete(variables=delete_clause.variables))
+
+        # 7. ORDER BY (before projection!)
         if order_by_clause:
             # Pass return_items to Sort so it can resolve RETURN aliases
             return_items = return_clause.items if return_clause else None
             operators.append(Sort(items=order_by_clause.items, return_items=return_items))
 
-        # 5. RETURN
+        # 8. RETURN
         if return_clause:
             # Check if RETURN contains aggregations
             has_aggregates = self._has_aggregations(return_clause)
@@ -103,7 +127,7 @@ class QueryPlanner:
                 # Use simple Project operator
                 operators.append(Project(items=return_clause.items))
 
-        # 6. SKIP/LIMIT
+        # 9. SKIP/LIMIT
         if skip_clause:
             operators.append(Skip(count=skip_clause.count))
         if limit_clause:

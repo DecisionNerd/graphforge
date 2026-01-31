@@ -1,19 +1,33 @@
 // openCypher Grammar (v1 Subset)
-// Supports: MATCH, CREATE, WHERE, RETURN, ORDER BY, LIMIT, SKIP
+// Supports: MATCH, CREATE, SET, DELETE, MERGE, WHERE, RETURN, ORDER BY, LIMIT, SKIP
 
 ?start: query
 
-query: read_query | write_query
+query: read_query | write_query | update_query
 
 read_query: match_clause where_clause? return_clause order_by_clause? skip_clause? limit_clause?
 
 write_query: create_clause return_clause?
+           | merge_clause return_clause?
+
+update_query: match_clause where_clause? set_clause? delete_clause? return_clause?
 
 // MATCH clause
 match_clause: "MATCH"i pattern ("," pattern)*
 
 // CREATE clause
 create_clause: "CREATE"i pattern ("," pattern)*
+
+// SET clause
+set_clause: "SET"i set_item ("," set_item)*
+
+set_item: property_access "=" expression
+
+// DELETE clause
+delete_clause: "DELETE"i variable ("," variable)*
+
+// MERGE clause
+merge_clause: "MERGE"i pattern ("," pattern)*
 
 pattern: node_pattern (relationship_pattern node_pattern)*
 

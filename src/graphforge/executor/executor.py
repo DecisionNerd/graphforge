@@ -9,11 +9,14 @@ from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
 from graphforge.planner.operators import (
     Aggregate,
     Create,
+    Delete,
     ExpandEdges,
     Filter,
     Limit,
+    Merge,
     Project,
     ScanNodes,
+    Set,
     Skip,
     Sort,
 )
@@ -92,6 +95,15 @@ class QueryExecutor:
 
         if isinstance(op, Create):
             return self._execute_create(op, input_rows)
+
+        if isinstance(op, Set):
+            return self._execute_set(op, input_rows)
+
+        if isinstance(op, Delete):
+            return self._execute_delete(op, input_rows)
+
+        if isinstance(op, Merge):
+            return self._execute_merge(op, input_rows)
 
         raise TypeError(f"Unknown operator type: {type(op).__name__}")
 
@@ -602,3 +614,194 @@ class QueryExecutor:
         # Create relationship using GraphForge API
         edge = self.graphforge.create_relationship(src_node, dst_node, rel_type, **properties)
         return edge
+
+    def _execute_set(self, op: Set, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+        """Execute SET operator.
+
+        Updates properties on nodes and relationships.
+
+        Args:
+            op: Set operator with property assignments
+            input_rows: Input execution contexts
+
+        Returns:
+            Updated execution contexts
+        """
+        result = []
+
+        for ctx in input_rows:
+            # Process each SET item
+            for property_access, value_expr in op.items:
+                # Evaluate the target (should be a PropertyAccess node)
+                if hasattr(property_access, 'variable') and hasattr(property_access, 'property'):
+                    var_name = property_access.variable.name if hasattr(property_access.variable, 'name') else property_access.variable
+                    prop_name = property_access.property
+
+                    # Get the node or edge from context
+                    if var_name in ctx.bindings:
+                        element = ctx.bindings[var_name]
+
+                        # Evaluate the new value
+                        new_value = evaluate_expression(value_expr, ctx)
+
+                        # Update the property on the element
+                        # Note: This modifies the element in place in the graph
+                        element.properties[prop_name] = new_value
+
+            result.append(ctx)
+
+        return result
+
+    def _execute_delete(self, op: Delete, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+        """Execute DELETE operator.
+
+        Removes nodes and relationships from the graph.
+
+        Args:
+            op: Delete operator with variables to delete
+            input_rows: Input execution contexts
+
+        Returns:
+            Empty list (DELETE produces no output rows)
+        """
+        from graphforge.types.graph import EdgeRef, NodeRef
+
+        for ctx in input_rows:
+            for var_name in op.variables:
+                if var_name in ctx.bindings:
+                    element = ctx.bindings[var_name]
+
+                    # Delete from graph
+                    if isinstance(element, NodeRef):
+                        # Remove node (need to remove edges first)
+                        # Get all edges connected to this node
+                        outgoing = self.graph.get_outgoing_edges(element.id)
+                        incoming = self.graph.get_incoming_edges(element.id)
+
+                        # Remove all connected edges first
+                        for edge in outgoing + incoming:
+                            self.graph._edges.pop(edge.id, None)
+                            # Remove from adjacency lists
+                            if edge.src.id in self.graph._outgoing:
+                                self.graph._outgoing[edge.src.id] = [
+                                    e for e in self.graph._outgoing[edge.src.id] if e.id != edge.id
+                                ]
+                            if edge.dst.id in self.graph._incoming:
+                                self.graph._incoming[edge.dst.id] = [
+                                    e for e in self.graph._incoming[edge.dst.id] if e.id != edge.id
+                                ]
+                            # Remove from type index
+                            if edge.type in self.graph._type_index:
+                                self.graph._type_index[edge.type].discard(edge.id)
+
+                        # Remove node
+                        self.graph._nodes.pop(element.id, None)
+                        # Remove from label index
+                        for label in element.labels:
+                            if label in self.graph._label_index:
+                                self.graph._label_index[label].discard(element.id)
+                        # Remove adjacency lists
+                        self.graph._outgoing.pop(element.id, None)
+                        self.graph._incoming.pop(element.id, None)
+
+                    elif isinstance(element, EdgeRef):
+                        # Remove edge
+                        self.graph._edges.pop(element.id, None)
+                        # Remove from adjacency lists
+                        if element.src.id in self.graph._outgoing:
+                            self.graph._outgoing[element.src.id] = [
+                                e for e in self.graph._outgoing[element.src.id] if e.id != element.id
+                            ]
+                        if element.dst.id in self.graph._incoming:
+                            self.graph._incoming[element.dst.id] = [
+                                e for e in self.graph._incoming[element.dst.id] if e.id != element.id
+                            ]
+                        # Remove from type index
+                        if element.type in self.graph._type_index:
+                            self.graph._type_index[element.type].discard(element.id)
+
+        # DELETE produces no output rows
+        return []
+
+    def _execute_merge(self, op: Merge, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+        """Execute MERGE operator.
+
+        Creates patterns if they don't exist, or matches them if they do.
+
+        Args:
+            op: Merge operator with patterns
+            input_rows: Input execution contexts
+
+        Returns:
+            Execution contexts with matched or created elements
+        """
+        if not self.graphforge:
+            raise RuntimeError("MERGE requires GraphForge instance")
+
+        from graphforge.ast.pattern import NodePattern
+
+        result = []
+
+        # Process each input row
+        for ctx in input_rows:
+            new_ctx = ExecutionContext()
+            new_ctx.bindings = ctx.bindings.copy()
+
+            # Process each pattern
+            for pattern in op.patterns:
+                if not pattern:
+                    continue
+
+                # Handle simple node pattern: MERGE (n:Person {name: 'Alice'})
+                if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
+                    node_pattern = pattern[0]
+
+                    # Try to find existing node
+                    found_node = None
+
+                    if node_pattern.labels:
+                        # Get candidate nodes by first label
+                        first_label = node_pattern.labels[0]
+                        candidates = self.graph.get_nodes_by_label(first_label)
+
+                        for node in candidates:
+                            # Check if all required labels are present
+                            if not all(label in node.labels for label in node_pattern.labels):
+                                continue
+
+                            # Check if properties match
+                            if node_pattern.properties:
+                                match = True
+                                for key, value_expr in node_pattern.properties.items():
+                                    expected_value = evaluate_expression(value_expr, new_ctx)
+                                    if key not in node.properties:
+                                        match = False
+                                        break
+                                    # Compare CypherValue objects using equality
+                                    node_value = node.properties[key]
+                                    comparison_result = node_value.equals(expected_value)
+                                    if isinstance(comparison_result, CypherBool) and not comparison_result.value:
+                                        match = False
+                                        break
+
+                                if match:
+                                    # Found matching node
+                                    found_node = node
+                                    break
+                            else:
+                                # No properties specified, just match on labels
+                                found_node = node
+                                break
+
+                    # Bind found node or create new one
+                    if found_node:
+                        if node_pattern.variable:
+                            new_ctx.bindings[node_pattern.variable] = found_node
+                    else:
+                        node = self._create_node_from_pattern(node_pattern, new_ctx)
+                        if node_pattern.variable:
+                            new_ctx.bindings[node_pattern.variable] = node
+
+            result.append(new_ctx)
+
+        return result

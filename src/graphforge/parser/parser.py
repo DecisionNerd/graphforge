@@ -10,12 +10,15 @@ from lark import Lark, Token, Transformer
 
 from graphforge.ast.clause import (
     CreateClause,
+    DeleteClause,
     LimitClause,
     MatchClause,
+    MergeClause,
     OrderByClause,
     OrderByItem,
     ReturnClause,
     ReturnItem,
+    SetClause,
     SkipClause,
     WhereClause,
 )
@@ -44,7 +47,11 @@ class ASTTransformer(Transformer):
         return CypherQuery(clauses=list(items))
 
     def write_query(self, items):
-        """Transform write query (CREATE with optional RETURN)."""
+        """Transform write query (CREATE/MERGE with optional RETURN)."""
+        return CypherQuery(clauses=list(items))
+
+    def update_query(self, items):
+        """Transform update query (MATCH with SET/DELETE)."""
         return CypherQuery(clauses=list(items))
 
     # Clauses
@@ -57,6 +64,31 @@ class ASTTransformer(Transformer):
         """Transform CREATE clause."""
         patterns = [item for item in items if not isinstance(item, str)]
         return CreateClause(patterns=patterns)
+
+    def set_clause(self, items):
+        """Transform SET clause."""
+        return SetClause(items=list(items))
+
+    def set_item(self, items):
+        """Transform SET item (property = expression)."""
+        property_access = items[0]
+        expression = items[1]
+        return (property_access, expression)
+
+    def delete_clause(self, items):
+        """Transform DELETE clause."""
+        variables = []
+        for item in items:
+            if isinstance(item, Variable):
+                variables.append(item.name)
+            else:
+                variables.append(self._get_token_value(item))
+        return DeleteClause(variables=variables)
+
+    def merge_clause(self, items):
+        """Transform MERGE clause."""
+        patterns = [item for item in items if not isinstance(item, str)]
+        return MergeClause(patterns=patterns)
 
     def where_clause(self, items):
         """Transform WHERE clause."""
