@@ -8,6 +8,7 @@ This module defines the major query clauses:
 - MergeClause: MERGE patterns
 - WhereClause: WHERE predicates
 - ReturnClause: RETURN projections
+- WithClause: WITH query chaining
 - LimitClause: LIMIT row count
 - SkipClause: SKIP offset
 """
@@ -162,3 +163,23 @@ class OrderByClause:
     """
 
     items: list[OrderByItem]  # List of OrderByItems
+
+
+@dataclass
+class WithClause:
+    """WITH clause for query chaining and subqueries.
+
+    The WITH clause allows you to pipe the results of one part of a query
+    to another, enabling complex multi-step queries.
+
+    Examples:
+        WITH n.name AS name, count(*) AS connections
+        WITH person WHERE person.age > 25
+        WITH person ORDER BY person.age LIMIT 10
+    """
+
+    items: list[ReturnItem]  # Projection items (same as RETURN)
+    where: WhereClause | None = None  # Optional WHERE after WITH
+    order_by: OrderByClause | None = None  # Optional ORDER BY
+    skip: SkipClause | None = None  # Optional SKIP
+    limit: LimitClause | None = None  # Optional LIMIT

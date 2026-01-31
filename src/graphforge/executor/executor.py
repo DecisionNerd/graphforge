@@ -19,6 +19,7 @@ from graphforge.planner.operators import (
     Set,
     Skip,
     Sort,
+    With,
 )
 from graphforge.storage.memory import Graph
 from graphforge.types.values import CypherBool, CypherFloat, CypherInt, CypherNull
@@ -110,36 +111,58 @@ class QueryExecutor:
         if isinstance(op, Merge):
             return self._execute_merge(op, input_rows)
 
+        if isinstance(op, With):
+            return self._execute_with(op, input_rows)
+
         raise TypeError(f"Unknown operator type: {type(op).__name__}")
 
     def _execute_scan(self, op: ScanNodes, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
-        """Execute ScanNodes operator."""
+        """Execute ScanNodes operator.
+
+        If the variable is already bound in the input context (e.g., from WITH),
+        validate that the bound node matches the pattern instead of doing a full scan.
+        """
         result = []
 
-        # Get nodes from graph
-        if op.labels:
-            # Scan by first label for efficiency
-            nodes = self.graph.get_nodes_by_label(op.labels[0])
-
-            # Filter to only nodes with ALL required labels
-            if len(op.labels) > 1:
-                nodes = [
-                    node for node in nodes
-                    if all(label in node.labels for label in op.labels)
-                ]
-        else:
-            # Scan all nodes
-            nodes = self.graph.get_all_nodes()
-
-        # For each input row, bind each node
+        # For each input row
         for ctx in input_rows:
-            for node in nodes:
-                new_ctx = ExecutionContext()
-                # Copy existing bindings
-                new_ctx.bindings = dict(ctx.bindings)
-                # Bind new node
-                new_ctx.bind(op.variable, node)
-                result.append(new_ctx)
+            # Check if variable is already bound (e.g., from WITH clause)
+            if op.variable in ctx.bindings:
+                # Variable already bound - validate it matches the pattern
+                bound_node = ctx.get(op.variable)
+
+                # Check if bound node has required labels
+                if op.labels:
+                    if all(label in bound_node.labels for label in op.labels):
+                        # Node matches pattern - keep the context
+                        result.append(ctx)
+                else:
+                    # No label requirements - keep the context
+                    result.append(ctx)
+            else:
+                # Variable not bound - do normal scan
+                if op.labels:
+                    # Scan by first label for efficiency
+                    nodes = self.graph.get_nodes_by_label(op.labels[0])
+
+                    # Filter to only nodes with ALL required labels
+                    if len(op.labels) > 1:
+                        nodes = [
+                            node for node in nodes
+                            if all(label in node.labels for label in op.labels)
+                        ]
+                else:
+                    # Scan all nodes
+                    nodes = self.graph.get_all_nodes()
+
+                # Bind each node
+                for node in nodes:
+                    new_ctx = ExecutionContext()
+                    # Copy existing bindings
+                    new_ctx.bindings = dict(ctx.bindings)
+                    # Bind new node
+                    new_ctx.bind(op.variable, node)
+                    result.append(new_ctx)
 
         return result
 
@@ -222,6 +245,111 @@ class QueryExecutor:
 
                 row[key] = value
             result.append(row)
+
+        return result
+
+    def _execute_with(self, op: With, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+        """Execute WITH operator.
+
+        WITH acts as a pipeline boundary, projecting specified columns and
+        optionally filtering, sorting, and paginating.
+
+        Unlike Project, WITH returns ExecutionContexts (not final dicts) so the
+        query can continue with more clauses.
+
+        Args:
+            op: WITH operator with items, predicate, sort_items, skip_count, limit_count
+            input_rows: Input execution contexts
+
+        Returns:
+            List of ExecutionContexts with only the projected variables
+        """
+        from graphforge.ast.expression import Variable
+
+        # Step 1: Project items into new contexts
+        result = []
+
+        for ctx in input_rows:
+            new_ctx = ExecutionContext()
+
+            for return_item in op.items:
+                # Evaluate expression
+                value = evaluate_expression(return_item.expression, ctx)
+
+                # Determine variable name to bind
+                if return_item.alias:
+                    # Explicit alias provided
+                    var_name = return_item.alias
+                elif isinstance(return_item.expression, Variable):
+                    # No alias, but expression is a variable - use variable name
+                    var_name = return_item.expression.name
+                else:
+                    # Complex expression without alias - skip binding
+                    # (This is technically invalid Cypher, but we'll allow it)
+                    continue
+
+                # Bind the value in the new context
+                new_ctx.bind(var_name, value)
+
+            result.append(new_ctx)
+
+        # Step 2: Apply optional WHERE filter
+        if op.predicate:
+            filtered = []
+            for ctx in result:
+                value = evaluate_expression(op.predicate, ctx)
+                if isinstance(value, CypherBool) and value.value:
+                    filtered.append(ctx)
+            result = filtered
+
+        # Step 3: Apply optional ORDER BY sort
+        if op.sort_items:
+            # Similar to _execute_sort but simpler since WITH items are already projected
+            from functools import cmp_to_key
+
+            def compare_values(val1, val2, ascending):
+                """Compare two CypherValues."""
+                # Handle NULLs
+                is_null1 = isinstance(val1, CypherNull)
+                is_null2 = isinstance(val2, CypherNull)
+
+                if is_null1 and is_null2:
+                    return 0
+                if is_null1:
+                    return 1 if ascending else -1  # NULLs last in ASC, first in DESC
+                if is_null2:
+                    return -1 if ascending else 1
+
+                # Compare non-NULL values
+                comp_result = val1.less_than(val2)
+                if isinstance(comp_result, CypherBool):
+                    if comp_result.value:
+                        return -1 if ascending else 1
+                    comp_result2 = val2.less_than(val1)
+                    if isinstance(comp_result2, CypherBool) and comp_result2.value:
+                        return 1 if ascending else -1
+                    return 0
+                return 0
+
+            def compare_rows(ctx1, ctx2):
+                """Compare two contexts by evaluating sort expressions."""
+                for sort_item in op.sort_items:
+                    val1 = evaluate_expression(sort_item.expression, ctx1)
+                    val2 = evaluate_expression(sort_item.expression, ctx2)
+                    cmp = compare_values(val1, val2, sort_item.ascending)
+                    if cmp != 0:
+                        return cmp
+                return 0
+
+            result = sorted(result, key=cmp_to_key(compare_rows))
+
+        # Step 4: Apply optional SKIP
+        if op.skip_count is not None:
+            result = result[op.skip_count:]
+
+        # Step 5: Apply optional LIMIT
+        if op.limit_count is not None:
+            result = result[:op.limit_count]
 
         return result
 

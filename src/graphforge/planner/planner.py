@@ -3,7 +3,7 @@
 This module converts parsed AST into executable logical plans.
 """
 
-from graphforge.ast.clause import CreateClause, DeleteClause, LimitClause, MatchClause, MergeClause, OrderByClause, ReturnClause, SetClause, SkipClause, WhereClause
+from graphforge.ast.clause import CreateClause, DeleteClause, LimitClause, MatchClause, MergeClause, OrderByClause, ReturnClause, SetClause, SkipClause, WhereClause, WithClause
 from graphforge.ast.expression import FunctionCall
 from graphforge.ast.pattern import Direction, NodePattern, RelationshipPattern
 from graphforge.ast.query import CypherQuery
@@ -20,6 +20,7 @@ from graphforge.planner.operators import (
     Set,
     Skip,
     Sort,
+    With,
 )
 
 
@@ -32,12 +33,32 @@ class QueryPlanner:
         Operators are ordered for correct execution:
         1. MATCH (scan/expand)
         2. WHERE (filter)
-        3. ORDER BY (sort) - before projection to access all variables
-        4. RETURN (project)
-        5. SKIP/LIMIT
+        3. WITH (pipeline boundary) - optional
+        4. ORDER BY (sort) - before projection to access all variables
+        5. RETURN (project)
+        6. SKIP/LIMIT
 
         Args:
             ast: Parsed query AST
+
+        Returns:
+            List of logical plan operators
+        """
+        # Check if query contains WITH clauses
+        has_with = any(isinstance(c, WithClause) for c in ast.clauses)
+
+        if has_with:
+            # Split query at WITH boundaries and plan each segment
+            return self._plan_with_query(ast)
+        else:
+            # Use traditional single-pass planning
+            return self._plan_simple_query(ast.clauses)
+
+    def _plan_simple_query(self, clauses: list) -> list:
+        """Plan a simple query without WITH clauses.
+
+        Args:
+            clauses: List of clause AST nodes
 
         Returns:
             List of logical plan operators
@@ -54,7 +75,7 @@ class QueryPlanner:
         skip_clause = None
         limit_clause = None
 
-        for clause in ast.clauses:
+        for clause in clauses:
             if isinstance(clause, MatchClause):
                 match_clauses.append(clause)
             elif isinstance(clause, CreateClause):
@@ -132,6 +153,57 @@ class QueryPlanner:
             operators.append(Skip(count=skip_clause.count))
         if limit_clause:
             operators.append(Limit(count=limit_clause.count))
+
+        return operators
+
+    def _plan_with_query(self, ast: CypherQuery) -> list:
+        """Plan a query with WITH clauses.
+
+        WITH acts as a pipeline boundary, so we plan each segment separately
+        and connect them with WITH operators.
+
+        Args:
+            ast: Query AST with WITH clauses
+
+        Returns:
+            List of logical plan operators
+        """
+        operators = []
+
+        # Split clauses at WITH boundaries
+        segments = []
+        current_segment = []
+
+        for clause in ast.clauses:
+            if isinstance(clause, WithClause):
+                # End current segment and start new one
+                if current_segment:
+                    segments.append(current_segment)
+                    current_segment = []
+                # Add WITH as its own segment marker
+                segments.append(clause)
+            else:
+                current_segment.append(clause)
+
+        # Add final segment
+        if current_segment:
+            segments.append(current_segment)
+
+        # Plan each segment
+        for segment in segments:
+            if isinstance(segment, WithClause):
+                # Convert WITH clause to With operator
+                with_op = With(
+                    items=segment.items,
+                    predicate=segment.where.predicate if segment.where else None,
+                    sort_items=segment.order_by.items if segment.order_by else None,
+                    skip_count=segment.skip.count if segment.skip else None,
+                    limit_count=segment.limit.count if segment.limit else None,
+                )
+                operators.append(with_op)
+            elif isinstance(segment, list):
+                # Plan the segment as a simple query
+                operators.extend(self._plan_simple_query(segment))
 
         return operators
 

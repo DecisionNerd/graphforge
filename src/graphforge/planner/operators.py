@@ -5,6 +5,7 @@ This module defines the operators used in logical query plans:
 - ExpandEdges: Traverse relationships
 - Filter: Apply predicates
 - Project: Select return items
+- With: Pipeline boundary for query chaining
 - Limit: Limit result rows
 - Skip: Skip result rows
 - Create: Create nodes and relationships
@@ -132,6 +133,31 @@ class Aggregate:
     grouping_exprs: list[Any]  # List of non-aggregate expressions
     agg_exprs: list[Any]  # List of FunctionCall nodes
     return_items: list[Any]  # List of ReturnItems
+
+
+@dataclass
+class With:
+    """Operator for WITH clause (query chaining and subqueries).
+
+    Acts as a pipeline boundary between query parts. Projects columns
+    (like RETURN) and optionally filters, sorts, and paginates.
+
+    The WITH clause allows chaining multiple query parts together:
+        MATCH (n) WITH n ORDER BY n.age LIMIT 10 MATCH (n)-[r]->(m) RETURN n, m
+
+    Attributes:
+        items: List of ReturnItem AST nodes (expressions to project)
+        predicate: Optional filter predicate (WHERE after WITH)
+        sort_items: Optional list of OrderByItem AST nodes
+        skip_count: Optional number of rows to skip
+        limit_count: Optional maximum number of rows
+    """
+
+    items: list[Any]  # List of ReturnItem AST nodes
+    predicate: Any | None = None  # Optional WHERE expression
+    sort_items: list[Any] | None = None  # Optional OrderByItem list
+    skip_count: int | None = None  # Optional SKIP count
+    limit_count: int | None = None  # Optional LIMIT count
 
 
 @dataclass
