@@ -1,0 +1,146 @@
+# openCypher TCK Compliance Configuration
+#
+# This file defines which TCK scenarios GraphForge currently supports.
+# Supported scenarios are REQUIRED to pass in CI/CD.
+# Unsupported scenarios are run for measurement but allowed to fail.
+#
+# Format:
+#   feature_file: [scenario_name1, scenario_name2, ...]
+#   use "*" to mark all scenarios in a feature as supported
+
+version: "2024.2"
+
+# Supported TCK scenarios (REQUIRED to pass)
+supported:
+  # MATCH clause - basic node and relationship patterns
+  clauses/match/Match1.feature:
+    - "[1] Match non-existent nodes returns empty"
+    - "[2] Matching all nodes"
+    - "[5] Matching nodes with a label"
+    - "[8] Matching labeled nodes with properties"
+
+  clauses/match/Match2.feature:
+    - "[1] Matching relationships"
+    - "[2] Matching relationships with type"
+
+  # WHERE clause - basic filtering
+  clauses/where/Where1.feature:
+    - "[1] Filter nodes by property equality"
+    - "[2] Filter nodes by property comparison"
+    - "[3] Filter with AND"
+    - "[4] Filter with OR"
+
+  # RETURN clause - projection
+  clauses/return/Return1.feature:
+    - "[1] Return single column"
+    - "[2] Return multiple columns"
+    - "[3] Return with alias"
+
+  # LIMIT and SKIP
+  clauses/limit/Limit1.feature: "*"
+  clauses/skip/Skip1.feature: "*"
+
+  # ORDER BY
+  clauses/orderBy/OrderBy1.feature:
+    - "[1] Order by single property ASC"
+    - "[2] Order by single property DESC"
+    - "[3] Order by multiple properties"
+
+  # CREATE clause
+  clauses/create/Create1.feature:
+    - "[1] Create single node"
+    - "[2] Create node with properties"
+    - "[3] Create node with label"
+    - "[4] Create multiple nodes"
+
+  clauses/create/Create2.feature:
+    - "[1] Create relationship"
+    - "[2] Create relationship with type"
+    - "[3] Create relationship with properties"
+
+  # SET clause
+  clauses/set/Set1.feature:
+    - "[1] Set node property"
+    - "[2] Set multiple properties"
+    - "[3] Set relationship property"
+
+  # DELETE clause
+  clauses/delete/Delete1.feature:
+    - "[1] Delete single node"
+    - "[2] Delete relationship"
+    - "[3] Delete multiple nodes"
+
+  # MERGE clause
+  clauses/merge/Merge1.feature:
+    - "[1] Merge on node match"
+    - "[2] Merge on node create"
+
+  # Aggregation functions
+  expressions/aggregation/Aggregation1.feature:
+    - "[1] COUNT(*) counts all rows"
+    - "[2] COUNT(expr) counts non-null values"
+
+  expressions/aggregation/Aggregation2.feature:
+    - "[1] SUM aggregates numeric values"
+    - "[2] AVG computes average"
+
+  expressions/aggregation/Aggregation3.feature:
+    - "[1] MIN finds minimum"
+    - "[2] MAX finds maximum"
+
+  # Null semantics
+  expressions/null/Null1.feature:
+    - "[1] Null property access returns null"
+    - "[2] Null comparison returns null"
+    - "[3] COUNT ignores nulls"
+
+# Known unsupported features (will be skipped with xfail marker)
+unsupported:
+  # Variable-length paths
+  clauses/match/Match3.feature: "*"  # All variable-length path scenarios
+  clauses/match/Match4.feature: "*"  # More variable-length patterns
+
+  # Optional match
+  clauses/match/Match5.feature: "*"  # OPTIONAL MATCH
+
+  # UNWIND
+  clauses/unwind/Unwind1.feature: "*"
+
+  # WITH clause
+  clauses/with/With1.feature: "*"
+
+  # CALL procedures
+  clauses/call/Call1.feature: "*"
+
+  # UNION
+  clauses/union/Union1.feature: "*"
+
+  # Complex expressions not yet supported
+  expressions/list/List1.feature: "*"  # List comprehensions
+  expressions/map/Map1.feature: "*"    # Map projections
+  expressions/case/Case1.feature: "*"  # CASE expressions
+
+  # String functions (partial support)
+  expressions/string/String1.feature:
+    - except: ["[1] String concatenation", "[2] String comparison"]
+
+# Named graphs required by TCK
+named_graphs:
+  binary-tree-1:
+    script: "graphs/binary-tree-1/binary-tree-1.cypher"
+    description: "Binary tree depth 4, label :X, 3 relationship types"
+
+  binary-tree-2:
+    script: "graphs/binary-tree-2/binary-tree-2.cypher"
+    description: "Binary tree depth 4, labels :X or :Y, 3 relationship types"
+
+# Statistics (updated automatically by test runs)
+last_run:
+  date: null
+  total_scenarios: 0
+  supported_scenarios: 0
+  passed: 0
+  failed: 0
+  skipped: 0
+  compliance_percentage: 0.0
+  supported_compliance_percentage: 0.0

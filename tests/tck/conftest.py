@@ -4,6 +4,9 @@ import pytest
 from pytest_bdd import given, parsers, then, when
 
 from graphforge import GraphForge
+
+# Import TCK markers plugin
+pytest_plugins = ["tests.tck.tck_markers"]
 from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,
@@ -36,40 +39,104 @@ def empty_graph(tck_context):
     return tck_context
 
 
+@given(parsers.parse("the {graph_name} graph"), target_fixture="tck_context")
+def named_graph(tck_context, graph_name):
+    """Load a predefined named graph from TCK graphs directory."""
+    import yaml
+    from pathlib import Path
+
+    # Load TCK config to find graph script
+    config_path = Path(__file__).parent / "tck_config.yaml"
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+
+    # Get graph script path
+    graph_config = config.get("named_graphs", {}).get(graph_name)
+    if not graph_config:
+        raise ValueError(f"Named graph '{graph_name}' not found in tck_config.yaml")
+
+    script_path = Path(__file__).parent / graph_config["script"]
+    if not script_path.exists():
+        raise FileNotFoundError(f"Graph script not found: {script_path}")
+
+    # Load and execute graph creation script
+    cypher_script = script_path.read_text()
+    tck_context["graph"] = GraphForge()
+    tck_context["graph"].execute(cypher_script)
+    tck_context["result"] = None
+    tck_context["side_effects"] = []
+    return tck_context
+
+
+@given("any graph", target_fixture="tck_context")
+def any_graph(tck_context):
+    """Create an arbitrary graph (test doesn't depend on initial state)."""
+    tck_context["graph"] = GraphForge()
+    tck_context["result"] = None
+    tck_context["side_effects"] = []
+    return tck_context
+
+
+@given("having executed:")
+def execute_setup_query_colon(tck_context, docstring):
+    """Execute a setup query (typically CREATE statements) - with colon."""
+    tck_context["graph"].execute(docstring)
+
+
 @given("having executed")
-def execute_setup_query(tck_context, step):
-    """Execute a setup query (typically CREATE statements).
-
-    Note: Since GraphForge doesn't support CREATE yet, we'll need to
-    manually build the graph from CREATE statements.
-    """
-    # Get the docstring from the step
-    cypher_query = step.doc_string.content if step.doc_string else ""
-
-    # Parse and execute CREATE statements
-    _execute_create_statements(tck_context["graph"], cypher_query)
+def execute_setup_query(tck_context, docstring):
+    """Execute a setup query (typically CREATE statements) - without colon."""
+    tck_context["graph"].execute(docstring)
 
 
-@when("executing query")
-def execute_query(tck_context, step):
-    """Execute a Cypher query and store results."""
-    # Get the docstring from the step
-    cypher_query = step.doc_string.content if step.doc_string else ""
-
+@when("executing query:")
+def execute_query_colon(tck_context, docstring):
+    """Execute a Cypher query and store results (with colon)."""
     try:
-        result = tck_context["graph"].execute(cypher_query)
+        result = tck_context["graph"].execute(docstring)
         tck_context["result"] = result
     except Exception as e:
         tck_context["result"] = {"error": str(e)}
 
 
-@then("the result should be, in any order")
-def verify_result_any_order(tck_context, step):
-    """Verify query results match expected table (order doesn't matter)."""
+@when("executing query")
+def execute_query(tck_context, docstring):
+    """Execute a Cypher query and store results (without colon)."""
+    try:
+        result = tck_context["graph"].execute(docstring)
+        tck_context["result"] = result
+    except Exception as e:
+        tck_context["result"] = {"error": str(e)}
+
+
+@then("the result should be, in any order:")
+def verify_result_any_order_colon(tck_context, datatable):
+    """Verify query results match expected table (order doesn't matter) - with colon."""
     result = tck_context["result"]
 
-    # Parse the data table from the step
-    expected = _parse_data_table(step.table)
+    # Parse the data table (datatable is list of lists: [headers, row1, row2, ...])
+    expected = _parse_data_table(datatable)
+
+    assert result is not None, "No result was produced"
+    assert "error" not in result, f"Query error: {result.get('error')}"
+    assert len(result) == len(expected), f"Expected {len(expected)} rows, got {len(result)}"
+
+    # Convert results to comparable format
+    actual_rows = [_row_to_comparable(row) for row in result]
+    expected_rows = [_row_to_comparable(row) for row in expected]
+
+    # Check that all expected rows are present
+    for exp_row in expected_rows:
+        assert exp_row in actual_rows, f"Expected row not found: {exp_row}"
+
+
+@then("the result should be, in any order")
+def verify_result_any_order(tck_context, datatable):
+    """Verify query results match expected table (order doesn't matter) - without colon."""
+    result = tck_context["result"]
+
+    # Parse the data table (datatable is list of lists: [headers, row1, row2, ...])
+    expected = _parse_data_table(datatable)
 
     assert result is not None, "No result was produced"
     assert "error" not in result, f"Query error: {result.get('error')}"
@@ -85,12 +152,12 @@ def verify_result_any_order(tck_context, step):
 
 
 @then("the result should be, in order")
-def verify_result_in_order(tck_context, step):
+def verify_result_in_order(tck_context, datatable):
     """Verify query results match expected table (order matters)."""
     result = tck_context["result"]
 
-    # Parse the data table from the step
-    expected = _parse_data_table(step.table)
+    # Parse the data table (datatable is list of lists: [headers, row1, row2, ...])
+    expected = _parse_data_table(datatable)
 
     assert result is not None, "No result was produced"
     assert "error" not in result, f"Query error: {result.get('error')}"
@@ -122,72 +189,6 @@ def verify_no_side_effects(tck_context):
     pass
 
 
-def _execute_create_statements(graph: GraphForge, cypher_query: str):
-    """Parse and execute CREATE statements to build the graph.
-
-    This is a simplified parser for CREATE statements in the format:
-    CREATE (label {prop: value}), (...)
-
-    Note: This is not a full Cypher parser, just enough for TCK test setup.
-    """
-    # Remove CREATE keyword
-    query = cypher_query.replace("CREATE", "").strip()
-
-    # Split by top-level commas (not inside parentheses)
-    node_specs = []
-    current = ""
-    depth = 0
-    for char in query:
-        if char == "(":
-            depth += 1
-        elif char == ")":
-            depth -= 1
-        elif char == "," and depth == 0:
-            node_specs.append(current.strip())
-            current = ""
-            continue
-        current += char
-    if current.strip():
-        node_specs.append(current.strip())
-
-    # Parse each node specification
-    node_id = 1
-    for spec in node_specs:
-        spec = spec.strip().strip("()").strip()
-        if not spec:
-            continue
-
-        # Parse pattern: :Label {prop: value, ...} or :Label1:Label2 {prop: value}
-        labels = []
-        properties = {}
-
-        # Extract labels (start with :)
-        parts = spec.split("{", 1)
-        label_part = parts[0].strip()
-
-        if label_part:
-            labels = [l.strip() for l in label_part.split(":") if l.strip()]
-
-        # Extract properties
-        if len(parts) > 1:
-            prop_part = parts[1].rsplit("}", 1)[0].strip()
-            if prop_part:
-                # Parse key: value pairs
-                for pair in prop_part.split(","):
-                    if ":" in pair:
-                        key, value = pair.split(":", 1)
-                        key = key.strip()
-                        value = value.strip()
-
-                        # Parse value type
-                        properties[key] = _parse_value(value)
-
-        # Create node
-        node = NodeRef(
-            id=node_id, labels=frozenset(labels), properties=properties
-        )
-        graph.graph.add_node(node)
-        node_id += 1
 
 
 def _parse_value(value_str: str):
@@ -218,26 +219,26 @@ def _parse_value(value_str: str):
         return CypherString(value_str)
 
 
-def _parse_data_table(table) -> list[dict]:
-    """Parse expected result table from pytest-bdd table object.
+def _parse_data_table(datatable: list[list[str]]) -> list[dict]:
+    """Parse expected result table from pytest-bdd datatable.
 
     Args:
-        table: pytest-bdd table object with headers and rows
+        datatable: List of lists where first row is headers, subsequent rows are data
 
     Returns:
         List of dictionaries with parsed values
     """
-    if not table:
+    if not datatable or len(datatable) < 1:
         return []
 
-    # Get headers from table
-    headers = table.headings
+    # First row is headers
+    headers = datatable[0]
 
-    # Parse each row
+    # Parse each data row
     results = []
-    for row in table.rows:
+    for row in datatable[1:]:
         row_dict = {}
-        for header, value in zip(headers, row.cells):
+        for header, value in zip(headers, row):
             row_dict[header] = _parse_value(value)
         results.append(row_dict)
 

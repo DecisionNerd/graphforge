@@ -12,6 +12,7 @@ dependencies = [
   "pydantic>=2.6",
   "lark>=1.1",
   "msgpack>=1.0",
+  "pyyaml>=6.0.3",
 ]
 
 [project.optional-dependencies]
