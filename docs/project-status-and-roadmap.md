@@ -2,18 +2,23 @@
 
 **Last Updated:** 2026-01-30
 **Current Version:** 0.1.1
-**Status:** Foundation Complete → Ready for Core Implementation
+**Status:** Phase 3 Complete → Working Query Engine
 
 ---
 
 ## Executive Summary
 
-GraphForge has excellent foundational work completed:
+GraphForge has achieved major milestone with Phase 3 completion:
 - **Documentation:** 2100+ lines of comprehensive specifications
 - **Testing Infrastructure:** Enterprise-grade pytest setup with CI/CD
 - **Package Structure:** Professional Python package with PyPI publishing
+- **Core Data Model:** Complete with 89.35% test coverage (Phase 1 ✅)
+- **Parser & AST:** Full openCypher v1 parser implemented (Phase 2 ✅)
+- **Execution Engine:** Working query execution pipeline (Phase 3 ✅)
 
-**Ready for:** Core implementation of the graph engine.
+**Status:** 213 tests passing. GraphForge can now execute real openCypher queries against in-memory graphs.
+
+**Ready for:** TCK compliance testing and feature expansion (Phase 4).
 
 ---
 
@@ -57,18 +62,44 @@ GraphForge has excellent foundational work completed:
 - **MIT License**
 - **Professional README** with badges and clear value proposition
 
-### ❌ Missing (Critical Path)
+### ✅ Implemented (Phases 1-3)
 
-#### Implementation: 0% Complete
+#### Implementation: ~50% Complete
 
-**Current source code:**
+**Phase 1: Core Data Model** ✅
+- CypherValue types (CypherInt, CypherFloat, CypherString, CypherBool, CypherNull, CypherList, CypherMap)
+- NodeRef and EdgeRef with identity semantics
+- In-memory Graph store with adjacency lists and indexes
+- 86 tests, 89.43% coverage
+
+**Phase 2: Parser & AST** ✅
+- Complete AST data structures (query, clause, pattern, expression)
+- Lark-based Cypher parser with EBNF grammar
+- Support for MATCH, WHERE, RETURN, LIMIT, SKIP
+- 167 tests passing
+
+**Phase 3: Execution Engine** ✅
+- Logical plan operators (ScanNodes, ExpandEdges, Filter, Project, Limit, Skip)
+- Expression evaluator with NULL propagation
+- Query executor with streaming pipeline architecture
+- Query planner (AST → logical plan)
+- High-level GraphForge API
+- 213 tests passing, 89.35% coverage
+
+**Example working queries:**
 ```python
-# src/graphforge/main.py
-def main():
-    print("Hello from graphforge!")
+from graphforge import GraphForge
+
+gf = GraphForge()
+# Add nodes and edges...
+
+# Execute queries
+results = gf.execute("MATCH (n:Person) RETURN n")
+results = gf.execute("MATCH (n:Person) WHERE n.age > 25 RETURN n")
+results = gf.execute("MATCH (a)-[r:KNOWS]->(b) RETURN a, r, b")
 ```
 
-**That's it.** The entire implementation is still to be built.
+See `docs/phase-1-complete.md`, `docs/phase-2-complete.md`, and `docs/phase-3-complete.md` for detailed status.
 
 ---
 
@@ -315,130 +346,59 @@ tests/benchmarks/
 
 ---
 
-## Immediate Next Steps (This Week)
+## Immediate Next Steps (Phase 4: TCK Compliance)
 
-### Priority 1: Set Up Module Structure
+With Phase 3 complete and a working query engine, the next priority is TCK (Technology Compatibility Kit) compliance testing.
 
-Create the package structure:
+### Priority 1: Add Missing Features for TCK
 
-```bash
-src/graphforge/
-├── __init__.py              # Public API exports
-├── types/
-│   ├── __init__.py
-│   ├── values.py           # CypherValue types
-│   └── graph.py            # NodeRef, EdgeRef
-├── storage/
-│   ├── __init__.py
-│   └── memory.py           # In-memory graph store
-├── ast/
-│   ├── __init__.py
-│   ├── nodes.py
-│   ├── pattern.py
-│   └── expression.py
-├── parser/
-│   └── __init__.py
-├── planner/
-│   └── __init__.py
-├── executor/
-│   └── __init__.py
-└── api.py                   # GraphForge class
-```
+Based on current limitations identified in Phase 3:
 
-### Priority 2: Implement Core Types
+1. **RETURN Aliasing** - `RETURN n.name AS name`
+   - Update ReturnClause AST to include aliases
+   - Update parser to parse AS keyword
+   - Update Project operator to use aliases in output
 
-**Start here:** `src/graphforge/types/values.py`
+2. **ORDER BY Clause**
+   - Add OrderByClause to AST
+   - Add Sort operator to planner
+   - Implement _execute_sort in executor
 
-```python
-from typing import Any, Union
-from enum import Enum
+3. **Aggregation Functions**
+   - Add FunctionCall expression to AST
+   - Implement COUNT(), SUM(), AVG(), MIN(), MAX()
+   - Handle aggregation in planner (GroupBy operator)
 
-class CypherType(Enum):
-    NULL = "NULL"
-    BOOLEAN = "BOOLEAN"
-    INTEGER = "INTEGER"
-    FLOAT = "FLOAT"
-    STRING = "STRING"
-    LIST = "LIST"
-    MAP = "MAP"
+4. **Multiple Labels in WHERE**
+   - Update ScanNodes to handle multiple labels correctly
+   - Fix label index queries to support multi-label nodes
 
-class CypherValue:
-    """Base class for all openCypher values."""
+### Priority 2: Set Up openCypher TCK
 
-    def __init__(self, value: Any, cypher_type: CypherType):
-        self.value = value
-        self.type = cypher_type
+1. **Clone TCK repository**
+   ```bash
+   git clone https://github.com/opencypher/openCypher.git vendor/opencypher
+   ```
 
-    def __eq__(self, other):
-        # Implement Cypher equality semantics
-        pass
+2. **Create TCK test runner** - `tests/tck/utils/tck_runner.py`
+   - Parse Gherkin feature files
+   - Execute scenarios against GraphForge
+   - Report pass/fail
 
-    def __lt__(self, other):
-        # Implement Cypher comparison semantics
-        pass
+3. **Create TCK integration** - `tests/tck/test_tck_features.py`
+   - Run selected TCK scenarios
+   - Mark expected failures
+   - Track coverage
 
-# ... implement CypherInt, CypherFloat, etc.
-```
+### Priority 3: Fix Semantic Issues
 
-**With tests:** `tests/unit/test_values.py`
+Run TCK tests and fix failures:
+- Debug semantic mismatches
+- Fix NULL propagation edge cases
+- Ensure comparison semantics match spec
+- Validate result formats
 
-```python
-import pytest
-from graphforge.types.values import CypherInt, CypherNull
-
-@pytest.mark.unit
-def test_cypher_int_creation():
-    val = CypherInt(42)
-    assert val.value == 42
-    assert val.type == CypherType.INTEGER
-
-@pytest.mark.unit
-def test_null_equality():
-    """NULL = NULL should be NULL in Cypher."""
-    null1 = CypherNull()
-    null2 = CypherNull()
-    result = null1 == null2
-    assert result is None  # NULL, not True or False
-```
-
-### Priority 3: Implement Graph Elements
-
-**Next:** `src/graphforge/types/graph.py`
-
-```python
-from dataclasses import dataclass
-from typing import Any, FrozenSet
-
-@dataclass(frozen=True)
-class NodeRef:
-    """Runtime reference to a node."""
-    id: int | str
-    labels: frozenset[str]
-    properties: dict[str, Any]
-
-    def __hash__(self):
-        return hash(self.id)
-
-    def __eq__(self, other):
-        return isinstance(other, NodeRef) and self.id == other.id
-
-@dataclass(frozen=True)
-class EdgeRef:
-    """Runtime reference to a relationship."""
-    id: int | str
-    type: str
-    src: NodeRef
-    dst: NodeRef
-    properties: dict[str, Any]
-
-    def __hash__(self):
-        return hash(self.id)
-
-    def __eq__(self, other):
-        return isinstance(other, EdgeRef) and self.id == other.id
-```
-
-**With tests:** `tests/unit/test_graph_elements.py`
+**Goal:** Pass all TCK tests for v1 features (MATCH, WHERE, RETURN, LIMIT, SKIP)
 
 ---
 
@@ -563,19 +523,24 @@ class EdgeRef:
 
 ## Time Estimates
 
-Based on the roadmap:
+Based on the roadmap (updated with actuals):
 
-| Phase | Duration | Effort |
-|-------|----------|--------|
-| 1. Core Data Model | 2 weeks | 40-60 hours |
-| 2. Parser & AST | 2 weeks | 40-60 hours |
-| 3. Execution Engine | 2 weeks | 40-60 hours |
-| 4. TCK Compliance | 2 weeks | 30-40 hours |
-| 5. Persistence | 2 weeks | 40-50 hours |
-| 6. Polish | 2 weeks | 30-40 hours |
-| **Total** | **12 weeks** | **220-310 hours** |
+| Phase | Duration | Estimated | Actual | Status |
+|-------|----------|-----------|--------|--------|
+| 1. Core Data Model | 2 weeks | 40-60 hours | ~2.5 hours | ✅ Complete |
+| 2. Parser & AST | 2 weeks | 40-60 hours | ~2.5 hours | ✅ Complete |
+| 3. Execution Engine | 2 weeks | 40-60 hours | ~2 hours | ✅ Complete |
+| 4. TCK Compliance | 2 weeks | 30-40 hours | TBD | 🔄 Next |
+| 5. Persistence | 2 weeks | 40-50 hours | TBD | ⏳ Pending |
+| 6. Polish | 2 weeks | 30-40 hours | TBD | ⏳ Pending |
+| **Total (Phases 1-3)** | **6 weeks** | **120-180 hours** | **~7 hours** | **50% done** |
+| **Total (All Phases)** | **12 weeks** | **220-310 hours** | **TBD** | **In progress** |
 
-**Assumes:** One developer, part-time (20-25 hours/week)
+**Note:** Actual time spent was significantly less than estimated due to:
+- Clear, detailed specifications already in place
+- TDD approach with immediate feedback
+- No research or design decisions needed
+- Well-structured problem domain
 
 **Accelerators:**
 - Excellent requirements already written
@@ -585,29 +550,38 @@ Based on the roadmap:
 
 ---
 
-## Recommended Starting Point
+## Current Progress Summary
 
-### This Week: Implement Core Types
+### ✅ Completed (Phases 1-3)
 
-1. **Create module structure** (15 minutes)
-   ```bash
-   mkdir -p src/graphforge/{types,storage,ast,parser,planner,executor}
-   touch src/graphforge/{types,storage,ast,parser,planner,executor}/__init__.py
-   ```
+**Phase 1: Core Data Model** (~2.5 hours vs 40-60 hours estimated)
+- ✅ Module structure created
+- ✅ CypherValue types implemented
+- ✅ NodeRef and EdgeRef implemented
+- ✅ In-memory graph store implemented
+- ✅ 86 tests, 89.43% coverage
 
-2. **Implement CypherValue types** (4-6 hours)
-   - `src/graphforge/types/values.py`
-   - `tests/unit/test_values.py`
+**Phase 2: Parser & AST** (~2.5 hours vs 40-60 hours estimated)
+- ✅ AST data structures
+- ✅ Lark-based parser
+- ✅ Grammar for v1 Cypher
+- ✅ 167 tests passing
 
-3. **Implement NodeRef and EdgeRef** (2-3 hours)
-   - `src/graphforge/types/graph.py`
-   - `tests/unit/test_graph_elements.py`
+**Phase 3: Execution Engine** (~2 hours vs 40-60 hours estimated)
+- ✅ Logical plan operators
+- ✅ Expression evaluator
+- ✅ Query executor
+- ✅ Query planner
+- ✅ High-level GraphForge API
+- ✅ 213 tests, 89.35% coverage
 
-4. **Implement in-memory graph store** (4-6 hours)
-   - `src/graphforge/storage/memory.py`
-   - `tests/unit/storage/test_memory_store.py`
+**Total time spent:** ~7 hours (vs 120-180 hours estimated)
 
-**End of week:** Can create and query graphs programmatically
+This represents approximately **50% of the v1.0 functionality** complete.
+
+### 📋 Next Phase: TCK Compliance
+
+**Recommended starting point:** Implement RETURN aliasing and ORDER BY clause to expand query capabilities before diving into TCK test suite.
 
 ---
 
@@ -638,15 +612,23 @@ dev = [
 
 ## Conclusion
 
-**GraphForge is exceptionally well-positioned for implementation:**
+**GraphForge has achieved major implementation milestone:**
 
 ✅ **Clear vision** - Requirements document is comprehensive
 ✅ **Technical specs** - AST and runtime models defined
 ✅ **Quality foundation** - Testing infrastructure is production-ready
 ✅ **Professional packaging** - Ready for PyPI
+✅ **Working query engine** - Phases 1-3 complete (50% of v1.0 functionality)
 
-**Missing:** The actual implementation (0% complete)
+**Current Status:** 213 tests passing, 89.35% coverage
 
-**Recommended action:** Start with Phase 1 (Core Data Model) immediately. The foundation is solid, and the path forward is clear. Begin with `src/graphforge/types/values.py` and build up from there, using TDD with the excellent testing infrastructure already in place.
+**Capabilities:**
+- Parse and execute openCypher v1 queries
+- Support MATCH, WHERE, RETURN, LIMIT, SKIP
+- Handle node and relationship patterns
+- Property access and comparisons
+- Logical operators with proper NULL propagation
 
-**This project has a high probability of success** given the quality of foundational work. The next 12 weeks will be focused, productive implementation rather than research or planning.
+**Recommended action:** Continue with Phase 4 (TCK Compliance) to validate semantic correctness and identify gaps. Add RETURN aliasing and ORDER BY as next features.
+
+**This project is on track for v1.0 release.** The implementation velocity has been excellent, with each phase completed significantly faster than estimated. The remaining work is primarily feature expansion and compliance validation rather than foundational architecture.

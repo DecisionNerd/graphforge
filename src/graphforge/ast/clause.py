@@ -1,0 +1,112 @@
+"""Clause AST nodes for openCypher queries.
+
+This module defines the major query clauses:
+- MatchClause: MATCH patterns
+- WhereClause: WHERE predicates
+- ReturnClause: RETURN projections
+- LimitClause: LIMIT row count
+- SkipClause: SKIP offset
+"""
+
+from dataclasses import dataclass
+from typing import Any
+
+
+@dataclass
+class MatchClause:
+    """MATCH clause for pattern matching.
+
+    Examples:
+        MATCH (n:Person)
+        MATCH (a)-[r:KNOWS]->(b)
+    """
+
+    patterns: list[Any]  # List of NodePattern or RelationshipPattern
+
+
+@dataclass
+class WhereClause:
+    """WHERE clause for filtering.
+
+    Examples:
+        WHERE n.age > 30
+        WHERE n.name = "Alice" AND n.age < 50
+    """
+
+    predicate: Any  # Expression
+
+
+@dataclass
+class ReturnItem:
+    """A single return item with optional alias.
+
+    Examples:
+        n (no alias)
+        n.name AS name (with alias)
+    """
+
+    expression: Any  # Expression to evaluate
+    alias: str | None = None  # Optional alias
+
+
+@dataclass
+class ReturnClause:
+    """RETURN clause for projection.
+
+    Examples:
+        RETURN n
+        RETURN n.name AS name, n.age AS age
+        RETURN count(n) AS count
+    """
+
+    items: list[ReturnItem]  # List of ReturnItems
+
+
+@dataclass
+class LimitClause:
+    """LIMIT clause for limiting result rows.
+
+    Examples:
+        LIMIT 10
+        LIMIT 100
+    """
+
+    count: int
+
+
+@dataclass
+class SkipClause:
+    """SKIP clause for offsetting results.
+
+    Examples:
+        SKIP 5
+        SKIP 20
+    """
+
+    count: int
+
+
+@dataclass
+class OrderByItem:
+    """A single ORDER BY item with direction.
+
+    Examples:
+        n.name (default ASC)
+        n.age DESC
+    """
+
+    expression: Any  # Expression to sort by
+    ascending: bool = True  # True for ASC, False for DESC
+
+
+@dataclass
+class OrderByClause:
+    """ORDER BY clause for sorting results.
+
+    Examples:
+        ORDER BY n.name
+        ORDER BY n.age DESC
+        ORDER BY n.age DESC, n.name ASC
+    """
+
+    items: list[OrderByItem]  # List of OrderByItems

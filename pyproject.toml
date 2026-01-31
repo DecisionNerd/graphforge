@@ -10,6 +10,7 @@ keywords = ["graph", "opencypher", "pydantic", "analysis"]
 
 dependencies = [
   "pydantic>=2.6",
+  "lark>=1.1",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +20,7 @@ dev = [
     "pytest-xdist>=3.0",
     "pytest-timeout>=2.0",
     "pytest-mock>=3.0",
+    "pytest-bdd>=7.0",
     "hypothesis>=6.0",
     "ruff>=0.1.0",
 ]
@@ -98,3 +100,8 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "htmlcov"
+
+[dependency-groups]
+dev = [
+    "pytest-bdd>=8.1.0",
+]
