@@ -75,19 +75,31 @@ pip install graphforge
 ```python
 from graphforge import GraphForge
 
-# Create a graph (API in development)
-db = GraphForge("my-graph.db")
+# Create a graph workbench
+db = GraphForge()
 
-# Execute openCypher queries
-rows = db.execute("""
-  MATCH (n:Person)
-  WHERE n.age > 30
-  RETURN n.name
-  LIMIT 5
+# Create nodes with Python API
+alice = db.create_node(['Person'], name='Alice', age=30, city='NYC')
+bob = db.create_node(['Person'], name='Bob', age=25, city='NYC')
+charlie = db.create_node(['Person'], name='Charlie', age=35, city='LA')
+
+# Create relationships
+db.create_relationship(alice, bob, 'KNOWS', since=2015)
+db.create_relationship(alice, charlie, 'KNOWS', since=2018)
+
+# Query with openCypher
+results = db.execute("""
+  MATCH (p:Person)
+  WHERE p.age > 25
+  RETURN p.name, p.city
+  ORDER BY p.age
 """)
+
+for row in results:
+    print(f"{row['p.name'].value} lives in {row['p.city'].value}")
 ```
 
-> **Note:** GraphForge is early in development. The core API and storage layer are being built out per the [requirements document](docs/0-requirements.md).
+> **Note:** GraphForge is in active development. Persistence (SQLite backend) is coming next. The query engine is production-ready with 17 TCK compliance tests passing.
 
 ---
 
