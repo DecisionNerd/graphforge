@@ -23,13 +23,13 @@
 
 Modern data science and ML workflows increasingly produce **graph-shaped data**—entities and relationships extracted from text, tables, and LLM outputs. Yet practitioners face a painful choice:
 
-| | NetworkX | Production DBs (Neo4j, Memgraph) |
-|:---|:---|:---|
-| **Durability** | Manual serialization only | ✓ Persistent |
-| **Query language** | None | Cypher |
-| **Operational overhead** | Minimal | High (services, config) |
-| **Notebook-friendly** | ✓ | ✗ |
-| **Iterative analysis** | ✓ | Poor |
+| | NetworkX | GraphForge | Production DBs (Neo4j, Memgraph) |
+|:---|:---|:---|:---|
+| **Durability** | Manual serialization | ✓ SQLite backend | ✓ Persistent |
+| **Query language** | None | openCypher subset | Full Cypher |
+| **Operational overhead** | Minimal | Minimal (embedded) | High (services, config) |
+| **Notebook-friendly** | ✓ | ✓ | ✗ |
+| **Iterative analysis** | ✓ | ✓ | Poor |
 
 **GraphForge** fills the gap—embedded, durable, and declarative—without running external services.
 
@@ -46,13 +46,20 @@ Modern data science and ML workflows increasingly produce **graph-shaped data**�
 - **Durable but disposable** — Persist graphs across restarts; treat them as analytical artifacts.
 - **Python-first** — Designed for notebooks, scripts, and agentic pipelines.
 
-### Planned v1 Scope
+### Current Features
 
-- **MATCH** (nodes, relationships, directionality)
-- **WHERE** (boolean logic, comparisons, property access)
-- **RETURN**, **LIMIT**, **SKIP**
-- Node and relationship materialization
+- **MATCH** (nodes, relationships, directionality) ✓
+- **WHERE** (boolean logic, comparisons, property access) ✓
+- **RETURN**, **LIMIT**, **SKIP**, **ORDER BY** ✓
+- **Aggregations** (COUNT, SUM, AVG, MIN, MAX) ✓
+- **Python builder API** for graph construction ✓
+- **SQLite persistence** with WAL mode ✓
+
+### Planned v1 Additions
+
+- **CREATE**, **SET**, **DELETE**, **MERGE** (Cypher mutations)
 - Optional Pydantic-backed data models for validation
+- Transaction support with rollback
 
 ---
 
@@ -99,7 +106,22 @@ for row in results:
     print(f"{row['p.name'].value} lives in {row['p.city'].value}")
 ```
 
-> **Note:** GraphForge is in active development. Persistence (SQLite backend) is coming next. The query engine is production-ready with 17 TCK compliance tests passing.
+**Persistence:** Graphs can persist across sessions using SQLite:
+
+```python
+# Create persistent graph
+db = GraphForge("my-graph.db")
+
+# ... create nodes and relationships ...
+
+# Save to disk
+db.close()
+
+# Later: load the same graph
+db = GraphForge("my-graph.db")  # All data is still there
+```
+
+> **Note:** GraphForge is in active development. The query engine is production-ready with 17 TCK compliance tests passing. SQLite persistence is now available.
 
 ---
 

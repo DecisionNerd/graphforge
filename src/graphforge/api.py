@@ -9,6 +9,7 @@ from graphforge.executor.executor import QueryExecutor
 from graphforge.parser.parser import CypherParser
 from graphforge.planner.planner import QueryPlanner
 from graphforge.storage.memory import Graph
+from graphforge.storage.sqlite_backend import SQLiteBackend
 from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,
@@ -41,18 +42,44 @@ class GraphForge:
         """Initialize GraphForge.
 
         Args:
-            path: Optional path to persistent storage (not yet implemented)
+            path: Optional path to persistent storage (SQLite database file)
                   If None, uses in-memory storage.
+                  If provided, loads existing graph or creates new database.
+
+        Examples:
+            >>> # In-memory graph (lost on exit)
+            >>> gf = GraphForge()
+
+            >>> # Persistent graph (saved to disk)
+            >>> gf = GraphForge("my-graph.db")
+            >>> # ... create nodes ...
+            >>> gf.close()  # Save to disk
+
+            >>> # Later, load the graph
+            >>> gf = GraphForge("my-graph.db")  # Graph is still there
         """
-        # For now, always use in-memory storage
-        self.graph = Graph()
+        # Initialize storage backend
+        if path:
+            # Use SQLite for persistence
+            self.backend = SQLiteBackend(Path(path))
+            self.graph = self._load_graph_from_backend()
+            # Set next IDs based on existing data
+            self._next_node_id = self.backend.get_next_node_id()
+            self._next_edge_id = self.backend.get_next_edge_id()
+        else:
+            # Use in-memory storage
+            self.backend = None
+            self.graph = Graph()
+            self._next_node_id = 1
+            self._next_edge_id = 1
+
+        # Track if database has been closed
+        self._closed = False
+
+        # Initialize query execution components
         self.parser = CypherParser()
         self.planner = QueryPlanner()
         self.executor = QueryExecutor(self.graph)
-
-        # ID generation for nodes and edges
-        self._next_node_id = 1
-        self._next_edge_id = 1
 
     def execute(self, query: str) -> list[dict]:
         """Execute an openCypher query.
@@ -207,3 +234,68 @@ class GraphForge:
             f"Unsupported property value type: {type(value).__name__}. "
             f"Supported types: str, int, float, bool, None, list, dict"
         )
+
+    def close(self):
+        """Save graph and close database.
+
+        If using SQLite backend, saves all nodes and edges to disk and
+        commits the transaction. Safe to call multiple times.
+
+        Examples:
+            >>> gf = GraphForge("my-graph.db")
+            >>> # ... create nodes and edges ...
+            >>> gf.close()  # Save to disk
+        """
+        if self.backend and not self._closed:
+            self._save_graph_to_backend()
+            self.backend.close()
+            self._closed = True
+
+    def _load_graph_from_backend(self) -> Graph:
+        """Load graph from SQLite backend.
+
+        Returns:
+            Graph instance populated with nodes and edges from database
+        """
+        graph = Graph()
+
+        # Load all nodes
+        nodes = self.backend.load_all_nodes()
+        node_map = {}  # Map node_id to NodeRef
+
+        for node in nodes:
+            graph.add_node(node)
+            node_map[node.id] = node
+
+        # Load all edges (returns dict of edge data)
+        edges_data = self.backend.load_all_edges()
+
+        # Reconstruct EdgeRef instances with actual NodeRef objects
+        for edge_id, (edge_type, src_id, dst_id, properties) in edges_data.items():
+            src_node = node_map[src_id]
+            dst_node = node_map[dst_id]
+
+            edge = EdgeRef(
+                id=edge_id,
+                type=edge_type,
+                src=src_node,
+                dst=dst_node,
+                properties=properties,
+            )
+
+            graph.add_edge(edge)
+
+        return graph
+
+    def _save_graph_to_backend(self):
+        """Save graph to SQLite backend."""
+        # Save all nodes
+        for node in self.graph.get_all_nodes():
+            self.backend.save_node(node)
+
+        # Save all edges
+        for edge in self.graph.get_all_edges():
+            self.backend.save_edge(edge)
+
+        # Commit transaction
+        self.backend.commit()
