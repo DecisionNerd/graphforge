@@ -3,12 +3,13 @@
 This module converts parsed AST into executable logical plans.
 """
 
-from graphforge.ast.clause import LimitClause, MatchClause, OrderByClause, ReturnClause, SkipClause, WhereClause
+from graphforge.ast.clause import CreateClause, LimitClause, MatchClause, OrderByClause, ReturnClause, SkipClause, WhereClause
 from graphforge.ast.expression import FunctionCall
 from graphforge.ast.pattern import Direction, NodePattern, RelationshipPattern
 from graphforge.ast.query import CypherQuery
 from graphforge.planner.operators import (
     Aggregate,
+    Create,
     ExpandEdges,
     Filter,
     Limit,
@@ -40,6 +41,7 @@ class QueryPlanner:
         """
         # Collect clauses by type
         match_clauses = []
+        create_clauses = []
         where_clause = None
         return_clause = None
         order_by_clause = None
@@ -49,6 +51,8 @@ class QueryPlanner:
         for clause in ast.clauses:
             if isinstance(clause, MatchClause):
                 match_clauses.append(clause)
+            elif isinstance(clause, CreateClause):
+                create_clauses.append(clause)
             elif isinstance(clause, WhereClause):
                 where_clause = clause
             elif isinstance(clause, ReturnClause):
@@ -67,17 +71,21 @@ class QueryPlanner:
         for match in match_clauses:
             operators.extend(self._plan_match(match))
 
-        # 2. WHERE
+        # 2. CREATE
+        for create in create_clauses:
+            operators.append(Create(patterns=create.patterns))
+
+        # 3. WHERE
         if where_clause:
             operators.append(Filter(predicate=where_clause.predicate))
 
-        # 3. ORDER BY (before projection!)
+        # 4. ORDER BY (before projection!)
         if order_by_clause:
             # Pass return_items to Sort so it can resolve RETURN aliases
             return_items = return_clause.items if return_clause else None
             operators.append(Sort(items=order_by_clause.items, return_items=return_items))
 
-        # 4. RETURN
+        # 5. RETURN
         if return_clause:
             # Check if RETURN contains aggregations
             has_aggregates = self._has_aggregations(return_clause)
@@ -95,7 +103,7 @@ class QueryPlanner:
                 # Use simple Project operator
                 operators.append(Project(items=return_clause.items))
 
-        # 5. SKIP/LIMIT
+        # 6. SKIP/LIMIT
         if skip_clause:
             operators.append(Skip(count=skip_clause.count))
         if limit_clause:

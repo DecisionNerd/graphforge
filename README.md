@@ -52,13 +52,15 @@ Modern data science and ML workflows increasingly produce **graph-shaped data**�
 - **WHERE** (boolean logic, comparisons, property access) ✓
 - **RETURN**, **LIMIT**, **SKIP**, **ORDER BY** ✓
 - **Aggregations** (COUNT, SUM, AVG, MIN, MAX) ✓
+- **CREATE** clause for creating nodes and relationships ✓
 - **Python builder API** for graph construction ✓
 - **SQLite persistence** with WAL mode ✓
 - **ACID transactions** with begin/commit/rollback ✓
 
 ### Planned v1 Additions
 
-- **CREATE**, **SET**, **DELETE**, **MERGE** (Cypher mutations)
+- **SET**, **DELETE**, **MERGE** (additional Cypher mutations)
+- **MATCH-CREATE** combinations for connecting existing nodes
 - Optional Pydantic-backed data models for validation
 
 ---
@@ -104,6 +106,19 @@ results = db.execute("""
 
 for row in results:
     print(f"{row['p.name'].value} lives in {row['p.city'].value}")
+```
+
+**Or use Cypher CREATE:**
+
+```python
+# Create nodes and relationships with Cypher
+db.execute("CREATE (a:Person {name: 'Alice', age: 30})")
+db.execute("CREATE (b:Person {name: 'Bob', age: 25})")
+db.execute("CREATE (a:Person {name: 'Alice'})-[r:KNOWS {since: 2015}]->(b:Person {name: 'Bob'})")
+
+# Query with RETURN
+results = db.execute("CREATE (n:Person {name: 'Charlie'}) RETURN n.name AS name")
+print(results[0]['name'].value)  # Charlie
 ```
 
 **Persistence:** Graphs can persist across sessions using SQLite:

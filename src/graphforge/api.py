@@ -83,7 +83,7 @@ class GraphForge:
         # Initialize query execution components
         self.parser = CypherParser()
         self.planner = QueryPlanner()
-        self.executor = QueryExecutor(self.graph)
+        self.executor = QueryExecutor(self.graph, graphforge=self)
 
     def execute(self, query: str) -> list[dict]:
         """Execute an openCypher query.

@@ -2,6 +2,7 @@
 
 This module defines the major query clauses:
 - MatchClause: MATCH patterns
+- CreateClause: CREATE patterns
 - WhereClause: WHERE predicates
 - ReturnClause: RETURN projections
 - LimitClause: LIMIT row count
@@ -19,6 +20,18 @@ class MatchClause:
     Examples:
         MATCH (n:Person)
         MATCH (a)-[r:KNOWS]->(b)
+    """
+
+    patterns: list[Any]  # List of NodePattern or RelationshipPattern
+
+
+@dataclass
+class CreateClause:
+    """CREATE clause for creating graph elements.
+
+    Examples:
+        CREATE (n:Person {name: 'Alice'})
+        CREATE (a)-[r:KNOWS]->(b)
     """
 
     patterns: list[Any]  # List of NodePattern or RelationshipPattern

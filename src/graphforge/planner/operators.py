@@ -7,6 +7,7 @@ This module defines the operators used in logical query plans:
 - Project: Select return items
 - Limit: Limit result rows
 - Skip: Skip result rows
+- Create: Create nodes and relationships
 """
 
 from dataclasses import dataclass
@@ -128,3 +129,16 @@ class Aggregate:
     grouping_exprs: list[Any]  # List of non-aggregate expressions
     agg_exprs: list[Any]  # List of FunctionCall nodes
     return_items: list[Any]  # List of ReturnItems
+
+
+@dataclass
+class Create:
+    """Operator for creating graph elements.
+
+    Creates nodes and relationships from patterns.
+
+    Attributes:
+        patterns: List of patterns to create (from CREATE clause)
+    """
+
+    patterns: list[Any]  # List of node and relationship patterns to create

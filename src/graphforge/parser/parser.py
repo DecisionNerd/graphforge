@@ -9,6 +9,7 @@ from pathlib import Path
 from lark import Lark, Token, Transformer
 
 from graphforge.ast.clause import (
+    CreateClause,
     LimitClause,
     MatchClause,
     OrderByClause,
@@ -35,6 +36,15 @@ class ASTTransformer(Transformer):
     # Query
     def query(self, items):
         """Transform query rule."""
+        # Items already contain clauses from read_query or write_query
+        return items[0] if len(items) == 1 else CypherQuery(clauses=list(items))
+
+    def read_query(self, items):
+        """Transform read query (MATCH with optional clauses)."""
+        return CypherQuery(clauses=list(items))
+
+    def write_query(self, items):
+        """Transform write query (CREATE with optional RETURN)."""
         return CypherQuery(clauses=list(items))
 
     # Clauses
@@ -42,6 +52,11 @@ class ASTTransformer(Transformer):
         """Transform MATCH clause."""
         patterns = [item for item in items if not isinstance(item, str)]
         return MatchClause(patterns=patterns)
+
+    def create_clause(self, items):
+        """Transform CREATE clause."""
+        patterns = [item for item in items if not isinstance(item, str)]
+        return CreateClause(patterns=patterns)
 
     def where_clause(self, items):
         """Transform WHERE clause."""

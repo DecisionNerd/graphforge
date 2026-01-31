@@ -8,6 +8,7 @@ from graphforge.ast.expression import FunctionCall
 from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
 from graphforge.planner.operators import (
     Aggregate,
+    Create,
     ExpandEdges,
     Filter,
     Limit,
@@ -27,13 +28,15 @@ class QueryExecutor:
     each stage of the query.
     """
 
-    def __init__(self, graph: Graph):
+    def __init__(self, graph: Graph, graphforge=None):
         """Initialize executor with a graph.
 
         Args:
             graph: The graph to query
+            graphforge: Optional GraphForge instance for CREATE operations
         """
         self.graph = graph
+        self.graphforge = graphforge
 
     def execute(self, operators: list) -> list[dict]:
         """Execute a pipeline of operators.
@@ -86,6 +89,9 @@ class QueryExecutor:
 
         if isinstance(op, Aggregate):
             return self._execute_aggregate(op, input_rows)
+
+        if isinstance(op, Create):
+            return self._execute_create(op, input_rows)
 
         raise TypeError(f"Unknown operator type: {type(op).__name__}")
 
@@ -472,3 +478,127 @@ class QueryExecutor:
             return max_val
 
         raise ValueError(f"Unknown aggregation function: {func_name}")
+
+    def _execute_create(self, op: Create, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+        """Execute CREATE operator.
+
+        Creates nodes and relationships from patterns.
+
+        Args:
+            op: Create operator with patterns
+            input_rows: Input execution contexts
+
+        Returns:
+            Execution contexts with created elements bound to variables
+        """
+        if not self.graphforge:
+            raise RuntimeError("CREATE requires GraphForge instance")
+
+        from graphforge.ast.pattern import NodePattern, RelationshipPattern
+
+        result = []
+
+        # Process each input row (usually just one for CREATE)
+        for ctx in input_rows:
+            new_ctx = ExecutionContext()
+            new_ctx.bindings = ctx.bindings.copy()
+
+            # Process each pattern
+            for pattern in op.patterns:
+                if not pattern:
+                    continue
+
+                # Handle simple node pattern: CREATE (n:Person {name: 'Alice'})
+                if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
+                    node_pattern = pattern[0]
+                    node = self._create_node_from_pattern(node_pattern, new_ctx)
+                    if node_pattern.variable:
+                        new_ctx.bindings[node_pattern.variable] = node
+
+                # Handle node-relationship-node pattern: CREATE (a)-[r:KNOWS]->(b)
+                elif len(pattern) >= 3:
+                    # First node
+                    if isinstance(pattern[0], NodePattern):
+                        src_pattern = pattern[0]
+                        # Check if variable already bound (for connecting existing nodes)
+                        if src_pattern.variable and src_pattern.variable in new_ctx.bindings:
+                            src_node = new_ctx.bindings[src_pattern.variable]
+                        else:
+                            src_node = self._create_node_from_pattern(src_pattern, new_ctx)
+                            if src_pattern.variable:
+                                new_ctx.bindings[src_pattern.variable] = src_node
+
+                    # Relationship and destination node
+                    if len(pattern) >= 3 and isinstance(pattern[1], RelationshipPattern):
+                        rel_pattern = pattern[1]
+                        dst_pattern = pattern[2]
+
+                        # Check if destination variable already bound
+                        if dst_pattern.variable and dst_pattern.variable in new_ctx.bindings:
+                            dst_node = new_ctx.bindings[dst_pattern.variable]
+                        else:
+                            dst_node = self._create_node_from_pattern(dst_pattern, new_ctx)
+                            if dst_pattern.variable:
+                                new_ctx.bindings[dst_pattern.variable] = dst_node
+
+                        # Create relationship
+                        rel_type = rel_pattern.types[0] if rel_pattern.types else "RELATED_TO"
+                        edge = self._create_relationship_from_pattern(
+                            src_node, dst_node, rel_type, rel_pattern, new_ctx
+                        )
+                        if rel_pattern.variable:
+                            new_ctx.bindings[rel_pattern.variable] = edge
+
+            result.append(new_ctx)
+
+        return result
+
+    def _create_node_from_pattern(self, node_pattern, ctx: ExecutionContext):
+        """Create a node from a NodePattern.
+
+        Args:
+            node_pattern: NodePattern from AST
+            ctx: Execution context for evaluating property expressions
+
+        Returns:
+            Created NodeRef
+        """
+        # Extract labels
+        labels = list(node_pattern.labels) if node_pattern.labels else []
+
+        # Extract and evaluate properties
+        properties = {}
+        if node_pattern.properties:
+            for key, value_expr in node_pattern.properties.items():
+                # Evaluate the expression to get the value
+                cypher_value = evaluate_expression(value_expr, ctx)
+                properties[key] = cypher_value.value
+
+        # Create node using GraphForge API
+        node = self.graphforge.create_node(labels, **properties)
+        return node
+
+    def _create_relationship_from_pattern(self, src_node, dst_node, rel_type, rel_pattern, ctx: ExecutionContext):
+        """Create a relationship from a RelationshipPattern.
+
+        Args:
+            src_node: Source NodeRef
+            dst_node: Destination NodeRef
+            rel_type: Relationship type string
+            rel_pattern: RelationshipPattern from AST
+            ctx: Execution context for evaluating property expressions
+
+        Returns:
+            Created EdgeRef
+        """
+        # Extract and evaluate properties
+        properties = {}
+        if hasattr(rel_pattern, 'properties') and rel_pattern.properties:
+            for key, value_expr in rel_pattern.properties.items():
+                # Evaluate the expression to get the value
+                cypher_value = evaluate_expression(value_expr, ctx)
+                properties[key] = cypher_value.value
+
+        # Create relationship using GraphForge API
+        edge = self.graphforge.create_relationship(src_node, dst_node, rel_type, **properties)
+        return edge
