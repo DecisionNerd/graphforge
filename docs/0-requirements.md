@@ -269,13 +269,29 @@ Query planning MAY be rule-based; cost-based planning is out of scope.
 
 ## 9. Storage Engine Requirements
 
+### 9.1 Implementation Approach
+
+The storage layer SHALL use **SQLite** as the persistence backend.
+
+**Rationale:**
+- SQLite provides ACID transactions, WAL mode, and crash recovery out-of-the-box
+- Zero operational overhead (embedded, single-file, zero-config)
+- Battle-tested durability (20+ years, billions of deployments)
+- Cross-platform compatibility with no external dependencies
+- Aligns with "mirrors SQLite" design philosophy
+- Allows focus on openCypher execution rather than storage implementation
+
+See `docs/storage-architecture-analysis.md` for detailed analysis.
+
+### 9.2 Storage Requirements
+
 The storage layer MUST:
-- Be durable across crashes
-- Support atomic commits
-- Use WAL or equivalent journaling
-- Support snapshot isolation for readers
-- Store adjacency lists explicitly
-- Preserve stable internal IDs
+- Be durable across crashes (SQLite WAL mode)
+- Support atomic commits (SQLite transactions)
+- Use WAL journaling (SQLite `PRAGMA journal_mode=WAL`)
+- Support snapshot isolation for readers (SQLite WAL mode)
+- Store adjacency lists explicitly (graph-specific schema design)
+- Preserve stable internal IDs (application-managed ID generation)
 
 The storage engine MUST remain opaque to Cypher semantics.
 

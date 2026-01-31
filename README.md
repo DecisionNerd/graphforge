@@ -98,6 +98,16 @@ rows = db.execute("""
 - **Inspectable** — Query plans, storage layout, and execution behavior are observable.
 - **Replaceable internals** — Minimal operational overhead, stable APIs.
 
+## Architecture
+
+GraphForge is built on:
+- **Parser:** Lark-based openCypher parser with full AST generation
+- **Planner:** Logical plan generation (ScanNodes, ExpandEdges, Filter, Project, Sort, Aggregate)
+- **Executor:** Pipeline-based query execution with streaming rows
+- **Storage:** SQLite backend with WAL mode for ACID guarantees and zero-config durability
+
+The architecture prioritizes correctness and developer experience over raw performance, with all components designed to be testable, inspectable, and replaceable.
+
 ---
 
 ## Links

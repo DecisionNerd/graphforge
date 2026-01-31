@@ -2,23 +2,30 @@
 
 **Last Updated:** 2026-01-30
 **Current Version:** 0.1.1
-**Status:** Phase 3 Complete → Working Query Engine
+**Status:** Phase 4 Complete → TCK-Compliant Query Engine
 
 ---
 
 ## Executive Summary
 
-GraphForge has achieved major milestone with Phase 3 completion:
-- **Documentation:** 2100+ lines of comprehensive specifications
+GraphForge has achieved a major architectural milestone with Phase 4 completion:
+- **Documentation:** 2,100+ lines of comprehensive specifications + architecture docs
 - **Testing Infrastructure:** Enterprise-grade pytest setup with CI/CD
 - **Package Structure:** Professional Python package with PyPI publishing
-- **Core Data Model:** Complete with 89.35% test coverage (Phase 1 ✅)
-- **Parser & AST:** Full openCypher v1 parser implemented (Phase 2 ✅)
+- **Core Data Model:** Complete with 89% test coverage (Phase 1 ✅)
+- **Parser & AST:** Full openCypher v1+ parser implemented (Phase 2 ✅)
 - **Execution Engine:** Working query execution pipeline (Phase 3 ✅)
+- **TCK Compliance:** 17 TCK tests passing, strict semantic validation (Phase 4 ✅)
+- **Storage Architecture:** SQLite backend decision finalized (documented)
 
-**Status:** 213 tests passing. GraphForge can now execute real openCypher queries against in-memory graphs.
+**Status:** 267 tests passing (100%). GraphForge can execute openCypher queries with:
+- MATCH, WHERE, RETURN with aliasing
+- ORDER BY (multi-key, ASC/DESC, alias references)
+- Aggregation (COUNT, SUM, AVG, MIN, MAX with implicit GROUP BY)
+- SKIP, LIMIT
+- Strict openCypher semantics (TCK validated)
 
-**Ready for:** TCK compliance testing and feature expansion (Phase 4).
+**Next:** Phase 5 - SQLite persistence implementation (30 hours estimated).
 
 ---
 
@@ -276,41 +283,80 @@ class GraphForge:
 ---
 
 ### Phase 5: Persistence Layer (Week 9-10)
-**Goal:** Durable storage with ACID properties
+**Goal:** Durable storage with ACID properties using SQLite
 
-#### 5.1 Storage Engine (`src/graphforge/storage/`)
+#### 5.1 Architecture Decision: SQLite
+
+**Decision:** Use SQLite as the storage backend (see `docs/storage-architecture-analysis.md`)
+
+**Rationale:**
+- Provides ACID, WAL mode, crash recovery out-of-the-box
+- Battle-tested (20+ years, billions of deployments)
+- Zero operational overhead (embedded, zero-config)
+- Aligns with "mirrors SQLite" design philosophy
+- 20-30 hours implementation vs 120-175 hours for custom WAL
+- Allows focus on openCypher features
+
+#### 5.2 Storage Implementation (`src/graphforge/storage/`)
 ```python
-- backend.py       # Storage backend interface
-- sqlite_backend.py # SQLite-based implementation
-- wal.py           # Write-ahead logging
-- transaction.py   # Transaction management
+- backend.py        # Storage backend interface (Protocol)
+- sqlite_backend.py # SQLite implementation (default)
+- schema.py         # Graph-specific SQLite schema
+- serialization.py  # CypherValue <-> bytes conversion
 ```
 
-**Design Options:**
+**SQLite Schema Design:**
+```sql
+CREATE TABLE nodes (
+    id INTEGER PRIMARY KEY,
+    labels BLOB,      -- MessagePack serialized set
+    properties BLOB   -- MessagePack serialized dict
+);
 
-**Option A:** SQLite as KV store
-- Store nodes/edges as blobs
-- Use SQLite transactions
-- ✅ Simple, reliable
-- ✅ Cross-platform
-- ❌ Not optimized for graphs
+CREATE TABLE edges (
+    id INTEGER PRIMARY KEY,
+    type TEXT,
+    src_id INTEGER,
+    dst_id INTEGER,
+    properties BLOB,
+    FOREIGN KEY (src_id) REFERENCES nodes(id),
+    FOREIGN KEY (dst_id) REFERENCES nodes(id)
+);
 
-**Option B:** Custom file format
-- Binary format with adjacency lists
-- Custom WAL
-- ✅ Optimized for graphs
-- ❌ More complexity
-- ❌ More bugs
+CREATE TABLE adjacency_out (
+    node_id INTEGER,
+    edge_id INTEGER,
+    PRIMARY KEY (node_id, edge_id)
+);
 
-**Recommended:** Start with Option A (SQLite), can optimize later
+CREATE TABLE adjacency_in (
+    node_id INTEGER,
+    edge_id INTEGER,
+    PRIMARY KEY (node_id, edge_id)
+);
+
+-- Indexes for fast lookups
+CREATE INDEX idx_nodes_labels ON nodes(labels);
+CREATE INDEX idx_edges_type ON edges(type);
+CREATE INDEX idx_edges_src ON edges(src_id);
+CREATE INDEX idx_edges_dst ON edges(dst_id);
+```
+
+**SQLite Configuration:**
+```python
+PRAGMA journal_mode=WAL;  # Single writer, multiple readers
+PRAGMA synchronous=FULL;   # Durability guarantee
+PRAGMA foreign_keys=ON;    # Referential integrity
+```
 
 **Tests:** `tests/integration/test_storage.py`
 - Persist and reload graphs
-- Transaction isolation
-- Crash recovery
-- Concurrent readers
+- Transaction isolation (BEGIN/COMMIT/ROLLBACK)
+- Crash recovery simulation
+- Concurrent readers (multiple connections)
+- ID stability across restarts
 
-**Milestone:** Graphs persist across restarts, ACID guarantees
+**Milestone:** Graphs persist across restarts, ACID guarantees, zero-config
 
 ---
 
@@ -450,14 +496,19 @@ Run TCK tests and fix failures:
 
 ### Storage Backend Choice
 
-**Recommendation:** Start with SQLite
+**Decision:** Use SQLite (architectural decision finalized)
 
 **Rationale:**
-- ACID guarantees out of the box
-- Cross-platform
-- Zero configuration
-- Can optimize later if needed
+- ACID guarantees out of the box (transactions, WAL, crash recovery)
+- Cross-platform (macOS, Linux, Windows)
+- Zero configuration (single file, embedded)
+- Battle-tested durability (20+ years, billions of deployments)
 - Matches "embedded" design goal
+- Allows focus on openCypher execution vs storage implementation
+- 20-30 hours implementation vs 120-175 hours for custom WAL
+- Storage backend is replaceable if future optimization needed
+
+See `docs/storage-architecture-analysis.md` for detailed decision analysis.
 
 ### Implementation Style
 
