@@ -160,6 +160,11 @@ class QueryPlanner:
                     )
                 )
 
+                # Add Filter for inline property predicates
+                if node_pattern.properties:
+                    predicate = self._properties_to_predicate(node_pattern.variable, node_pattern.properties)
+                    operators.append(Filter(predicate=predicate))
+
             # Handle node-relationship-node pattern
             elif len(pattern) >= 3:
                 # First node
@@ -171,6 +176,11 @@ class QueryPlanner:
                             labels=src_pattern.labels if src_pattern.labels else None,
                         )
                     )
+
+                    # Add Filter for inline property predicates on src node
+                    if src_pattern.properties:
+                        predicate = self._properties_to_predicate(src_pattern.variable, src_pattern.properties)
+                        operators.append(Filter(predicate=predicate))
 
                 # Relationship
                 if isinstance(pattern[1], RelationshipPattern):
@@ -194,6 +204,38 @@ class QueryPlanner:
                     )
 
         return operators
+
+    def _properties_to_predicate(self, variable: str, properties: dict):
+        """Convert inline property predicates to a WHERE predicate.
+
+        Args:
+            variable: Variable name to check properties on
+            properties: Dict of property_name -> Expression
+
+        Returns:
+            BinaryOp predicate combining all property checks with AND
+        """
+        from graphforge.ast.expression import BinaryOp, PropertyAccess, Variable
+
+        if not properties:
+            return None
+
+        predicates = []
+        for prop_name, prop_value in properties.items():
+            # Create: variable.property = value
+            left = PropertyAccess(variable=variable, property=prop_name)
+            predicate = BinaryOp(op="=", left=left, right=prop_value)
+            predicates.append(predicate)
+
+        # Combine with AND if multiple properties
+        if len(predicates) == 1:
+            return predicates[0]
+
+        result = predicates[0]
+        for pred in predicates[1:]:
+            result = BinaryOp(op="AND", left=result, right=pred)
+
+        return result
 
     def _has_aggregations(self, return_clause: ReturnClause) -> bool:
         """Check if RETURN clause contains any aggregation functions.
