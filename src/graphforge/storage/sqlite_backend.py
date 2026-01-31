@@ -247,6 +247,10 @@ class SQLiteBackend:
         """Commit the current transaction."""
         self.conn.commit()
 
+    def rollback(self):
+        """Roll back the current transaction."""
+        self.conn.rollback()
+
     def close(self):
         """Close the database connection. Safe to call multiple times."""
         if not self._closed:

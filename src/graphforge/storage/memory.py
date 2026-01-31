@@ -237,3 +237,40 @@ class Graph:
             List of incoming edges (empty list if node doesn't exist)
         """
         return list(self._incoming.get(node_id, []))
+
+    def snapshot(self) -> dict:
+        """Create a snapshot of the current graph state.
+
+        Returns:
+            Dictionary containing all graph data for restoration
+
+        Note:
+            This creates a deep copy of all internal structures to support
+            transaction rollback. For large graphs, this may be memory intensive.
+        """
+        import copy
+
+        return {
+            "nodes": copy.copy(self._nodes),
+            "edges": copy.copy(self._edges),
+            "outgoing": copy.deepcopy(dict(self._outgoing)),
+            "incoming": copy.deepcopy(dict(self._incoming)),
+            "label_index": copy.deepcopy(dict(self._label_index)),
+            "type_index": copy.deepcopy(dict(self._type_index)),
+        }
+
+    def restore(self, snapshot: dict) -> None:
+        """Restore graph state from a snapshot.
+
+        Args:
+            snapshot: Snapshot dictionary created by snapshot()
+
+        Note:
+            Completely replaces the current graph state with the snapshot state.
+        """
+        self._nodes = snapshot["nodes"]
+        self._edges = snapshot["edges"]
+        self._outgoing = defaultdict(list, snapshot["outgoing"])
+        self._incoming = defaultdict(list, snapshot["incoming"])
+        self._label_index = defaultdict(set, snapshot["label_index"])
+        self._type_index = defaultdict(set, snapshot["type_index"])

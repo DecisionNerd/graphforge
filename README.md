@@ -54,12 +54,12 @@ Modern data science and ML workflows increasingly produce **graph-shaped data**�
 - **Aggregations** (COUNT, SUM, AVG, MIN, MAX) ✓
 - **Python builder API** for graph construction ✓
 - **SQLite persistence** with WAL mode ✓
+- **ACID transactions** with begin/commit/rollback ✓
 
 ### Planned v1 Additions
 
 - **CREATE**, **SET**, **DELETE**, **MERGE** (Cypher mutations)
 - Optional Pydantic-backed data models for validation
-- Transaction support with rollback
 
 ---
 
@@ -121,7 +121,29 @@ db.close()
 db = GraphForge("my-graph.db")  # All data is still there
 ```
 
-> **Note:** GraphForge is in active development. The query engine is production-ready with 17 TCK compliance tests passing. SQLite persistence is now available.
+**Transactions:** ACID transactions with rollback support:
+
+```python
+db = GraphForge("my-graph.db")
+
+# Begin a transaction
+db.begin()
+
+# Make changes
+alice = db.create_node(['Person'], name='Alice')
+bob = db.create_node(['Person'], name='Bob')
+db.create_relationship(alice, bob, 'KNOWS')
+
+# Commit to save changes
+db.commit()
+
+# Or rollback to discard changes
+db.begin()
+db.create_node(['Person'], name='Charlie')
+db.rollback()  # Charlie is removed
+```
+
+> **Note:** GraphForge is in active development. The query engine is production-ready with 17 TCK compliance tests passing. SQLite persistence and ACID transactions are now available.
 
 ---
 

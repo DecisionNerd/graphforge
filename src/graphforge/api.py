@@ -76,6 +76,10 @@ class GraphForge:
         # Track if database has been closed
         self._closed = False
 
+        # Transaction state
+        self._in_transaction = False
+        self._transaction_snapshot = None
+
         # Initialize query execution components
         self.parser = CypherParser()
         self.planner = QueryPlanner()
@@ -235,11 +239,98 @@ class GraphForge:
             f"Supported types: str, int, float, bool, None, list, dict"
         )
 
+    def begin(self):
+        """Begin an explicit transaction.
+
+        Starts a new transaction by taking a snapshot of the current graph state.
+        Changes made after begin() can be committed or rolled back.
+
+        Raises:
+            RuntimeError: If already in a transaction
+
+        Examples:
+            >>> gf = GraphForge("my-graph.db")
+            >>> gf.begin()
+            >>> alice = gf.create_node(['Person'], name='Alice')
+            >>> gf.commit()  # Changes are saved
+
+            >>> gf.begin()
+            >>> bob = gf.create_node(['Person'], name='Bob')
+            >>> gf.rollback()  # Bob is removed
+        """
+        if self._in_transaction:
+            raise RuntimeError("Already in a transaction. Commit or rollback first.")
+
+        # Take snapshot of current state
+        self._transaction_snapshot = self.graph.snapshot()
+        self._in_transaction = True
+
+    def commit(self):
+        """Commit the current transaction.
+
+        Saves all changes made since begin() to the database (if using persistence).
+        Clears the transaction snapshot.
+
+        Raises:
+            RuntimeError: If not in a transaction
+
+        Examples:
+            >>> gf = GraphForge("my-graph.db")
+            >>> gf.begin()
+            >>> gf.create_node(['Person'], name='Alice')
+            >>> gf.commit()  # Changes are now permanent
+        """
+        if not self._in_transaction:
+            raise RuntimeError("Not in a transaction. Call begin() first.")
+
+        # Save to backend if persistence is enabled
+        if self.backend:
+            self._save_graph_to_backend()
+
+        # Clear transaction state
+        self._in_transaction = False
+        self._transaction_snapshot = None
+
+    def rollback(self):
+        """Roll back the current transaction.
+
+        Reverts all changes made since begin() by restoring the snapshot.
+        Works for both in-memory and persistent graphs.
+
+        Raises:
+            RuntimeError: If not in a transaction
+
+        Examples:
+            >>> gf = GraphForge("my-graph.db")
+            >>> gf.begin()
+            >>> gf.create_node(['Person'], name='Alice')
+            >>> results = gf.execute("MATCH (p:Person) RETURN count(*)")
+            >>> # count is 1
+            >>> gf.rollback()  # Alice is gone
+            >>> results = gf.execute("MATCH (p:Person) RETURN count(*)")
+            >>> # count is 0
+        """
+        if not self._in_transaction:
+            raise RuntimeError("Not in a transaction. Call begin() first.")
+
+        # Restore graph from snapshot
+        self.graph.restore(self._transaction_snapshot)
+
+        # Rollback SQLite transaction if using persistence
+        if self.backend:
+            self.backend.rollback()
+
+        # Clear transaction state
+        self._in_transaction = False
+        self._transaction_snapshot = None
+
     def close(self):
         """Save graph and close database.
 
         If using SQLite backend, saves all nodes and edges to disk and
         commits the transaction. Safe to call multiple times.
+
+        If in an active transaction, the transaction is committed before closing.
 
         Examples:
             >>> gf = GraphForge("my-graph.db")
@@ -247,7 +338,13 @@ class GraphForge:
             >>> gf.close()  # Save to disk
         """
         if self.backend and not self._closed:
-            self._save_graph_to_backend()
+            # Auto-commit any pending transaction
+            if self._in_transaction:
+                self.commit()
+            else:
+                # Save changes if not in explicit transaction
+                self._save_graph_to_backend()
+
             self.backend.close()
             self._closed = True
 
