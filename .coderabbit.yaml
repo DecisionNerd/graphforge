@@ -1,0 +1,154 @@
+# CodeRabbit AI Code Review Configuration
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+
+language: en-US
+early_access: false
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+      - develop
+
+  # Files and patterns to ignore
+  path_filters:
+    - "!**/*.lock"
+    - "!**/*.md"
+    - "!**/docs/**"
+    - "!**/examples/**"
+    - "!**/.github/**"
+
+  # Custom review instructions
+  instructions:
+    - Focus on correctness of openCypher semantics
+    - Check for proper error handling and type safety
+    - Verify test coverage for new features
+    - Ensure docstrings are present for public APIs
+    - Check for performance implications in query execution
+    - Validate that changes maintain TCK compliance
+    - Look for potential security issues (SQL injection patterns, etc.)
+    - Verify backward compatibility for API changes
+
+  # Code review focus areas
+  check:
+    # Code Quality
+    - correctness
+    - performance
+    - security
+    - maintainability
+    - best_practices
+
+    # Python-specific
+    - type_safety
+    - error_handling
+    - pythonic_code
+
+    # Testing
+    - test_coverage
+    - test_quality
+
+    # Documentation
+    - documentation
+    - examples
+
+  # Auto-approve criteria
+  auto_approve:
+    enabled: false  # Manual approval required for now
+
+chat:
+  auto_reply: true
+
+# Language-specific settings
+python:
+  version: "3.10"
+  style_guide: "PEP 8"
+  type_checking: true
+  docstring_style: "google"
+
+# Ignored files/directories
+ignore:
+  - "*.lock"
+  - "*.egg-info/**"
+  - "dist/**"
+  - "build/**"
+  - "__pycache__/**"
+  - ".pytest_cache/**"
+  - ".ruff_cache/**"
+  - "htmlcov/**"
+  - ".coverage"
+
+# Custom tools and checks
+tools:
+  ruff:
+    enabled: true
+  mypy:
+    enabled: true
+  pytest:
+    enabled: true
+
+# Specific file type handling
+file_types:
+  python:
+    extensions:
+      - .py
+    ignore_patterns:
+      - "test_*.py"  # Less strict on test files
+      - "conftest.py"
+
+  markdown:
+    extensions:
+      - .md
+    check_links: true
+
+  yaml:
+    extensions:
+      - .yml
+      - .yaml
+    validate_syntax: true
+
+# Comment settings
+comments:
+  # Style for inline comments
+  style: concise
+  tone: professional
+
+  # Group comments by category
+  group_by: file
+
+  # Minimum severity to create comments
+  min_severity: info
+
+# Metrics and thresholds
+thresholds:
+  complexity:
+    max_cyclomatic: 15
+    max_cognitive: 15
+
+  size:
+    max_function_lines: 100
+    max_file_lines: 500
+
+  test:
+    min_coverage: 85
+
+# Integration settings
+integrations:
+  github:
+    enabled: true
+    pr_reviews: true
+    issue_comments: true
+    commit_comments: false
+
+# Notifications
+notifications:
+  enabled: true
+  channels:
+    - pull_request_comments
+    - review_comments

@@ -1,0 +1,50 @@
+# GraphForge Code Owners
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+* @DecisionNerd
+
+# Core library components
+/src/graphforge/ @DecisionNerd
+
+# Parser and grammar
+/src/graphforge/parser/ @DecisionNerd
+/src/graphforge/ast/ @DecisionNerd
+
+# Query execution
+/src/graphforge/executor/ @DecisionNerd
+/src/graphforge/planner/ @DecisionNerd
+
+# Storage layer
+/src/graphforge/storage/ @DecisionNerd
+
+# Type system
+/src/graphforge/types/ @DecisionNerd
+
+# API surface
+/src/graphforge/api.py @DecisionNerd
+/src/graphforge/__init__.py @DecisionNerd
+
+# Tests
+/tests/ @DecisionNerd
+
+# TCK compliance tests (require extra scrutiny)
+/tests/tck/ @DecisionNerd
+
+# Documentation
+/docs/ @DecisionNerd
+/README.md @DecisionNerd
+/CONTRIBUTING.md @DecisionNerd
+
+# CI/CD and infrastructure
+/.github/ @DecisionNerd
+/.github/workflows/ @DecisionNerd
+/pyproject.toml @DecisionNerd
+/.pre-commit-config.yaml @DecisionNerd
+
+# Dependencies and packaging
+/pyproject.toml @DecisionNerd
+/uv.lock @DecisionNerd
+
+# Examples (can have lower review threshold)
+/examples/ @DecisionNerd
