@@ -58,9 +58,9 @@ class QueryExecutor:
         for op in operators:
             rows = self._execute_operator(op, rows)
 
-        # If the last operator was not Project or Aggregate (no RETURN clause),
+        # If there's no Project or Aggregate operator in the pipeline (no RETURN clause),
         # return empty results (Cypher semantics: queries without RETURN produce no output)
-        if operators and not isinstance(operators[-1], (Project, Aggregate)):
+        if operators and not any(isinstance(op, (Project, Aggregate)) for op in operators):
             return []
 
         return rows
@@ -222,8 +222,6 @@ class QueryExecutor:
 
     def _execute_project(self, op: Project, input_rows: list[ExecutionContext]) -> list[dict]:
         """Execute Project operator."""
-        from graphforge.ast.expression import Variable
-
         result = []
 
         for ctx in input_rows:
@@ -234,13 +232,11 @@ class QueryExecutor:
 
                 # Determine column name
                 if return_item.alias:
-                    # Explicit alias provided
+                    # Explicit alias provided - use it
                     key = return_item.alias
-                elif isinstance(return_item.expression, Variable):
-                    # No alias, but expression is a variable - use variable name
-                    key = return_item.expression.name
                 else:
-                    # No alias, complex expression - generate default
+                    # No alias - use default column naming (col_0, col_1, etc.)
+                    # This applies to all expressions, including simple variables
                     key = f"col_{i}"
 
                 row[key] = value
