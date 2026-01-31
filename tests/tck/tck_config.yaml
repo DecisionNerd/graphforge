@@ -13,10 +13,11 @@ version: "2024.2"
 # Supported TCK scenarios (REQUIRED to pass)
 # These are scenarios GraphForge officially claims to support
 supported:
-  # MATCH clause - basic patterns (4 scenarios)
+  # MATCH clause - basic patterns (5 scenarios)
   clauses/match/Match1.feature:
     - "[1] Match non-existent nodes returns empty"
     - "[2] Matching all nodes"
+    - "[3] Matching nodes using multiple labels"
     - "[4] Simple node inline property predicate"
     - "[5] Use multiple MATCH clauses to do a Cartesian product"
 

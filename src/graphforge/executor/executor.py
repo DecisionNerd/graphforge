@@ -113,8 +113,15 @@ class QueryExecutor:
 
         # Get nodes from graph
         if op.labels:
-            # Scan by label (TODO: handle multiple labels)
+            # Scan by first label for efficiency
             nodes = self.graph.get_nodes_by_label(op.labels[0])
+
+            # Filter to only nodes with ALL required labels
+            if len(op.labels) > 1:
+                nodes = [
+                    node for node in nodes
+                    if all(label in node.labels for label in op.labels)
+                ]
         else:
             # Scan all nodes
             nodes = self.graph.get_all_nodes()
