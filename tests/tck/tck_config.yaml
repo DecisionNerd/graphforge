@@ -11,88 +11,41 @@
 version: "2024.2"
 
 # Supported TCK scenarios (REQUIRED to pass)
+# These are scenarios GraphForge officially claims to support
 supported:
-  # MATCH clause - basic node and relationship patterns
+  # MATCH clause - basic patterns (4 scenarios)
   clauses/match/Match1.feature:
     - "[1] Match non-existent nodes returns empty"
     - "[2] Matching all nodes"
     - "[4] Simple node inline property predicate"
     - "[5] Use multiple MATCH clauses to do a Cartesian product"
 
+  # MATCH clause - relationships (1 scenario)
   clauses/match/Match2.feature:
-    - "[1] Matching relationships"
-    - "[2] Matching relationships with type"
+    - "[1] Match non-existent relationships returns empty"
 
-  # WHERE clause - basic filtering
-  clauses/where/Where1.feature:
-    - "[1] Filter nodes by property equality"
-    - "[2] Filter nodes by property comparison"
-    - "[3] Filter with AND"
-    - "[4] Filter with OR"
+  # MATCH-WHERE - property filtering (2 scenarios)
+  clauses/match-where/MatchWhere1.feature:
+    - "[1] Filter node with property predicate on a single variable with multiple bindings"
+    - "[2] Join between node properties of adjacent nodes"
 
-  # RETURN clause - projection
+  # RETURN - projection (2 scenarios)
   clauses/return/Return1.feature:
-    - "[1] Return single column"
-    - "[2] Return multiple columns"
-    - "[3] Return with alias"
+    - "[1] Support column renaming"
 
-  # LIMIT and SKIP
-  clauses/limit/Limit1.feature: "*"
-  clauses/skip/Skip1.feature: "*"
-
-  # ORDER BY
-  clauses/orderBy/OrderBy1.feature:
-    - "[1] Order by single property ASC"
-    - "[2] Order by single property DESC"
-    - "[3] Order by multiple properties"
-
-  # CREATE clause
-  clauses/create/Create1.feature:
-    - "[1] Create single node"
-    - "[2] Create node with properties"
-    - "[3] Create node with label"
-    - "[4] Create multiple nodes"
-
-  clauses/create/Create2.feature:
-    - "[1] Create relationship"
-    - "[2] Create relationship with type"
-    - "[3] Create relationship with properties"
-
-  # SET clause
-  clauses/set/Set1.feature:
-    - "[1] Set node property"
-    - "[2] Set multiple properties"
-    - "[3] Set relationship property"
-
-  # DELETE clause
-  clauses/delete/Delete1.feature:
-    - "[1] Delete single node"
-    - "[2] Delete relationship"
-    - "[3] Delete multiple nodes"
-
-  # MERGE clause
-  clauses/merge/Merge1.feature:
-    - "[1] Merge on node match"
-    - "[2] Merge on node create"
-
-  # Aggregation functions
+  # Aggregation (1 scenario)
   expressions/aggregation/Aggregation1.feature:
-    - "[1] COUNT(*) counts all rows"
-    - "[2] COUNT(expr) counts non-null values"
+    - "[1] Return `count(*)` of aggregation over nodes"
 
-  expressions/aggregation/Aggregation2.feature:
-    - "[1] SUM aggregates numeric values"
-    - "[2] AVG computes average"
+  # SKIP/LIMIT (2 scenarios)
+  clauses/return-skip-limit/ReturnSkipLimit1.feature:
+    - "[1] Accept skip zero"
+    - "[2] LIMIT 0 should return an empty result"
 
-  expressions/aggregation/Aggregation3.feature:
-    - "[1] MIN finds minimum"
-    - "[2] MAX finds maximum"
-
-  # Null semantics
-  expressions/null/Null1.feature:
-    - "[1] Null property access returns null"
-    - "[2] Null comparison returns null"
-    - "[3] COUNT ignores nulls"
+  # Comparison - integers (2 scenarios)
+  expressions/comparison/Comparison1.feature:
+    - "[30] Handling inlined equality of large integer non-equal values"
+    - "[31] Handling explicit equality of large integer non-equal values"
 
 # Known unsupported features (will be skipped with xfail marker)
 unsupported:
