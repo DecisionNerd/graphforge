@@ -4,9 +4,6 @@ import pytest
 from pytest_bdd import given, parsers, then, when
 
 from graphforge import GraphForge
-
-# Import TCK markers plugin
-pytest_plugins = ["tests.tck.tck_markers"]
 from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,

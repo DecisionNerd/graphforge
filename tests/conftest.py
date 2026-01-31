@@ -5,6 +5,9 @@ from pathlib import Path
 
 import pytest
 
+# TCK test markers plugin (must be at top level)
+pytest_plugins = ["tests.tck.tck_markers"]
+
 
 @pytest.fixture
 def tmp_db_path():
