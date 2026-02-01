@@ -10,10 +10,7 @@ from graphforge.ast.expression import BinaryOp, FunctionCall, Literal, PropertyA
 from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,
-    CypherFloat,
-    CypherInt,
     CypherNull,
-    CypherString,
     CypherValue,
     from_python,
 )
@@ -67,6 +64,7 @@ class ExecutionContext:
         return name in self.bindings
 
 
+<<<<<<< HEAD
 def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
     """Evaluate an AST expression in a context.
 
@@ -215,12 +213,12 @@ def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> Cypher
         raise ValueError(f"Unknown function: {func_name}")
 
 
-def _evaluate_string_function(func_name: str, args: list[CypherValue]) -> CypherValue:
+def _evaluate_string_function(func_name: str, _args: list[CypherValue]) -> CypherValue:
     """Evaluate string functions.
 
     Args:
         func_name: Name of the string function (uppercase)
-        args: List of evaluated arguments (non-NULL)
+        _args: List of evaluated arguments (non-NULL) - unused in placeholder
 
     Returns:
         CypherValue result of the string function
@@ -233,12 +231,12 @@ def _evaluate_string_function(func_name: str, args: list[CypherValue]) -> Cypher
     raise ValueError(f"String function not yet implemented: {func_name}")
 
 
-def _evaluate_type_function(func_name: str, args: list[CypherValue]) -> CypherValue:
+def _evaluate_type_function(func_name: str, _args: list[CypherValue]) -> CypherValue:
     """Evaluate type conversion and introspection functions.
 
     Args:
         func_name: Name of the type function
-        args: List of evaluated arguments (non-NULL)
+        _args: List of evaluated arguments (non-NULL) - unused in placeholder
 
     Returns:
         CypherValue result of the type function
