@@ -7,8 +7,6 @@ The WITH clause enables query chaining, allowing you to:
 - Order and limit intermediate results
 """
 
-import pytest
-
 from graphforge import GraphForge
 
 
