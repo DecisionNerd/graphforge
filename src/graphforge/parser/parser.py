@@ -153,7 +153,7 @@ class ASTTransformer(Transformer):
         for item in items:
             if isinstance(item, ReturnItem):
                 return_items.append(item)
-            elif isinstance(item, Token) and item.value.upper() == 'DISTINCT':
+            elif isinstance(item, Token) and item.value.upper() == "DISTINCT":
                 distinct = True
 
         return ReturnClause(items=return_items, distinct=distinct)
@@ -174,7 +174,7 @@ class ASTTransformer(Transformer):
         for item in items:
             if isinstance(item, ReturnItem):
                 return_items.append(item)
-            elif isinstance(item, Token) and item.value.upper() == 'DISTINCT':
+            elif isinstance(item, Token) and item.value.upper() == "DISTINCT":
                 distinct = True
             elif isinstance(item, WhereClause):
                 where = item
