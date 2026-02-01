@@ -1,0 +1,136 @@
+name: CHANGELOG Check
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  check-changelog:
+    name: Verify CHANGELOG Updated
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Need full history to check diff
+
+      - name: Check for CHANGELOG label
+        id: check_label
+        run: |
+          # Check if PR has skip-changelog label
+          SKIP_LABEL=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name' | grep -c "skip-changelog" || echo "0")
+          echo "skip_label=$SKIP_LABEL" >> $GITHUB_OUTPUT
+
+          # Check if PR has release:none label (docs/CI only changes)
+          RELEASE_NONE=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name' | grep -c "release:none" || echo "0")
+          echo "release_none=$RELEASE_NONE" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check CHANGELOG.md changes
+        id: check_changelog
+        run: |
+          # Get the base branch
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+
+          # Check if CHANGELOG.md was modified
+          CHANGELOG_MODIFIED=$(git diff --name-only $BASE_SHA..HEAD | grep -c "CHANGELOG.md" || echo "0")
+          echo "changelog_modified=$CHANGELOG_MODIFIED" >> $GITHUB_OUTPUT
+
+          # Check if [Unreleased] section was modified
+          if [ "$CHANGELOG_MODIFIED" = "1" ]; then
+            # Check if the diff includes changes to [Unreleased] section
+            UNRELEASED_MODIFIED=$(git diff $BASE_SHA..HEAD -- CHANGELOG.md | grep -c "^+.*- " || echo "0")
+            echo "unreleased_modified=$UNRELEASED_MODIFIED" >> $GITHUB_OUTPUT
+          else
+            echo "unreleased_modified=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine if check should pass
+        id: determine_result
+        run: |
+          SKIP_LABEL=${{ steps.check_label.outputs.skip_label }}
+          RELEASE_NONE=${{ steps.check_label.outputs.release_none }}
+          CHANGELOG_MODIFIED=${{ steps.check_changelog.outputs.changelog_modified }}
+          UNRELEASED_MODIFIED=${{ steps.check_changelog.outputs.unreleased_modified }}
+
+          # Pass if:
+          # 1. Has skip-changelog label, OR
+          # 2. Has release:none label (docs/CI only), OR
+          # 3. CHANGELOG was modified AND [Unreleased] section has new entries
+          if [ "$SKIP_LABEL" = "1" ] || [ "$RELEASE_NONE" = "1" ]; then
+            echo "result=pass" >> $GITHUB_OUTPUT
+            echo "reason=PR is labeled to skip CHANGELOG check" >> $GITHUB_OUTPUT
+          elif [ "$CHANGELOG_MODIFIED" = "1" ] && [ "$UNRELEASED_MODIFIED" -gt "0" ]; then
+            echo "result=pass" >> $GITHUB_OUTPUT
+            echo "reason=CHANGELOG [Unreleased] section was updated" >> $GITHUB_OUTPUT
+          else
+            echo "result=fail" >> $GITHUB_OUTPUT
+            if [ "$CHANGELOG_MODIFIED" = "0" ]; then
+              echo "reason=CHANGELOG.md was not modified" >> $GITHUB_OUTPUT
+            else
+              echo "reason=CHANGELOG.md was modified but [Unreleased] section appears unchanged" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Post comment if check fails
+        if: steps.determine_result.outputs.result == 'fail'
+        run: |
+          REASON="${{ steps.determine_result.outputs.reason }}"
+
+          gh pr comment ${{ github.event.pull_request.number }} --body "## ⚠️ CHANGELOG Check Failed
+
+**Reason:** $REASON
+
+### How to fix:
+
+1. **Update CHANGELOG.md** - Add your changes to the \`[Unreleased]\` section:
+   \`\`\`markdown
+   ## [Unreleased]
+
+   ### Added
+   - Your new feature
+
+   ### Fixed
+   - Your bug fix
+
+   ### Changed
+   - Your modification
+   \`\`\`
+
+2. **OR add a label** if CHANGELOG update is not needed:
+   - Add \`skip-changelog\` label for exceptional cases
+   - Add \`release:none\` label for docs/CI-only changes
+
+### Guidelines:
+
+- **DO update CHANGELOG for:**
+  - New features
+  - Bug fixes
+  - Breaking changes
+  - Deprecations
+
+- **DON'T update CHANGELOG for:**
+  - Documentation-only changes (use \`release:none\` label)
+  - CI/CD configuration (use \`release:none\` label)
+  - Test-only changes (use \`release:none\` label)
+
+See [CONTRIBUTING.md](https://github.com/${{ github.repository }}/blob/main/CONTRIBUTING.md#releases-and-versioning) for more details.
+"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fail if check didn't pass
+        if: steps.determine_result.outputs.result == 'fail'
+        run: |
+          echo "❌ ${{ steps.determine_result.outputs.reason }}"
+          echo ""
+          echo "Please update CHANGELOG.md [Unreleased] section or add skip-changelog/release:none label."
+          exit 1
+
+      - name: Success
+        if: steps.determine_result.outputs.result == 'pass'
+        run: |
+          echo "✅ ${{ steps.determine_result.outputs.reason }}"

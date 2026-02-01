@@ -1,0 +1,132 @@
+site_name: GraphForge
+site_description: Composable graph tooling for analysis, construction, and refinement
+site_author: David Spencer
+site_url: https://decisionnerd.github.io/graphforge/
+
+repo_name: DecisionNerd/graphforge
+repo_url: https://github.com/DecisionNerd/graphforge
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  features:
+    - navigation.instant      # Instant loading
+    - navigation.tracking     # URL updates with scroll
+    - navigation.tabs         # Top-level tabs
+    - navigation.sections     # Sections in sidebar
+    - navigation.expand       # Expand sections by default
+    - navigation.top          # Back to top button
+    - search.suggest          # Search suggestions
+    - search.highlight        # Highlight search terms
+    - content.code.copy       # Copy button for code blocks
+    - content.action.edit     # Edit button on pages
+    - toc.follow              # TOC follows scroll
+
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - autorefs
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_root_heading: true
+            show_source: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+
+markdown_extensions:
+  # Python Markdown
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+  # Python Markdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+  - User Guide:
+    - Overview: guide/overview.md
+    - Cypher Query Language: guide/cypher-guide.md
+    - Graph Construction: guide/graph-construction.md
+  - Development:
+    - Contributing: development/contributing.md
+    - Release Process: development/release-process.md
+    - Release Strategy: development/release-strategy.md
+    - Testing Strategy: development/testing-strategy.md
+  - Reference:
+    - Requirements: reference/requirements.md
+    - API Documentation: reference/api.md
+    - Changelog: reference/changelog.md
+  - Community:
+    - Security: community/security.md
+    - Code of Conduct: community/code-of-conduct.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/DecisionNerd/graphforge
+  version:
+    provider: mike
+
+extra_css:
+  - stylesheets/extra.css
