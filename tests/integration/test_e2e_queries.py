@@ -63,8 +63,8 @@ class TestBasicQueries:
         assert len(results) == 3
         # All results should have a node
         for row in results:
-            assert "col_0" in row
-            node = row["col_0"]
+            assert "n" in row
+            node = row["n"]
             assert isinstance(node, NodeRef)
 
     def test_match_nodes_by_label(self, simple_graph):
@@ -72,7 +72,7 @@ class TestBasicQueries:
         results = simple_graph.execute("MATCH (n:Person) RETURN n")
         assert len(results) == 3
         for row in results:
-            node = row["col_0"]
+            node = row["n"]
             assert "Person" in node.labels
 
     def test_match_with_limit(self, simple_graph):
@@ -103,28 +103,28 @@ class TestWhereClause:
         """Test WHERE with property equality."""
         results = simple_graph.execute("MATCH (n:Person) WHERE n.name = 'Alice' RETURN n")
         assert len(results) == 1
-        node = results[0]["col_0"]
+        node = results[0]["n"]
         assert node.properties["name"].value == "Alice"
 
     def test_where_property_greater_than(self, simple_graph):
         """Test WHERE with greater than comparison."""
         results = simple_graph.execute("MATCH (n:Person) WHERE n.age > 30 RETURN n")
         assert len(results) == 1
-        node = results[0]["col_0"]
+        node = results[0]["n"]
         assert node.properties["age"].value == 35
 
     def test_where_property_less_than(self, simple_graph):
         """Test WHERE with less than comparison."""
         results = simple_graph.execute("MATCH (n:Person) WHERE n.age < 30 RETURN n")
         assert len(results) == 1
-        node = results[0]["col_0"]
+        node = results[0]["n"]
         assert node.properties["age"].value == 25
 
     def test_where_and_condition(self, simple_graph):
         """Test WHERE with AND operator."""
         results = simple_graph.execute("MATCH (n:Person) WHERE n.age > 20 AND n.age < 30 RETURN n")
         assert len(results) == 1
-        node = results[0]["col_0"]
+        node = results[0]["n"]
         assert node.properties["age"].value == 25
 
 
@@ -138,13 +138,13 @@ class TestRelationshipQueries:
 
         # Check first result
         row = results[0]
-        assert "col_0" in row  # a
-        assert "col_1" in row  # r
-        assert "col_2" in row  # b
+        assert "a" in row
+        assert "r" in row
+        assert "b" in row
 
-        src = row["col_0"]
-        edge = row["col_1"]
-        dst = row["col_2"]
+        src = row["a"]
+        edge = row["r"]
+        dst = row["b"]
 
         assert isinstance(src, NodeRef)
         assert isinstance(edge, EdgeRef)
@@ -157,7 +157,7 @@ class TestRelationshipQueries:
             "MATCH (a:Person)-[r:KNOWS]->(b:Person) WHERE a.name = 'Alice' RETURN b"
         )
         assert len(results) == 1
-        node = results[0]["col_0"]
+        node = results[0]["b"]
         assert node.properties["name"].value == "Bob"
 
     def test_match_relationship_property_filter(self, simple_graph):
@@ -166,8 +166,8 @@ class TestRelationshipQueries:
             "MATCH (a:Person)-[r:KNOWS]->(b:Person) WHERE r.since > 2020 RETURN a, b"
         )
         assert len(results) == 1
-        src = results[0]["col_0"]
-        dst = results[0]["col_1"]
+        src = results[0]["a"]
+        dst = results[0]["b"]
         assert src.properties["name"].value == "Bob"
         assert dst.properties["name"].value == "Charlie"
 
@@ -212,9 +212,9 @@ class TestOrderBy:
         results = simple_graph.execute("MATCH (n:Person) RETURN n ORDER BY n.age DESC, n.name ASC")
         assert len(results) == 3
         # First by age DESC, then by name ASC
-        assert results[0]["col_0"].properties["name"].value == "Charlie"
-        assert results[1]["col_0"].properties["name"].value == "Alice"
-        assert results[2]["col_0"].properties["name"].value == "Bob"
+        assert results[0]["n"].properties["name"].value == "Charlie"
+        assert results[1]["n"].properties["name"].value == "Alice"
+        assert results[2]["n"].properties["name"].value == "Bob"
 
     def test_order_by_with_where(self, simple_graph):
         """Test ORDER BY with WHERE clause."""

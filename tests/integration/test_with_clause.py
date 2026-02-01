@@ -15,7 +15,6 @@ from graphforge import GraphForge
 class TestWithBasics:
     """Test basic WITH clause functionality."""
 
-    @pytest.mark.xfail(reason="Bug: WITH returns col_N instead of named aliases")
     def test_with_simple_projection(self, tmp_path):
         """WITH should pass through selected variables."""
         db = GraphForge(tmp_path / "test.db")
@@ -40,7 +39,6 @@ class TestWithBasics:
 
         db.close()
 
-    @pytest.mark.xfail(reason="Bug: WITH returns col_N instead of named aliases")
     def test_with_renaming_variables(self, tmp_path):
         """WITH should allow renaming variables."""
         db = GraphForge(tmp_path / "test.db")
@@ -58,7 +56,6 @@ class TestWithBasics:
 
         db.close()
 
-    @pytest.mark.xfail(reason="Bug: WITH returns col_N instead of named aliases")
     def test_with_limits_available_variables(self, tmp_path):
         """WITH should only pass through specified variables."""
         db = GraphForge(tmp_path / "test.db")
@@ -83,7 +80,6 @@ class TestWithBasics:
 class TestWithFiltering:
     """Test WITH clause with WHERE filtering."""
 
-    @pytest.mark.xfail(reason="Bug: WITH returns col_N instead of named aliases")
     def test_with_where_filter(self, tmp_path):
         """WITH should support WHERE filtering on intermediate results."""
         db = GraphForge(tmp_path / "test.db")
@@ -108,7 +104,6 @@ class TestWithFiltering:
 
         db.close()
 
-    @pytest.mark.xfail(reason="Bug: WITH returns col_N instead of named aliases")
     def test_with_where_on_computed_value(self, tmp_path):
         """WITH should allow filtering on computed values."""
         db = GraphForge(tmp_path / "test.db")
@@ -138,7 +133,6 @@ class TestWithFiltering:
 class TestWithAggregation:
     """Test WITH clause with aggregation."""
 
-    @pytest.mark.xfail(reason="Bug: Aggregation functions not supported in WITH clause")
     def test_with_count_aggregation(self, tmp_path):
         """WITH should support count aggregation."""
         db = GraphForge(tmp_path / "test.db")
@@ -164,7 +158,6 @@ class TestWithAggregation:
 
         db.close()
 
-    @pytest.mark.xfail(reason="Bug: Aggregation functions not supported in WITH clause")
     def test_with_filter_after_aggregation(self, tmp_path):
         """WITH should allow filtering aggregated results."""
         db = GraphForge(tmp_path / "test.db")
@@ -192,7 +185,6 @@ class TestWithAggregation:
 class TestWithOrdering:
     """Test WITH clause with ORDER BY."""
 
-    @pytest.mark.xfail(reason="Bug: WITH returns col_N instead of named aliases")
     def test_with_order_by(self, tmp_path):
         """WITH should support ORDER BY."""
         db = GraphForge(tmp_path / "test.db")
@@ -216,7 +208,6 @@ class TestWithOrdering:
 
         db.close()
 
-    @pytest.mark.xfail(reason="Bug: WITH returns col_N instead of named aliases")
     def test_with_order_by_then_limit(self, tmp_path):
         """WITH should support ORDER BY with LIMIT."""
         db = GraphForge(tmp_path / "test.db")
@@ -266,7 +257,6 @@ class TestWithPagination:
 
         db.close()
 
-    @pytest.mark.xfail(reason="Bug: WITH returns col_N instead of named aliases")
     def test_with_skip(self, tmp_path):
         """WITH should support SKIP."""
         db = GraphForge(tmp_path / "test.db")
@@ -287,7 +277,6 @@ class TestWithPagination:
 
         db.close()
 
-    @pytest.mark.xfail(reason="Bug: WITH returns col_N instead of named aliases")
     def test_with_skip_and_limit(self, tmp_path):
         """WITH should support both SKIP and LIMIT for pagination."""
         db = GraphForge(tmp_path / "test.db")
@@ -316,7 +305,6 @@ class TestWithPagination:
 class TestWithChaining:
     """Test multi-part queries with multiple WITH clauses."""
 
-    @pytest.mark.xfail(reason="Bug: WITH returns col_N instead of named aliases")
     def test_multiple_with_clauses(self, tmp_path):
         """Should support multiple WITH clauses for complex pipelines."""
         db = GraphForge(tmp_path / "test.db")
@@ -342,20 +330,13 @@ class TestWithChaining:
 
         db.close()
 
-    @pytest.mark.xfail(reason="Bug: WITH returns col_N instead of named aliases")
     def test_with_between_match_clauses(self, tmp_path):
         """WITH should work between multiple MATCH clauses."""
         db = GraphForge(tmp_path / "test.db")
 
-        # Create people and cities
-        db.execute("CREATE (alice:Person {name: 'Alice'})")
-        db.execute("CREATE (bob:Person {name: 'Bob'})")
-        db.execute("CREATE (nyc:City {name: 'NYC'})")
-        db.execute("""
-            MATCH (alice:Person {name: 'Alice'})
-            MATCH (nyc:City {name: 'NYC'})
-            CREATE (alice)-[:LIVES_IN]->(nyc)
-        """)
+        # Create people, cities, and relationships
+        db.execute("CREATE (:Person {name: 'Alice'})-[:LIVES_IN]->(:City {name: 'NYC'})")
+        db.execute("CREATE (:Person {name: 'Bob'})")
 
         # Match, pass through WITH, match again
         results = db.execute("""
@@ -393,7 +374,6 @@ class TestWithEdgeCases:
 
         db.close()
 
-    @pytest.mark.xfail(reason="Bug: WITH returns col_N instead of named aliases")
     def test_with_preserves_null_values(self, tmp_path):
         """WITH should preserve null property values."""
         db = GraphForge(tmp_path / "test.db")
@@ -413,7 +393,6 @@ class TestWithEdgeCases:
 
         db.close()
 
-    @pytest.mark.xfail(reason="Bug: DISTINCT keyword not supported in WITH clause")
     def test_with_distinct_functionality(self, tmp_path):
         """WITH should support DISTINCT for deduplication."""
         db = GraphForge(tmp_path / "test.db")

@@ -30,7 +30,7 @@ update_query: match_clause where_clause? set_clause? delete_clause? return_claus
 reading_clause: match_clause where_clause?
 
 // WITH clause
-with_clause: "WITH"i return_item ("," return_item)* where_clause? order_by_clause? skip_clause? limit_clause?
+with_clause: "WITH"i DISTINCT_KW? return_item ("," return_item)* where_clause? order_by_clause? skip_clause? limit_clause?
 
 // MATCH clause
 match_clause: "MATCH"i pattern ("," pattern)*
@@ -65,7 +65,7 @@ right_arrow_rel: "-" "[" variable? rel_types? properties? "]" "->"
 where_clause: "WHERE"i expression
 
 // RETURN clause
-return_clause: "RETURN"i return_item ("," return_item)*
+return_clause: "RETURN"i DISTINCT_KW? return_item ("," return_item)*
 
 return_item: expression ("AS"i IDENTIFIER)?
 
@@ -75,6 +75,7 @@ order_by_clause: "ORDER"i "BY"i order_by_item ("," order_by_item)*
 order_by_item: expression DIRECTION?
 
 DIRECTION: /ASC/i | /DESC/i
+DISTINCT_KW: /DISTINCT/i
 
 // LIMIT and SKIP
 limit_clause: "LIMIT"i INT

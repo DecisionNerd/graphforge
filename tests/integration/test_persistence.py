@@ -122,7 +122,7 @@ class TestPropertyTypes:
             # Load and verify
             gf2 = GraphForge(db_path)
             results = gf2.execute("MATCH (t:Test) RETURN t")
-            node = results[0]["col_0"]
+            node = results[0]["t"]
 
             assert node.properties["string_prop"].value == "text"
             assert node.properties["int_prop"].value == 42
@@ -150,7 +150,7 @@ class TestPropertyTypes:
             # Load and verify
             gf2 = GraphForge(db_path)
             results = gf2.execute("MATCH (t:Test) RETURN t")
-            node = results[0]["col_0"]
+            node = results[0]["t"]
 
             nested_list = node.properties["nested_list"].value
             assert nested_list[0].value[0].value == 1
@@ -177,7 +177,7 @@ class TestMultipleLabels:
             # Load and verify
             gf2 = GraphForge(db_path)
             results = gf2.execute("MATCH (p:Person) RETURN p")
-            node = results[0]["col_0"]
+            node = results[0]["p"]
 
             assert "Person" in node.labels
             assert "Employee" in node.labels

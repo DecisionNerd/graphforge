@@ -159,6 +159,12 @@ class QueryPlanner:
                 # Use simple Project operator
                 operators.append(Project(items=return_clause.items))
 
+            # Add DISTINCT operator if needed
+            if return_clause.distinct:
+                from graphforge.planner.operators import Distinct
+
+                operators.append(Distinct())
+
         # 9. SKIP/LIMIT
         if skip_clause:
             operators.append(Skip(count=skip_clause.count))
@@ -203,15 +209,63 @@ class QueryPlanner:
         # Plan each segment
         for segment in segments:
             if isinstance(segment, WithClause):
-                # Convert WITH clause to With operator
-                with_op = With(
-                    items=segment.items,
-                    predicate=segment.where.predicate if segment.where else None,
-                    sort_items=segment.order_by.items if segment.order_by else None,
-                    skip_count=segment.skip.count if segment.skip else None,
-                    limit_count=segment.limit.count if segment.limit else None,
+                # Check if WITH contains aggregations
+                has_aggregates = any(
+                    self._contains_aggregate(item.expression)
+                    for item in segment.items
                 )
-                operators.append(with_op)
+
+                if has_aggregates:
+                    # Split items into grouping and aggregation expressions
+                    grouping_exprs = []
+                    agg_exprs = []
+                    for item in segment.items:
+                        if self._contains_aggregate(item.expression):
+                            agg_exprs.append(item.expression)
+                        else:
+                            grouping_exprs.append(item.expression)
+
+                    # Create Aggregate operator
+                    operators.append(
+                        Aggregate(
+                            grouping_exprs=grouping_exprs,
+                            agg_exprs=agg_exprs,
+                            return_items=segment.items,
+                        )
+                    )
+
+                    # Add optional WHERE, ORDER BY, SKIP, LIMIT after aggregation
+                    if segment.where:
+                        operators.append(Filter(predicate=segment.where.predicate))
+                    if segment.order_by:
+                        operators.append(Sort(items=segment.order_by.items, return_items=segment.items))
+                    if segment.skip:
+                        operators.append(Skip(count=segment.skip.count))
+                    if segment.limit:
+                        operators.append(Limit(count=segment.limit.count))
+
+                    # Add DISTINCT operator if needed (after aggregation)
+                    if segment.distinct:
+                        from graphforge.planner.operators import Distinct
+
+                        operators.append(Distinct())
+                else:
+                    # No aggregations - use simple With operator
+                    with_op = With(
+                        items=segment.items,
+                        distinct=segment.distinct,
+                        predicate=segment.where.predicate if segment.where else None,
+                        sort_items=segment.order_by.items if segment.order_by else None,
+                        skip_count=segment.skip.count if segment.skip else None,
+                        limit_count=segment.limit.count if segment.limit else None,
+                    )
+                    operators.append(with_op)
+
+                    # Add DISTINCT operator if needed (and no aggregation)
+                    if segment.distinct:
+                        from graphforge.planner.operators import Distinct
+
+                        operators.append(Distinct())
             elif isinstance(segment, list):
                 # Plan the segment as a simple query
                 operators.extend(self._plan_simple_query(segment))

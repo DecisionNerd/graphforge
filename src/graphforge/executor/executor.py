@@ -6,12 +6,13 @@ against a graph store.
 
 from typing import Any
 
-from graphforge.ast.expression import FunctionCall
+from graphforge.ast.expression import FunctionCall, Variable
 from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
 from graphforge.planner.operators import (
     Aggregate,
     Create,
     Delete,
+    Distinct,
     ExpandEdges,
     Filter,
     Limit,
@@ -57,8 +58,8 @@ class QueryExecutor:
         rows = [ExecutionContext()]
 
         # Execute each operator in sequence
-        for op in operators:
-            rows = self._execute_operator(op, rows)
+        for i, op in enumerate(operators):
+            rows = self._execute_operator(op, rows, i, len(operators))
 
         # If there's no Project or Aggregate operator in the pipeline (no RETURN clause),
         # return empty results (Cypher semantics: queries without RETURN produce no output)
@@ -68,15 +69,23 @@ class QueryExecutor:
         # At this point, rows has been converted to list[dict] by Project/Aggregate operator
         return rows  # type: ignore[return-value]
 
-    def _execute_operator(self, op, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+    def _execute_operator(
+        self,
+        op,
+        input_rows: list[ExecutionContext],
+        op_index: int,
+        total_ops: int,
+    ) -> list[ExecutionContext] | list[dict]:
         """Execute a single operator.
 
         Args:
             op: Logical plan operator
             input_rows: Input execution contexts
+            op_index: Index of current operator in pipeline
+            total_ops: Total number of operators in pipeline
 
         Returns:
-            Output execution contexts
+            Output execution contexts or dicts (for final Project/Aggregate)
         """
         if isinstance(op, ScanNodes):
             return self._execute_scan(op, input_rows)
@@ -100,7 +109,10 @@ class QueryExecutor:
             return self._execute_sort(op, input_rows)
 
         if isinstance(op, Aggregate):
-            return self._execute_aggregate(op, input_rows)  # type: ignore[return-value]
+            # Determine if we're in WITH context (more operators follow)
+            # In WITH, return ExecutionContexts; in RETURN, return dicts
+            for_with = op_index < total_ops - 1
+            return self._execute_aggregate(op, input_rows, for_with=for_with)  # type: ignore[return-value]
 
         if isinstance(op, Create):
             return self._execute_create(op, input_rows)
@@ -116,6 +128,9 @@ class QueryExecutor:
 
         if isinstance(op, With):
             return self._execute_with(op, input_rows)
+
+        if isinstance(op, Distinct):
+            return self._execute_distinct(op, input_rows)
 
         raise TypeError(f"Unknown operator type: {type(op).__name__}")
 
@@ -246,9 +261,12 @@ class QueryExecutor:
                 if return_item.alias:
                     # Explicit alias provided - use it
                     key = return_item.alias
+                elif isinstance(return_item.expression, Variable):
+                    # Simple variable reference - use variable name as column name
+                    # This preserves names from WITH clauses
+                    key = return_item.expression.name
                 else:
-                    # No alias - use default column naming (col_0, col_1, etc.)
-                    # This applies to all expressions, including simple variables
+                    # Complex expression without alias - use default column naming
                     key = f"col_{i}"
 
                 row[key] = value
@@ -369,6 +387,34 @@ class QueryExecutor:
         """Execute Skip operator."""
         return input_rows[op.count :]
 
+    def _execute_distinct(
+        self, op: Distinct, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute DISTINCT operator.
+
+        Removes duplicate rows by comparing all bound variables.
+        """
+        if not input_rows:
+            return input_rows
+
+        seen = set()
+        result = []
+
+        for ctx in input_rows:
+            # Create hashable key from all bindings
+            key_items = []
+            for var_name in sorted(ctx.bindings.keys()):
+                value = ctx.bindings[var_name]
+                hashable = self._value_to_hashable(value)
+                key_items.append((var_name, hashable))
+
+            key = tuple(key_items)
+            if key not in seen:
+                seen.add(key)
+                result.append(ctx)
+
+        return result
+
     def _execute_sort(self, op: Sort, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
         """Execute Sort operator.
 
@@ -454,11 +500,20 @@ class QueryExecutor:
 
         return result_rows
 
-    def _execute_aggregate(self, op: Aggregate, input_rows: list[ExecutionContext]) -> list[dict]:
+    def _execute_aggregate(
+        self, op: Aggregate, input_rows: list[ExecutionContext], for_with: bool = False
+    ) -> list[dict] | list[ExecutionContext]:
         """Execute Aggregate operator.
 
         Groups rows by grouping expressions and computes aggregation functions.
-        Returns one row per group with grouping values and aggregate results.
+
+        Args:
+            op: Aggregate operator
+            input_rows: Input execution contexts
+            for_with: If True, return ExecutionContexts for WITH; if False, return dicts for RETURN
+
+        Returns:
+            List of dicts (for RETURN) or ExecutionContexts (for WITH)
         """
         from collections import defaultdict
 
@@ -466,7 +521,19 @@ class QueryExecutor:
         if not input_rows:
             # If no grouping (only aggregates), return one row with NULL/0 aggregates
             if not op.grouping_exprs:
-                return [self._compute_aggregates_for_group(op, [])]
+                if for_with:
+                    # Return ExecutionContext for WITH
+                    ctx = ExecutionContext()
+                    for agg_expr in op.agg_exprs:
+                        for item in op.return_items:
+                            if item.expression == agg_expr:
+                                var_name = item.alias if item.alias else "col_0"
+                                result_value = self._compute_aggregation(agg_expr, [])
+                                ctx.bind(var_name, result_value)
+                                break
+                    return [ctx]
+                else:
+                    return [self._compute_aggregates_for_group(op, [])]
             return []
 
         # Group rows by grouping expressions
@@ -487,8 +554,34 @@ class QueryExecutor:
         # Compute aggregates for each group
         result = []
         for group_key, group_rows in groups.items():
-            row = self._compute_aggregates_for_group(op, group_rows, group_key)
-            result.append(row)
+            if for_with:
+                # Return ExecutionContext for WITH clauses
+                ctx = ExecutionContext()
+
+                # Bind grouping values
+                for i, (expr, val) in enumerate(zip(op.grouping_exprs, group_key)):
+                    # Find alias from return_items
+                    for item in op.return_items:
+                        if item.expression == expr:
+                            var_name = item.alias if item.alias else f"col_{i}"
+                            ctx.bind(var_name, self._hashable_to_cypher_value(val))
+                            break
+
+                # Compute and bind aggregates
+                for agg_expr in op.agg_exprs:
+                    # Find alias from return_items
+                    for item in op.return_items:
+                        if item.expression == agg_expr:
+                            var_name = item.alias if item.alias else "col_0"
+                            result_value = self._compute_aggregation(agg_expr, group_rows)
+                            ctx.bind(var_name, result_value)
+                            break
+
+                result.append(ctx)
+            else:
+                # Return dict for RETURN clauses (existing behavior)
+                row = self._compute_aggregates_for_group(op, group_rows, group_key)
+                result.append(row)
 
         return result
 
@@ -503,6 +596,26 @@ class QueryExecutor:
             return (type(value).__name__, value.value)
         # NodeRef, EdgeRef have their own hash
         return value
+
+    def _hashable_to_cypher_value(self, hashable_val):
+        """Convert hashable representation back to CypherValue."""
+        from graphforge.types.values import CypherString
+
+        if hashable_val is None:
+            return CypherNull()
+        elif isinstance(hashable_val, tuple) and len(hashable_val) == 2:
+            type_name, val = hashable_val
+            if type_name == "CypherInt":
+                return CypherInt(val)
+            elif type_name == "CypherFloat":
+                return CypherFloat(val)
+            elif type_name == "CypherBool":
+                return CypherBool(val)
+            elif type_name == "CypherString":
+                return CypherString(val)
+
+        # NodeRef, EdgeRef, or already a CypherValue
+        return hashable_val
 
     def _compute_aggregates_for_group(
         self, op: Aggregate, group_rows: list[ExecutionContext], group_key=None

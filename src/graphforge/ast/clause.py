@@ -110,9 +110,11 @@ class ReturnClause:
         RETURN n
         RETURN n.name AS name, n.age AS age
         RETURN count(n) AS count
+        RETURN DISTINCT n.name
     """
 
     items: list[ReturnItem]  # List of ReturnItems
+    distinct: bool = False  # True for RETURN DISTINCT
 
 
 @dataclass
@@ -176,9 +178,11 @@ class WithClause:
         WITH n.name AS name, count(*) AS connections
         WITH person WHERE person.age > 25
         WITH person ORDER BY person.age LIMIT 10
+        WITH DISTINCT n.name AS name
     """
 
     items: list[ReturnItem]  # Projection items (same as RETURN)
+    distinct: bool = False  # True for WITH DISTINCT
     where: WhereClause | None = None  # Optional WHERE after WITH
     order_by: OrderByClause | None = None  # Optional ORDER BY
     skip: SkipClause | None = None  # Optional SKIP

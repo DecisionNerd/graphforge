@@ -79,7 +79,7 @@ class TestTCKMatch:
 
         # Verify
         assert len(results) == 3, "Should return exactly 3 nodes"
-        names = {r["col_0"].properties["name"].value for r in results}
+        names = {r["n"].properties["name"].value for r in results}
         assert names == {"A", "B", "C"}, "Should return nodes A, B, and C"
 
     def test_match_nodes_by_label(self, gf):

@@ -147,6 +147,7 @@ class With:
 
     Attributes:
         items: List of ReturnItem AST nodes (expressions to project)
+        distinct: True for WITH DISTINCT (deduplication)
         predicate: Optional filter predicate (WHERE after WITH)
         sort_items: Optional list of OrderByItem AST nodes
         skip_count: Optional number of rows to skip
@@ -154,10 +155,22 @@ class With:
     """
 
     items: list[Any]  # List of ReturnItem AST nodes
+    distinct: bool = False  # True for WITH DISTINCT
     predicate: Any | None = None  # Optional WHERE expression
     sort_items: list[Any] | None = None  # Optional OrderByItem list
     skip_count: int | None = None  # Optional SKIP count
     limit_count: int | None = None  # Optional LIMIT count
+
+
+@dataclass
+class Distinct:
+    """Operator for deduplication.
+
+    Removes duplicate rows from input by comparing all bound variables.
+    Used to implement RETURN DISTINCT and WITH DISTINCT.
+    """
+
+    pass
 
 
 @dataclass

@@ -147,7 +147,16 @@ class ASTTransformer(Transformer):
 
     def return_clause(self, items):
         """Transform RETURN clause."""
-        return ReturnClause(items=list(items))
+        return_items = []
+        distinct = False
+
+        for item in items:
+            if isinstance(item, ReturnItem):
+                return_items.append(item)
+            elif isinstance(item, Token) and item.value.upper() == 'DISTINCT':
+                distinct = True
+
+        return ReturnClause(items=return_items, distinct=distinct)
 
     def with_clause(self, items):
         """Transform WITH clause.
@@ -156,6 +165,7 @@ class ASTTransformer(Transformer):
         """
         # First collect all return items (before any optional clauses)
         return_items = []
+        distinct = False
         where = None
         order_by = None
         skip = None
@@ -164,6 +174,8 @@ class ASTTransformer(Transformer):
         for item in items:
             if isinstance(item, ReturnItem):
                 return_items.append(item)
+            elif isinstance(item, Token) and item.value.upper() == 'DISTINCT':
+                distinct = True
             elif isinstance(item, WhereClause):
                 where = item
             elif isinstance(item, OrderByClause):
@@ -175,6 +187,7 @@ class ASTTransformer(Transformer):
 
         return WithClause(
             items=return_items,
+            distinct=distinct,
             where=where,
             order_by=order_by,
             skip=skip,
