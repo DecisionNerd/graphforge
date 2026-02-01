@@ -364,6 +364,39 @@ Update relevant docs when adding features:
 - **Bugs**: Open a [GitHub Issue](https://github.com/DecisionNerd/graphforge/issues)
 - **Security**: Email security concerns privately (see SECURITY.md if available)
 
+## Releases and Versioning
+
+GraphForge follows [Semantic Versioning](https://semver.org/) and maintains a detailed [CHANGELOG.md](CHANGELOG.md).
+
+### For Contributors
+
+When submitting PRs, update the `[Unreleased]` section of CHANGELOG.md:
+
+```markdown
+## [Unreleased]
+
+### Added
+- New feature you implemented
+
+### Fixed
+- Bug you fixed
+```
+
+### For Maintainers
+
+See [RELEASING.md](RELEASING.md) for the release process, or [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) for comprehensive documentation.
+
+Quick release:
+```bash
+python scripts/bump_version.py minor
+# Edit CHANGELOG.md
+git commit -am "chore(release): bump version to X.Y.Z"
+git push origin main
+git tag -a vX.Y.Z -m "Release version X.Y.Z"
+git push origin vX.Y.Z
+gh release create vX.Y.Z --title "GraphForge vX.Y.Z"
+```
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under the MIT License.
