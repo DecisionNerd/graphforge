@@ -1,0 +1,62 @@
+# Codecov Configuration for GraphForge
+# See https://docs.codecov.com/docs/codecov-yaml for full configuration
+
+coverage:
+  status:
+    project:
+      default:
+        target: 85%                    # Project-wide coverage target
+        threshold: 2%                  # Allow 2% drop before failing
+        if_ci_failed: error            # Fail if CI fails
+    patch:
+      default:
+        target: 80%                    # New code should have 80%+ coverage
+        threshold: 5%
+        if_ci_failed: error
+
+  precision: 2                         # Show 2 decimal places
+  round: down                          # Round coverage down
+  range: "70...95"                     # Coverage range (red to green)
+
+comment:
+  layout: "header, diff, flags, components, footer"
+  behavior: default                    # Comment on every PR
+  require_changes: false               # Always comment, even if no changes
+
+flags:
+  unittests:
+    paths:
+      - src/
+    carryforward: true                 # Use previous coverage if job fails
+  full-coverage:
+    paths:
+      - src/
+    carryforward: true
+
+component_management:
+  individual_components:
+    - component_id: parser
+      paths:
+        - src/graphforge/parser/**
+    - component_id: planner
+      paths:
+        - src/graphforge/planner/**
+    - component_id: executor
+      paths:
+        - src/graphforge/executor/**
+    - component_id: storage
+      paths:
+        - src/graphforge/storage/**
+    - component_id: ast
+      paths:
+        - src/graphforge/ast/**
+    - component_id: types
+      paths:
+        - src/graphforge/types/**
+
+ignore:
+  - "tests/**"
+  - "docs/**"
+  - "scripts/**"
+  - "examples/**"
+  - "**/__init__.py"

@@ -8,7 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Comprehensive WITH clause integration tests (17 test cases covering all features)
+- Codecov integration for automated coverage tracking
+  - Coverage reports uploaded from GitHub Actions
+  - Component-level coverage tracking (parser, planner, executor, storage, ast, types)
+  - PR comments with coverage changes
+  - Branch coverage analysis
+  - Configuration file (`.codecov.yml`) with 85% project target, 80% patch target
+
+## [0.1.3] - 2026-02-01
+
+### Changed
+- **Column naming now uses variable names for simple variable references** (openCypher TCK compliance)
+  - `RETURN n` now produces column name "n" (previously "col_0")
+  - `RETURN n AS alias` produces column name "alias" (unchanged)
+  - `RETURN n.property` produces column name "col_0" (unchanged - complex expression)
+  - This aligns GraphForge with the openCypher specification and improves Neo4j compatibility
+  - Note: This is a breaking change from v0.1.2 but necessary for WITH clause correctness
+  - Rationale: WITH clause requires preserving variable names through query pipeline
+- Test suite expanded with WITH clause coverage (17 comprehensive test cases)
+
+### Added
+- Comprehensive WITH clause integration tests covering:
   - Basic projection and variable renaming
   - WHERE filtering on intermediate results
   - Aggregation with GROUP BY semantics
@@ -16,12 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Multi-part query chaining
   - Edge cases and null handling
 
-### Changed
-- Test suite expanded with WITH clause coverage to identify implementation gaps
-
 ### Fixed
+- WITH clause bugs: column naming, aggregations, and DISTINCT behavior
 - CodeRabbit configuration file to use only valid schema properties
-- Failing WITH tests marked as xfail to document known bugs and unblock CI
 - Removed unused pytest import from WITH clause tests
 
 ## [0.1.2] - 2026-02-01
@@ -92,6 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 81% code coverage
 - Multi-OS, multi-Python CI/CD (3 OS × 4 Python versions)
 
-[Unreleased]: https://github.com/DecisionNerd/graphforge/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/DecisionNerd/graphforge/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/DecisionNerd/graphforge/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/DecisionNerd/graphforge/compare/v0.1.1...v0.1.2
 [0.1.0]: https://github.com/DecisionNerd/graphforge/releases/tag/v0.1.0

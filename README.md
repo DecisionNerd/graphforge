@@ -4,7 +4,7 @@
   <a href="https://pypi.org/project/graphforge/"><img src="https://img.shields.io/pypi/v/graphforge.svg?label=PyPI&logo=pypi" alt="PyPI version" /></a>
   <a href="https://pypi.org/project/graphforge/"><img src="https://img.shields.io/pypi/pyversions/graphforge.svg?logo=python&logoColor=white" alt="Python versions" /></a>
   <a href="https://github.com/DecisionNerd/graphforge/actions"><img src="https://github.com/DecisionNerd/graphforge/workflows/Test%20Suite/badge.svg" alt="Build status" /></a>
-  <a href="https://codecov.io/gh/DecisionNerd/graphforge"><img src="https://codecov.io/gh/DecisionNerd/graphforge/branch/main/graph/badge.svg" alt="Coverage" /></a>
+  <a href="https://codecov.io/gh/DecisionNerd/graphforge"><img src="https://codecov.io/gh/DecisionNerd/graphforge/graph/badge.svg" alt="Coverage" /></a>
   <a href="https://github.com/DecisionNerd/graphforge/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" /></a>
   <a href="https://pypi.org/project/graphforge/"><img src="https://img.shields.io/pypi/dm/graphforge.svg?label=PyPI%20downloads" alt="PyPI downloads" /></a>
 </p>
