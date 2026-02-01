@@ -1,14 +1,13 @@
-<p align="center">
-  <img src="https://img.shields.io/pypi/v/graphforge?style=for-the-badge" alt="PyPI version" />
-  <img src="https://img.shields.io/badge/python-3.10+-3776ab?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge" alt="License" />
-</p>
-<p align="center">
-  <img src="https://img.shields.io/badge/pydantic-2.6+-e92063?style=for-the-badge&logo=pydantic&logoColor=white" alt="Pydantic" />
-  <img src="https://img.shields.io/badge/openCypher%20TCK%20target-2024.2-6c4f7c?style=for-the-badge" alt="openCypher TCK target" />
-</p>
-
 <h1 align="center">GraphForge</h1>
+
+<p align="center">
+  <a href="https://pypi.org/project/graphforge/"><img src="https://img.shields.io/pypi/v/graphforge.svg?label=PyPI&logo=pypi" alt="PyPI version" /></a>
+  <a href="https://pypi.org/project/graphforge/"><img src="https://img.shields.io/pypi/pyversions/graphforge.svg?logo=python&logoColor=white" alt="Python versions" /></a>
+  <a href="https://github.com/DecisionNerd/graphforge/actions"><img src="https://github.com/DecisionNerd/graphforge/workflows/Test%20Suite/badge.svg" alt="Build status" /></a>
+  <a href="https://codecov.io/gh/DecisionNerd/graphforge"><img src="https://codecov.io/gh/DecisionNerd/graphforge/branch/main/graph/badge.svg" alt="Coverage" /></a>
+  <a href="https://github.com/DecisionNerd/graphforge/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" /></a>
+  <a href="https://pypi.org/project/graphforge/"><img src="https://img.shields.io/pypi/dm/graphforge.svg?label=PyPI%20downloads" alt="PyPI downloads" /></a>
+</p>
 <p align="center">
   <strong>Composable graph tooling for analysis, construction, and refinement</strong>
 </p>
