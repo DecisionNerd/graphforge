@@ -3,8 +3,8 @@
 Tests ACID transaction semantics with begin/commit/rollback.
 """
 
-import tempfile
 from pathlib import Path
+import tempfile
 
 import pytest
 

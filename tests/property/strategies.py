@@ -5,7 +5,6 @@ These strategies generate valid GraphForge data structures for property-based te
 
 from hypothesis import strategies as st
 
-
 # openCypher value types
 cypher_int = st.integers(min_value=-(2**63), max_value=2**63 - 1)
 cypher_float = st.floats(allow_nan=False, allow_infinity=False)

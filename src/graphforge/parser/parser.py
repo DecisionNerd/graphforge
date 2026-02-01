@@ -277,7 +277,7 @@ class ASTTransformer(Transformer):
     # Labels and types
     def labels(self, items):
         """Transform labels."""
-        return [item for item in items]
+        return list(items)
 
     def label(self, items):
         """Transform single label."""
@@ -285,7 +285,7 @@ class ASTTransformer(Transformer):
 
     def rel_types(self, items):
         """Transform relationship types."""
-        return [item for item in items]
+        return list(items)
 
     def rel_type(self, items):
         """Transform single relationship type."""
@@ -427,7 +427,7 @@ class CypherParser:
     def __init__(self):
         """Initialize parser with grammar and transformer."""
         grammar_path = Path(__file__).parent / "cypher.lark"
-        with open(grammar_path) as f:
+        with grammar_path.open() as f:
             self._lark = Lark(f.read(), start="query", parser="earley")
         self._transformer = ASTTransformer()
 
@@ -445,7 +445,7 @@ class CypherParser:
         """
         tree = self._lark.parse(query)
         ast = self._transformer.transform(tree)
-        return ast
+        return ast  # type: ignore[no-any-return]
 
 
 def parse_cypher(query: str) -> CypherQuery:

@@ -4,6 +4,8 @@ This module implements the execution engine that runs logical plan operators
 against a graph store.
 """
 
+from typing import Any
+
 from graphforge.ast.expression import FunctionCall
 from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
 from graphforge.planner.operators import (
@@ -63,7 +65,8 @@ class QueryExecutor:
         if operators and not any(isinstance(op, (Project, Aggregate)) for op in operators):
             return []
 
-        return rows
+        # At this point, rows has been converted to list[dict] by Project/Aggregate operator
+        return rows  # type: ignore[return-value]
 
     def _execute_operator(self, op, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
         """Execute a single operator.
@@ -85,7 +88,7 @@ class QueryExecutor:
             return self._execute_filter(op, input_rows)
 
         if isinstance(op, Project):
-            return self._execute_project(op, input_rows)
+            return self._execute_project(op, input_rows)  # type: ignore[return-value]
 
         if isinstance(op, Limit):
             return self._execute_limit(op, input_rows)
@@ -97,7 +100,7 @@ class QueryExecutor:
             return self._execute_sort(op, input_rows)
 
         if isinstance(op, Aggregate):
-            return self._execute_aggregate(op, input_rows)
+            return self._execute_aggregate(op, input_rows)  # type: ignore[return-value]
 
         if isinstance(op, Create):
             return self._execute_create(op, input_rows)
@@ -338,7 +341,7 @@ class QueryExecutor:
 
             def compare_rows(ctx1, ctx2):
                 """Compare two contexts by evaluating sort expressions."""
-                for sort_item in op.sort_items:
+                for sort_item in op.sort_items:  # type: ignore[union-attr]
                     val1 = evaluate_expression(sort_item.expression, ctx1)
                     val2 = evaluate_expression(sort_item.expression, ctx2)
                     cmp = compare_values(val1, val2, sort_item.ascending)
@@ -479,7 +482,7 @@ class QueryExecutor:
                 groups[key_values].append(ctx)
         else:
             # No grouping - single group with all rows
-            groups = {(): input_rows}
+            groups = {(): input_rows}  # type: ignore[assignment]
 
         # Compute aggregates for each group
         result = []
@@ -514,7 +517,7 @@ class QueryExecutor:
         Returns:
             Dict with both grouping values and aggregate results
         """
-        row = {}
+        row: dict[str, Any] = {}
 
         # Add grouping values to result
         if group_key:
@@ -534,9 +537,9 @@ class QueryExecutor:
                             elif type_name == "CypherFloat":
                                 row[key] = CypherFloat(val)
                             elif type_name == "CypherBool":
-                                from graphforge.types.values import CypherBool as CB
+                                from graphforge.types.values import CypherBool
 
-                                row[key] = CB(val)
+                                row[key] = CypherBool(val)
                             else:
                                 from graphforge.types.values import CypherString
 
@@ -581,12 +584,12 @@ class QueryExecutor:
 
             # COUNT(expr) - count non-NULL values
             count = 0
-            seen = set() if func_call.distinct else None
+            seen: set[Any] | None = set() if func_call.distinct else None
 
             for ctx in group_rows:
                 value = evaluate_expression(func_call.args[0], ctx)
                 if not isinstance(value, CypherNull):
-                    if func_call.distinct:
+                    if func_call.distinct and seen is not None:
                         hashable = self._value_to_hashable(value)
                         if hashable not in seen:
                             seen.add(hashable)
@@ -597,7 +600,7 @@ class QueryExecutor:
             return CypherInt(count)
 
         # SUM, AVG, MIN, MAX require evaluating the expression
-        values = []
+        values: list[Any] = []
         for ctx in group_rows:
             value = evaluate_expression(func_call.args[0], ctx)
             if not isinstance(value, CypherNull):
@@ -614,7 +617,7 @@ class QueryExecutor:
 
         # SUM
         if func_name == "SUM":
-            total = 0
+            total: int | float = 0
             is_float = False
             for val in values:
                 if isinstance(val, CypherFloat):
@@ -622,7 +625,7 @@ class QueryExecutor:
                     total += val.value
                 elif isinstance(val, CypherInt):
                     total += val.value
-            return CypherFloat(total) if is_float else CypherInt(total)
+            return CypherFloat(total) if is_float else CypherInt(int(total))
 
         # AVG
         if func_name == "AVG":

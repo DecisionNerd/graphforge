@@ -39,8 +39,9 @@ def empty_graph(tck_context):
 @given(parsers.parse("the {graph_name} graph"), target_fixture="tck_context")
 def named_graph(tck_context, graph_name):
     """Load a predefined named graph from TCK graphs directory."""
-    import yaml
     from pathlib import Path
+
+    import yaml
 
     # Load TCK config to find graph script
     config_path = Path(__file__).parent / "tck_config.yaml"

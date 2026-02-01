@@ -3,7 +3,6 @@
 Tests the ability to create nodes and relationships using Cypher CREATE syntax.
 """
 
-import pytest
 
 from graphforge import GraphForge
 
@@ -204,8 +203,8 @@ class TestCreatePersistence:
 
     def test_create_persists_across_sessions(self):
         """Created nodes persist across sessions."""
-        import tempfile
         from pathlib import Path
+        import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "test.db"

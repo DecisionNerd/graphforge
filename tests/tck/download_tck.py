@@ -6,8 +6,8 @@ repository and organizes it for local testing.
 """
 
 import json
-import sys
 from pathlib import Path
+import sys
 from urllib.request import urlopen
 
 GITHUB_API = "https://api.github.com"
@@ -90,7 +90,7 @@ def main():
     print(f"\n✓ Downloaded {graph_count} graph files\n")
 
     print("=" * 70)
-    print(f"TCK download complete!")
+    print("TCK download complete!")
     print(f"  Feature files: {official_dir}")
     print(f"  Named graphs: {graphs_dir}")
     print("=" * 70)

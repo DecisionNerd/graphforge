@@ -101,7 +101,7 @@ def serialize_properties(properties: dict) -> bytes:
         MessagePack encoded bytes
     """
     serialized = {key: serialize_cypher_value(val) for key, val in properties.items()}
-    return msgpack.packb(serialized)
+    return msgpack.packb(serialized)  # type: ignore[no-any-return]
 
 
 def deserialize_properties(data: bytes) -> dict:
@@ -129,7 +129,7 @@ def serialize_labels(labels: frozenset[str]) -> bytes:
     Returns:
         MessagePack encoded bytes
     """
-    return msgpack.packb(list(labels))
+    return msgpack.packb(list(labels))  # type: ignore[no-any-return]
 
 
 def deserialize_labels(data: bytes) -> frozenset[str]:

@@ -3,7 +3,6 @@
 Tests the ability to update, delete, and merge nodes using Cypher syntax.
 """
 
-import pytest
 
 from graphforge import GraphForge
 
@@ -213,8 +212,8 @@ class TestPersistenceWithMutations:
 
     def test_set_persists(self):
         """SET changes persist across sessions."""
-        import tempfile
         from pathlib import Path
+        import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "test.db"
@@ -233,8 +232,8 @@ class TestPersistenceWithMutations:
 
     def test_delete_persists(self):
         """DELETE changes persist across sessions."""
-        import tempfile
         from pathlib import Path
+        import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "test.db"
@@ -255,8 +254,8 @@ class TestPersistenceWithMutations:
 
     def test_merge_persists(self):
         """MERGE changes persist across sessions."""
-        import tempfile
         from pathlib import Path
+        import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "test.db"

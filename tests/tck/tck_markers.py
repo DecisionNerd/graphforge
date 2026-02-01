@@ -10,11 +10,10 @@ Usage:
     pytest tests/tck/ --tck-report
 """
 
-import yaml
 from pathlib import Path
-from typing import Dict, List, Set
 
 import pytest
+import yaml
 
 
 class TCKConfig:
@@ -120,7 +119,7 @@ class TCKReporter:
         else:
             overall_pct = 0.0
 
-        lines.append(f"Overall TCK Compliance:")
+        lines.append("Overall TCK Compliance:")
         lines.append(f"  Total scenarios:   {self.total_scenarios}")
         lines.append(f"  Passed:            {self.passed} ({overall_pct:.1f}%)")
         lines.append(f"  Failed:            {self.failed}")
@@ -134,7 +133,7 @@ class TCKReporter:
         else:
             supported_pct = 0.0
 
-        lines.append(f"Supported Scenarios (GraphForge Claims):")
+        lines.append("Supported Scenarios (GraphForge Claims):")
         lines.append(f"  Total supported:   {self.supported_scenarios}")
         lines.append(f"  Passed:            {self.supported_passed} ({supported_pct:.1f}%)")
         lines.append(f"  Failed:            {self.supported_failed}")

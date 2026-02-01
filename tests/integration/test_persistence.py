@@ -3,10 +3,8 @@
 Tests the ability to save and load graphs from SQLite databases.
 """
 
-import tempfile
 from pathlib import Path
-
-import pytest
+import tempfile
 
 from graphforge import GraphForge
 

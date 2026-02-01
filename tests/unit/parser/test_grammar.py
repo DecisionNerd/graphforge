@@ -3,9 +3,10 @@
 Tests that the Lark grammar can parse valid Cypher queries.
 """
 
-import pytest
-from lark import Lark
 from pathlib import Path
+
+from lark import Lark
+import pytest
 
 
 @pytest.fixture

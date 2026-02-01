@@ -3,8 +3,8 @@
 This module implements durable graph storage using SQLite with WAL mode.
 """
 
-import sqlite3
 from pathlib import Path
+import sqlite3
 
 from graphforge.storage.serialization import (
     deserialize_labels,
@@ -197,7 +197,7 @@ class SQLiteBackend:
         """
         cursor = self.conn.execute("SELECT node_id, edge_id FROM adjacency_out")
 
-        adjacency = {}
+        adjacency: dict[int, list[int]] = {}
         for node_id, edge_id in cursor.fetchall():
             if node_id not in adjacency:
                 adjacency[node_id] = []
@@ -213,7 +213,7 @@ class SQLiteBackend:
         """
         cursor = self.conn.execute("SELECT node_id, edge_id FROM adjacency_in")
 
-        adjacency = {}
+        adjacency: dict[int, list[int]] = {}
         for node_id, edge_id in cursor.fetchall():
             if node_id not in adjacency:
                 adjacency[node_id] = []

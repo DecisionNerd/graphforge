@@ -62,9 +62,8 @@ class QueryPlanner:
         if has_with:
             # Split query at WITH boundaries and plan each segment
             return self._plan_with_query(ast)
-        else:
-            # Use traditional single-pass planning
-            return self._plan_simple_query(ast.clauses)
+        # Use traditional single-pass planning
+        return self._plan_simple_query(ast.clauses)
 
     def _plan_simple_query(self, clauses: list) -> list:
         """Plan a simple query without WITH clauses.
@@ -183,8 +182,8 @@ class QueryPlanner:
         operators = []
 
         # Split clauses at WITH boundaries
-        segments = []
-        current_segment = []
+        segments: list[list | WithClause] = []
+        current_segment: list = []
 
         for clause in ast.clauses:
             if isinstance(clause, WithClause):
@@ -239,7 +238,7 @@ class QueryPlanner:
                 node_pattern = pattern[0]
                 operators.append(
                     ScanNodes(
-                        variable=node_pattern.variable,
+                        variable=node_pattern.variable,  # type: ignore[arg-type]
                         labels=node_pattern.labels if node_pattern.labels else None,
                     )
                 )
@@ -247,9 +246,9 @@ class QueryPlanner:
                 # Add Filter for inline property predicates
                 if node_pattern.properties:
                     predicate = self._properties_to_predicate(
-                        node_pattern.variable, node_pattern.properties
+                        node_pattern.variable, node_pattern.properties  # type: ignore[arg-type]
                     )
-                    operators.append(Filter(predicate=predicate))
+                    operators.append(Filter(predicate=predicate))  # type: ignore[arg-type]
 
             # Handle node-relationship-node pattern
             elif len(pattern) >= 3:
@@ -258,7 +257,7 @@ class QueryPlanner:
                     src_pattern = pattern[0]
                     operators.append(
                         ScanNodes(
-                            variable=src_pattern.variable,
+                            variable=src_pattern.variable,  # type: ignore[arg-type]
                             labels=src_pattern.labels if src_pattern.labels else None,
                         )
                     )
@@ -266,9 +265,9 @@ class QueryPlanner:
                     # Add Filter for inline property predicates on src node
                     if src_pattern.properties:
                         predicate = self._properties_to_predicate(
-                            src_pattern.variable, src_pattern.properties
+                            src_pattern.variable, src_pattern.properties  # type: ignore[arg-type]
                         )
-                        operators.append(Filter(predicate=predicate))
+                        operators.append(Filter(predicate=predicate))  # type: ignore[arg-type]
 
                 # Relationship
                 if isinstance(pattern[1], RelationshipPattern):
@@ -283,7 +282,7 @@ class QueryPlanner:
 
                     operators.append(
                         ExpandEdges(
-                            src_var=src_pattern.variable,
+                            src_var=src_pattern.variable,  # type: ignore[arg-type]
                             edge_var=rel_pattern.variable,
                             dst_var=dst_pattern.variable,
                             edge_types=rel_pattern.types if rel_pattern.types else [],
@@ -303,7 +302,7 @@ class QueryPlanner:
         Returns:
             BinaryOp predicate combining all property checks with AND
         """
-        from graphforge.ast.expression import BinaryOp, PropertyAccess, Variable
+        from graphforge.ast.expression import BinaryOp, PropertyAccess
 
         if not properties:
             return None

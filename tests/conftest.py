@@ -1,7 +1,7 @@
 """Shared pytest fixtures for all test categories."""
 
-import tempfile
 from pathlib import Path
+import tempfile
 
 import pytest
 
