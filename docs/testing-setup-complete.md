@@ -23,18 +23,18 @@ The pytest testing infrastructure is now fully configured and operational. Graph
    - CI/CD guidelines
    - Quality gates and coverage requirements
 
-2. **[tests/README.md](../tests/README.md)** - Quick reference for developers
+2. **tests/README.md** (repository root) - Quick reference for developers
    - Common commands
    - Test structure overview
    - Fixture usage examples
 
-3. **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Development workflow guide
+3. **CONTRIBUTING.md** (repository root) - Development workflow guide
    - Setup instructions
    - Code quality checklist
    - PR requirements
    - Design principles
 
-4. **[.github/workflows/README.md](../.github/workflows/README.md)** - CI documentation
+4. **.github/workflows/README.md** (repository root) - CI documentation
 
 ### Configuration
 
@@ -271,7 +271,7 @@ The openCypher TCK compliance approach:
 ### Internal Documentation
 - [Testing Strategy](testing-strategy.md) - Complete testing documentation
 - [Requirements](0-requirements.md) - Project requirements
-- [Contributing Guide](../CONTRIBUTING.md) - Development workflow
+- Contributing Guide (CONTRIBUTING.md in repository root) - Development workflow
 
 ### External Resources
 - [pytest documentation](https://docs.pytest.org/)

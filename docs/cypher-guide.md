@@ -800,10 +800,10 @@ RETURN p.name AS person
 
 ## See Also
 
-- [Tutorial](tutorial.md) - Step-by-step guide
-- [API Reference](api-reference.md) - Python API documentation
+- [Getting Started](overview.md) - Step-by-step guide
+- [API Reference](../api-reference.md) - Python API documentation
 - [Examples](../examples/) - Real-world use cases
-- [TCK Compliance](tck-compliance.md) - openCypher conformance status
+- [TCK Compliance](../tck-compliance.md) - openCypher conformance status
 
 ---
 

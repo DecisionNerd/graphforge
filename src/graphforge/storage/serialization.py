@@ -17,7 +17,7 @@ from graphforge.types.values import (
 )
 
 
-def serialize_cypher_value(value) -> dict:
+def serialize_cypher_value(value: CypherValue) -> dict:
     """Serialize a CypherValue to a dict for msgpack.
 
     Args:
@@ -56,7 +56,7 @@ def serialize_cypher_value(value) -> dict:
     raise TypeError(f"Cannot serialize CypherValue type: {type(value).__name__}")
 
 
-def deserialize_cypher_value(data: dict):
+def deserialize_cypher_value(data: dict) -> CypherValue:
     """Deserialize a dict to a CypherValue.
 
     Args:

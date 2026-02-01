@@ -881,12 +881,12 @@ git rebase --continue
 
 ## Resources
 
-- **Contributing Guide**: [CONTRIBUTING.md](../CONTRIBUTING.md)
-- **Security Policy**: [.github/SECURITY.md](../.github/SECURITY.md)
-- **Issue Templates**: [.github/ISSUE_TEMPLATE/](../.github/ISSUE_TEMPLATE/)
-- **CI/CD Workflows**: [.github/workflows/](../.github/workflows/)
-- **Pre-commit Config**: [.pre-commit-config.yaml](../.pre-commit-config.yaml)
-- **CodeRabbit Config**: [.coderabbit.yaml](../.coderabbit.yaml)
+- **Contributing Guide**: CONTRIBUTING.md (repository root)
+- **Security Policy**: .github/SECURITY.md (repository root)
+- **Issue Templates**: .github/ISSUE_TEMPLATE/ (repository root)
+- **CI/CD Workflows**: .github/workflows/ (repository root)
+- **Pre-commit Config**: .pre-commit-config.yaml (repository root)
+- **CodeRabbit Config**: .coderabbit.yaml (repository root)
 
 ---
 

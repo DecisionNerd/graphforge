@@ -37,7 +37,7 @@ class ExecutionContext:
         """
         self.bindings[name] = value
 
-    def get(self, name: str):
+    def get(self, name: str) -> Any:
         """Get a variable's value.
 
         Args:
@@ -63,7 +63,7 @@ class ExecutionContext:
         return name in self.bindings
 
 
-def evaluate_expression(expr, ctx: ExecutionContext):
+def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
     """Evaluate an AST expression in a context.
 
     Args:

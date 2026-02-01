@@ -4,6 +4,7 @@ This module provides the main public interface for GraphForge.
 """
 
 from pathlib import Path
+from typing import Any
 
 from graphforge.executor.executor import QueryExecutor
 from graphforge.parser.parser import CypherParser
@@ -109,7 +110,7 @@ class GraphForge:
 
         return results
 
-    def create_node(self, labels: list[str] | None = None, **properties) -> NodeRef:
+    def create_node(self, labels: list[str] | None = None, **properties: Any) -> NodeRef:
         """Create a node with labels and properties.
 
         Automatically assigns a unique node ID and converts Python values
@@ -149,7 +150,7 @@ class GraphForge:
         return node
 
     def create_relationship(
-        self, src: NodeRef, dst: NodeRef, rel_type: str, **properties
+        self, src: NodeRef, dst: NodeRef, rel_type: str, **properties: Any
     ) -> EdgeRef:
         """Create a relationship between two nodes.
 
