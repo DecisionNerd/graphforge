@@ -14,6 +14,7 @@ from graphforge.types.values import (
     CypherMap,
     CypherNull,
     CypherString,
+    CypherValue,
 )
 
 

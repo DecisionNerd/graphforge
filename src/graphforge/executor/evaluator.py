@@ -11,6 +11,7 @@ from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,
     CypherNull,
+    CypherValue,
     from_python,
 )
 
@@ -83,7 +84,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
 
     # Variable reference
     if isinstance(expr, Variable):
-        return ctx.get(expr.name)
+        return ctx.get(expr.name)  # type: ignore[no-any-return]
 
     # Property access
     if isinstance(expr, PropertyAccess):
@@ -92,7 +93,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
         # Handle NodeRef/EdgeRef
         if isinstance(obj, (NodeRef, EdgeRef)):
             if expr.property in obj.properties:
-                return obj.properties[expr.property]
+                return obj.properties[expr.property]  # type: ignore[no-any-return]
             return CypherNull()
 
         raise TypeError(f"Cannot access property on {type(obj).__name__}")
