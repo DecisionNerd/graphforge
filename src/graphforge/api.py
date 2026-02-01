@@ -68,7 +68,7 @@ class GraphForge:
             self._next_edge_id = self.backend.get_next_edge_id()
         else:
             # Use in-memory storage
-            self.backend = None
+            self.backend = None  # type: ignore[assignment]
             self.graph = Graph()
             self._next_node_id = 1
             self._next_edge_id = 1
@@ -83,7 +83,7 @@ class GraphForge:
         # Initialize query execution components
         self.parser = CypherParser()
         self.planner = QueryPlanner()
-        self.executor = QueryExecutor(self.graph)
+        self.executor = QueryExecutor(self.graph, graphforge=self)
 
     def execute(self, query: str) -> list[dict]:
         """Execute an openCypher query.
@@ -262,7 +262,7 @@ class GraphForge:
             raise RuntimeError("Already in a transaction. Commit or rollback first.")
 
         # Take snapshot of current state
-        self._transaction_snapshot = self.graph.snapshot()
+        self._transaction_snapshot = self.graph.snapshot()  # type: ignore[assignment]
         self._in_transaction = True
 
     def commit(self):
@@ -314,7 +314,7 @@ class GraphForge:
             raise RuntimeError("Not in a transaction. Call begin() first.")
 
         # Restore graph from snapshot
-        self.graph.restore(self._transaction_snapshot)
+        self.graph.restore(self._transaction_snapshot)  # type: ignore[arg-type]
 
         # Rollback SQLite transaction if using persistence
         if self.backend:

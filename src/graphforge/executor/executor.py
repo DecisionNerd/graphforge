@@ -4,17 +4,24 @@ This module implements the execution engine that runs logical plan operators
 against a graph store.
 """
 
+from typing import Any
+
 from graphforge.ast.expression import FunctionCall
 from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
 from graphforge.planner.operators import (
     Aggregate,
+    Create,
+    Delete,
     ExpandEdges,
     Filter,
     Limit,
+    Merge,
     Project,
     ScanNodes,
+    Set,
     Skip,
     Sort,
+    With,
 )
 from graphforge.storage.memory import Graph
 from graphforge.types.values import CypherBool, CypherFloat, CypherInt, CypherNull
@@ -27,13 +34,15 @@ class QueryExecutor:
     each stage of the query.
     """
 
-    def __init__(self, graph: Graph):
+    def __init__(self, graph: Graph, graphforge=None):
         """Initialize executor with a graph.
 
         Args:
             graph: The graph to query
+            graphforge: Optional GraphForge instance for CREATE operations
         """
         self.graph = graph
+        self.graphforge = graphforge
 
     def execute(self, operators: list) -> list[dict]:
         """Execute a pipeline of operators.
@@ -51,7 +60,13 @@ class QueryExecutor:
         for op in operators:
             rows = self._execute_operator(op, rows)
 
-        return rows
+        # If there's no Project or Aggregate operator in the pipeline (no RETURN clause),
+        # return empty results (Cypher semantics: queries without RETURN produce no output)
+        if operators and not any(isinstance(op, (Project, Aggregate)) for op in operators):
+            return []
+
+        # At this point, rows has been converted to list[dict] by Project/Aggregate operator
+        return rows  # type: ignore[return-value]
 
     def _execute_operator(self, op, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
         """Execute a single operator.
@@ -73,7 +88,7 @@ class QueryExecutor:
             return self._execute_filter(op, input_rows)
 
         if isinstance(op, Project):
-            return self._execute_project(op, input_rows)
+            return self._execute_project(op, input_rows)  # type: ignore[return-value]
 
         if isinstance(op, Limit):
             return self._execute_limit(op, input_rows)
@@ -85,35 +100,81 @@ class QueryExecutor:
             return self._execute_sort(op, input_rows)
 
         if isinstance(op, Aggregate):
-            return self._execute_aggregate(op, input_rows)
+            return self._execute_aggregate(op, input_rows)  # type: ignore[return-value]
+
+        if isinstance(op, Create):
+            return self._execute_create(op, input_rows)
+
+        if isinstance(op, Set):
+            return self._execute_set(op, input_rows)
+
+        if isinstance(op, Delete):
+            return self._execute_delete(op, input_rows)
+
+        if isinstance(op, Merge):
+            return self._execute_merge(op, input_rows)
+
+        if isinstance(op, With):
+            return self._execute_with(op, input_rows)
 
         raise TypeError(f"Unknown operator type: {type(op).__name__}")
 
-    def _execute_scan(self, op: ScanNodes, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
-        """Execute ScanNodes operator."""
+    def _execute_scan(
+        self, op: ScanNodes, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute ScanNodes operator.
+
+        If the variable is already bound in the input context (e.g., from WITH),
+        validate that the bound node matches the pattern instead of doing a full scan.
+        """
         result = []
 
-        # Get nodes from graph
-        if op.labels:
-            # Scan by label (TODO: handle multiple labels)
-            nodes = self.graph.get_nodes_by_label(op.labels[0])
-        else:
-            # Scan all nodes
-            nodes = self.graph.get_all_nodes()
-
-        # For each input row, bind each node
+        # For each input row
         for ctx in input_rows:
-            for node in nodes:
-                new_ctx = ExecutionContext()
-                # Copy existing bindings
-                new_ctx.bindings = dict(ctx.bindings)
-                # Bind new node
-                new_ctx.bind(op.variable, node)
-                result.append(new_ctx)
+            # Check if variable is already bound (e.g., from WITH clause)
+            if op.variable in ctx.bindings:
+                # Variable already bound - validate it matches the pattern
+                bound_node = ctx.get(op.variable)
+
+                # Check if bound node has required labels
+                if op.labels:
+                    if all(label in bound_node.labels for label in op.labels):
+                        # Node matches pattern - keep the context
+                        result.append(ctx)
+                else:
+                    # No label requirements - keep the context
+                    result.append(ctx)
+            else:
+                # Variable not bound - do normal scan
+                if op.labels:
+                    # Scan by first label for efficiency
+                    nodes = self.graph.get_nodes_by_label(op.labels[0])
+
+                    # Filter to only nodes with ALL required labels
+                    if len(op.labels) > 1:
+                        nodes = [
+                            node
+                            for node in nodes
+                            if all(label in node.labels for label in op.labels)
+                        ]
+                else:
+                    # Scan all nodes
+                    nodes = self.graph.get_all_nodes()
+
+                # Bind each node
+                for node in nodes:
+                    new_ctx = ExecutionContext()
+                    # Copy existing bindings
+                    new_ctx.bindings = dict(ctx.bindings)
+                    # Bind new node
+                    new_ctx.bind(op.variable, node)
+                    result.append(new_ctx)
 
         return result
 
-    def _execute_expand(self, op: ExpandEdges, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+    def _execute_expand(
+        self, op: ExpandEdges, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
         """Execute ExpandEdges operator."""
         result = []
 
@@ -126,7 +187,9 @@ class QueryExecutor:
             elif op.direction == "IN":
                 edges = self.graph.get_incoming_edges(src_node.id)
             else:  # UNDIRECTED
-                edges = self.graph.get_outgoing_edges(src_node.id) + self.graph.get_incoming_edges(src_node.id)
+                edges = self.graph.get_outgoing_edges(src_node.id) + self.graph.get_incoming_edges(
+                    src_node.id
+                )
 
             # Filter by type if specified
             if op.edge_types:
@@ -153,7 +216,9 @@ class QueryExecutor:
 
         return result
 
-    def _execute_filter(self, op: Filter, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+    def _execute_filter(
+        self, op: Filter, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
         """Execute Filter operator."""
         result = []
 
@@ -176,20 +241,133 @@ class QueryExecutor:
             for i, return_item in enumerate(op.items):
                 # Extract expression and alias from ReturnItem
                 value = evaluate_expression(return_item.expression, ctx)
-                # Use alias if provided, otherwise generate default column name
-                key = return_item.alias if return_item.alias else f"col_{i}"
+
+                # Determine column name
+                if return_item.alias:
+                    # Explicit alias provided - use it
+                    key = return_item.alias
+                else:
+                    # No alias - use default column naming (col_0, col_1, etc.)
+                    # This applies to all expressions, including simple variables
+                    key = f"col_{i}"
+
                 row[key] = value
             result.append(row)
 
         return result
 
+    def _execute_with(self, op: With, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+        """Execute WITH operator.
+
+        WITH acts as a pipeline boundary, projecting specified columns and
+        optionally filtering, sorting, and paginating.
+
+        Unlike Project, WITH returns ExecutionContexts (not final dicts) so the
+        query can continue with more clauses.
+
+        Args:
+            op: WITH operator with items, predicate, sort_items, skip_count, limit_count
+            input_rows: Input execution contexts
+
+        Returns:
+            List of ExecutionContexts with only the projected variables
+        """
+        from graphforge.ast.expression import Variable
+
+        # Step 1: Project items into new contexts
+        result = []
+
+        for ctx in input_rows:
+            new_ctx = ExecutionContext()
+
+            for return_item in op.items:
+                # Evaluate expression
+                value = evaluate_expression(return_item.expression, ctx)
+
+                # Determine variable name to bind
+                if return_item.alias:
+                    # Explicit alias provided
+                    var_name = return_item.alias
+                elif isinstance(return_item.expression, Variable):
+                    # No alias, but expression is a variable - use variable name
+                    var_name = return_item.expression.name
+                else:
+                    # Complex expression without alias - skip binding
+                    # (This is technically invalid Cypher, but we'll allow it)
+                    continue
+
+                # Bind the value in the new context
+                new_ctx.bind(var_name, value)
+
+            result.append(new_ctx)
+
+        # Step 2: Apply optional WHERE filter
+        if op.predicate:
+            filtered = []
+            for ctx in result:
+                value = evaluate_expression(op.predicate, ctx)
+                if isinstance(value, CypherBool) and value.value:
+                    filtered.append(ctx)
+            result = filtered
+
+        # Step 3: Apply optional ORDER BY sort
+        if op.sort_items:
+            # Similar to _execute_sort but simpler since WITH items are already projected
+            from functools import cmp_to_key
+
+            def compare_values(val1, val2, ascending):
+                """Compare two CypherValues."""
+                # Handle NULLs
+                is_null1 = isinstance(val1, CypherNull)
+                is_null2 = isinstance(val2, CypherNull)
+
+                if is_null1 and is_null2:
+                    return 0
+                if is_null1:
+                    return 1 if ascending else -1  # NULLs last in ASC, first in DESC
+                if is_null2:
+                    return -1 if ascending else 1
+
+                # Compare non-NULL values
+                comp_result = val1.less_than(val2)
+                if isinstance(comp_result, CypherBool):
+                    if comp_result.value:
+                        return -1 if ascending else 1
+                    comp_result2 = val2.less_than(val1)
+                    if isinstance(comp_result2, CypherBool) and comp_result2.value:
+                        return 1 if ascending else -1
+                    return 0
+                return 0
+
+            def compare_rows(ctx1, ctx2):
+                """Compare two contexts by evaluating sort expressions."""
+                for sort_item in op.sort_items:  # type: ignore[union-attr]
+                    val1 = evaluate_expression(sort_item.expression, ctx1)
+                    val2 = evaluate_expression(sort_item.expression, ctx2)
+                    cmp = compare_values(val1, val2, sort_item.ascending)
+                    if cmp != 0:
+                        return cmp
+                return 0
+
+            result = sorted(result, key=cmp_to_key(compare_rows))
+
+        # Step 4: Apply optional SKIP
+        if op.skip_count is not None:
+            result = result[op.skip_count :]
+
+        # Step 5: Apply optional LIMIT
+        if op.limit_count is not None:
+            result = result[: op.limit_count]
+
+        return result
+
     def _execute_limit(self, op: Limit, input_rows: list) -> list:
         """Execute Limit operator."""
-        return input_rows[:op.count]
+        return input_rows[: op.count]
 
     def _execute_skip(self, op: Skip, input_rows: list) -> list:
         """Execute Skip operator."""
-        return input_rows[op.count:]
+        return input_rows[op.count :]
 
     def _execute_sort(self, op: Sort, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
         """Execute Sort operator.
@@ -304,7 +482,7 @@ class QueryExecutor:
                 groups[key_values].append(ctx)
         else:
             # No grouping - single group with all rows
-            groups = {(): input_rows}
+            groups = {(): input_rows}  # type: ignore[assignment]
 
         # Compute aggregates for each group
         result = []
@@ -320,13 +498,15 @@ class QueryExecutor:
             return None
         if isinstance(value, (CypherInt, CypherFloat, CypherBool)):
             return (type(value).__name__, value.value)
-        if hasattr(value, 'value'):
+        if hasattr(value, "value"):
             # CypherString, etc.
             return (type(value).__name__, value.value)
         # NodeRef, EdgeRef have their own hash
         return value
 
-    def _compute_aggregates_for_group(self, op: Aggregate, group_rows: list[ExecutionContext], group_key=None) -> dict:
+    def _compute_aggregates_for_group(
+        self, op: Aggregate, group_rows: list[ExecutionContext], group_key=None
+    ) -> dict:
         """Compute aggregates for a single group.
 
         Args:
@@ -337,7 +517,7 @@ class QueryExecutor:
         Returns:
             Dict with both grouping values and aggregate results
         """
-        row = {}
+        row: dict[str, Any] = {}
 
         # Add grouping values to result
         if group_key:
@@ -352,15 +532,17 @@ class QueryExecutor:
                             row[key] = CypherNull()
                         elif isinstance(hashable_val, tuple) and len(hashable_val) == 2:
                             type_name, val = hashable_val
-                            if type_name == 'CypherInt':
+                            if type_name == "CypherInt":
                                 row[key] = CypherInt(val)
-                            elif type_name == 'CypherFloat':
+                            elif type_name == "CypherFloat":
                                 row[key] = CypherFloat(val)
-                            elif type_name == 'CypherBool':
-                                from graphforge.types.values import CypherBool as CB
-                                row[key] = CB(val)
+                            elif type_name == "CypherBool":
+                                from graphforge.types.values import CypherBool
+
+                                row[key] = CypherBool(val)
                             else:
                                 from graphforge.types.values import CypherString
+
                                 row[key] = CypherString(val)
                         else:
                             # NodeRef, EdgeRef, etc.
@@ -402,12 +584,12 @@ class QueryExecutor:
 
             # COUNT(expr) - count non-NULL values
             count = 0
-            seen = set() if func_call.distinct else None
+            seen: set[Any] | None = set() if func_call.distinct else None
 
             for ctx in group_rows:
                 value = evaluate_expression(func_call.args[0], ctx)
                 if not isinstance(value, CypherNull):
-                    if func_call.distinct:
+                    if func_call.distinct and seen is not None:
                         hashable = self._value_to_hashable(value)
                         if hashable not in seen:
                             seen.add(hashable)
@@ -418,7 +600,7 @@ class QueryExecutor:
             return CypherInt(count)
 
         # SUM, AVG, MIN, MAX require evaluating the expression
-        values = []
+        values: list[Any] = []
         for ctx in group_rows:
             value = evaluate_expression(func_call.args[0], ctx)
             if not isinstance(value, CypherNull):
@@ -435,7 +617,7 @@ class QueryExecutor:
 
         # SUM
         if func_name == "SUM":
-            total = 0
+            total: int | float = 0
             is_float = False
             for val in values:
                 if isinstance(val, CypherFloat):
@@ -443,7 +625,7 @@ class QueryExecutor:
                     total += val.value
                 elif isinstance(val, CypherInt):
                     total += val.value
-            return CypherFloat(total) if is_float else CypherInt(total)
+            return CypherFloat(total) if is_float else CypherInt(int(total))
 
         # AVG
         if func_name == "AVG":
@@ -472,3 +654,337 @@ class QueryExecutor:
             return max_val
 
         raise ValueError(f"Unknown aggregation function: {func_name}")
+
+    def _execute_create(
+        self, op: Create, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute CREATE operator.
+
+        Creates nodes and relationships from patterns.
+
+        Args:
+            op: Create operator with patterns
+            input_rows: Input execution contexts
+
+        Returns:
+            Execution contexts with created elements bound to variables
+        """
+        if not self.graphforge:
+            raise RuntimeError("CREATE requires GraphForge instance")
+
+        from graphforge.ast.pattern import NodePattern, RelationshipPattern
+
+        result = []
+
+        # Process each input row (usually just one for CREATE)
+        for ctx in input_rows:
+            new_ctx = ExecutionContext()
+            new_ctx.bindings = ctx.bindings.copy()
+
+            # Process each pattern
+            for pattern in op.patterns:
+                if not pattern:
+                    continue
+
+                # Handle simple node pattern: CREATE (n:Person {name: 'Alice'})
+                if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
+                    node_pattern = pattern[0]
+                    node = self._create_node_from_pattern(node_pattern, new_ctx)
+                    if node_pattern.variable:
+                        new_ctx.bindings[node_pattern.variable] = node
+
+                # Handle node-relationship-node pattern: CREATE (a)-[r:KNOWS]->(b)
+                elif len(pattern) >= 3:
+                    # First node
+                    if isinstance(pattern[0], NodePattern):
+                        src_pattern = pattern[0]
+                        # Check if variable already bound (for connecting existing nodes)
+                        if src_pattern.variable and src_pattern.variable in new_ctx.bindings:
+                            src_node = new_ctx.bindings[src_pattern.variable]
+                        else:
+                            src_node = self._create_node_from_pattern(src_pattern, new_ctx)
+                            if src_pattern.variable:
+                                new_ctx.bindings[src_pattern.variable] = src_node
+
+                    # Relationship and destination node
+                    if len(pattern) >= 3 and isinstance(pattern[1], RelationshipPattern):
+                        rel_pattern = pattern[1]
+                        dst_pattern = pattern[2]
+
+                        # Check if destination variable already bound
+                        if dst_pattern.variable and dst_pattern.variable in new_ctx.bindings:
+                            dst_node = new_ctx.bindings[dst_pattern.variable]
+                        else:
+                            dst_node = self._create_node_from_pattern(dst_pattern, new_ctx)
+                            if dst_pattern.variable:
+                                new_ctx.bindings[dst_pattern.variable] = dst_node
+
+                        # Create relationship
+                        rel_type = rel_pattern.types[0] if rel_pattern.types else "RELATED_TO"
+                        edge = self._create_relationship_from_pattern(
+                            src_node, dst_node, rel_type, rel_pattern, new_ctx
+                        )
+                        if rel_pattern.variable:
+                            new_ctx.bindings[rel_pattern.variable] = edge
+
+            result.append(new_ctx)
+
+        return result
+
+    def _create_node_from_pattern(self, node_pattern, ctx: ExecutionContext):
+        """Create a node from a NodePattern.
+
+        Args:
+            node_pattern: NodePattern from AST
+            ctx: Execution context for evaluating property expressions
+
+        Returns:
+            Created NodeRef
+        """
+        # Extract labels
+        labels = list(node_pattern.labels) if node_pattern.labels else []
+
+        # Extract and evaluate properties
+        properties = {}
+        if node_pattern.properties:
+            for key, value_expr in node_pattern.properties.items():
+                # Evaluate the expression to get the value
+                cypher_value = evaluate_expression(value_expr, ctx)
+                properties[key] = cypher_value.value
+
+        # Create node using GraphForge API
+        node = self.graphforge.create_node(labels, **properties)
+        return node
+
+    def _create_relationship_from_pattern(
+        self, src_node, dst_node, rel_type, rel_pattern, ctx: ExecutionContext
+    ):
+        """Create a relationship from a RelationshipPattern.
+
+        Args:
+            src_node: Source NodeRef
+            dst_node: Destination NodeRef
+            rel_type: Relationship type string
+            rel_pattern: RelationshipPattern from AST
+            ctx: Execution context for evaluating property expressions
+
+        Returns:
+            Created EdgeRef
+        """
+        # Extract and evaluate properties
+        properties = {}
+        if hasattr(rel_pattern, "properties") and rel_pattern.properties:
+            for key, value_expr in rel_pattern.properties.items():
+                # Evaluate the expression to get the value
+                cypher_value = evaluate_expression(value_expr, ctx)
+                properties[key] = cypher_value.value
+
+        # Create relationship using GraphForge API
+        edge = self.graphforge.create_relationship(src_node, dst_node, rel_type, **properties)
+        return edge
+
+    def _execute_set(self, op: Set, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+        """Execute SET operator.
+
+        Updates properties on nodes and relationships.
+
+        Args:
+            op: Set operator with property assignments
+            input_rows: Input execution contexts
+
+        Returns:
+            Updated execution contexts
+        """
+        result = []
+
+        for ctx in input_rows:
+            # Process each SET item
+            for property_access, value_expr in op.items:
+                # Evaluate the target (should be a PropertyAccess node)
+                if hasattr(property_access, "variable") and hasattr(property_access, "property"):
+                    var_name = (
+                        property_access.variable.name
+                        if hasattr(property_access.variable, "name")
+                        else property_access.variable
+                    )
+                    prop_name = property_access.property
+
+                    # Get the node or edge from context
+                    if var_name in ctx.bindings:
+                        element = ctx.bindings[var_name]
+
+                        # Evaluate the new value
+                        new_value = evaluate_expression(value_expr, ctx)
+
+                        # Update the property on the element
+                        # Note: This modifies the element in place in the graph
+                        element.properties[prop_name] = new_value
+
+            result.append(ctx)
+
+        return result
+
+    def _execute_delete(
+        self, op: Delete, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute DELETE operator.
+
+        Removes nodes and relationships from the graph.
+
+        Args:
+            op: Delete operator with variables to delete
+            input_rows: Input execution contexts
+
+        Returns:
+            Empty list (DELETE produces no output rows)
+        """
+        from graphforge.types.graph import EdgeRef, NodeRef
+
+        for ctx in input_rows:
+            for var_name in op.variables:
+                if var_name in ctx.bindings:
+                    element = ctx.bindings[var_name]
+
+                    # Delete from graph
+                    if isinstance(element, NodeRef):
+                        # Remove node (need to remove edges first)
+                        # Get all edges connected to this node
+                        outgoing = self.graph.get_outgoing_edges(element.id)
+                        incoming = self.graph.get_incoming_edges(element.id)
+
+                        # Remove all connected edges first
+                        for edge in outgoing + incoming:
+                            self.graph._edges.pop(edge.id, None)
+                            # Remove from adjacency lists
+                            if edge.src.id in self.graph._outgoing:
+                                self.graph._outgoing[edge.src.id] = [
+                                    e for e in self.graph._outgoing[edge.src.id] if e.id != edge.id
+                                ]
+                            if edge.dst.id in self.graph._incoming:
+                                self.graph._incoming[edge.dst.id] = [
+                                    e for e in self.graph._incoming[edge.dst.id] if e.id != edge.id
+                                ]
+                            # Remove from type index
+                            if edge.type in self.graph._type_index:
+                                self.graph._type_index[edge.type].discard(edge.id)
+
+                        # Remove node
+                        self.graph._nodes.pop(element.id, None)
+                        # Remove from label index
+                        for label in element.labels:
+                            if label in self.graph._label_index:
+                                self.graph._label_index[label].discard(element.id)
+                        # Remove adjacency lists
+                        self.graph._outgoing.pop(element.id, None)
+                        self.graph._incoming.pop(element.id, None)
+
+                    elif isinstance(element, EdgeRef):
+                        # Remove edge
+                        self.graph._edges.pop(element.id, None)
+                        # Remove from adjacency lists
+                        if element.src.id in self.graph._outgoing:
+                            self.graph._outgoing[element.src.id] = [
+                                e
+                                for e in self.graph._outgoing[element.src.id]
+                                if e.id != element.id
+                            ]
+                        if element.dst.id in self.graph._incoming:
+                            self.graph._incoming[element.dst.id] = [
+                                e
+                                for e in self.graph._incoming[element.dst.id]
+                                if e.id != element.id
+                            ]
+                        # Remove from type index
+                        if element.type in self.graph._type_index:
+                            self.graph._type_index[element.type].discard(element.id)
+
+        # DELETE produces no output rows
+        return []
+
+    def _execute_merge(
+        self, op: Merge, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute MERGE operator.
+
+        Creates patterns if they don't exist, or matches them if they do.
+
+        Args:
+            op: Merge operator with patterns
+            input_rows: Input execution contexts
+
+        Returns:
+            Execution contexts with matched or created elements
+        """
+        if not self.graphforge:
+            raise RuntimeError("MERGE requires GraphForge instance")
+
+        from graphforge.ast.pattern import NodePattern
+
+        result = []
+
+        # Process each input row
+        for ctx in input_rows:
+            new_ctx = ExecutionContext()
+            new_ctx.bindings = ctx.bindings.copy()
+
+            # Process each pattern
+            for pattern in op.patterns:
+                if not pattern:
+                    continue
+
+                # Handle simple node pattern: MERGE (n:Person {name: 'Alice'})
+                if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
+                    node_pattern = pattern[0]
+
+                    # Try to find existing node
+                    found_node = None
+
+                    if node_pattern.labels:
+                        # Get candidate nodes by first label
+                        first_label = node_pattern.labels[0]
+                        candidates = self.graph.get_nodes_by_label(first_label)
+
+                        for node in candidates:
+                            # Check if all required labels are present
+                            if not all(label in node.labels for label in node_pattern.labels):
+                                continue
+
+                            # Check if properties match
+                            if node_pattern.properties:
+                                match = True
+                                for key, value_expr in node_pattern.properties.items():
+                                    expected_value = evaluate_expression(value_expr, new_ctx)
+                                    if key not in node.properties:
+                                        match = False
+                                        break
+                                    # Compare CypherValue objects using equality
+                                    node_value = node.properties[key]
+                                    comparison_result = node_value.equals(expected_value)
+                                    if (
+                                        isinstance(comparison_result, CypherBool)
+                                        and not comparison_result.value
+                                    ):
+                                        match = False
+                                        break
+
+                                if match:
+                                    # Found matching node
+                                    found_node = node
+                                    break
+                            else:
+                                # No properties specified, just match on labels
+                                found_node = node
+                                break
+
+                    # Bind found node or create new one
+                    if found_node:
+                        if node_pattern.variable:
+                            new_ctx.bindings[node_pattern.variable] = found_node
+                    else:
+                        node = self._create_node_from_pattern(node_pattern, new_ctx)
+                        if node_pattern.variable:
+                            new_ctx.bindings[node_pattern.variable] = node
+
+            result.append(new_ctx)
+
+        return result

@@ -3,8 +3,8 @@
 This module implements durable graph storage using SQLite with WAL mode.
 """
 
-import sqlite3
 from pathlib import Path
+import sqlite3
 
 from graphforge.storage.serialization import (
     deserialize_labels,
@@ -41,7 +41,7 @@ class SQLiteBackend:
         # Configure SQLite for durability and concurrency
         self.conn.execute("PRAGMA journal_mode=WAL")  # Single writer, multiple readers
         self.conn.execute("PRAGMA synchronous=FULL")  # Durability guarantee
-        self.conn.execute("PRAGMA foreign_keys=ON")   # Referential integrity
+        self.conn.execute("PRAGMA foreign_keys=ON")  # Referential integrity
 
         # Create schema if needed
         self._init_schema()
@@ -179,9 +179,7 @@ class SQLiteBackend:
         Returns:
             Dict mapping edge_id to (type, src_id, dst_id, properties)
         """
-        cursor = self.conn.execute(
-            "SELECT id, type, src_id, dst_id, properties FROM edges"
-        )
+        cursor = self.conn.execute("SELECT id, type, src_id, dst_id, properties FROM edges")
 
         edges = {}
         for row in cursor.fetchall():
@@ -199,7 +197,7 @@ class SQLiteBackend:
         """
         cursor = self.conn.execute("SELECT node_id, edge_id FROM adjacency_out")
 
-        adjacency = {}
+        adjacency: dict[int, list[int]] = {}
         for node_id, edge_id in cursor.fetchall():
             if node_id not in adjacency:
                 adjacency[node_id] = []
@@ -215,7 +213,7 @@ class SQLiteBackend:
         """
         cursor = self.conn.execute("SELECT node_id, edge_id FROM adjacency_in")
 
-        adjacency = {}
+        adjacency: dict[int, list[int]] = {}
         for node_id, edge_id in cursor.fetchall():
             if node_id not in adjacency:
                 adjacency[node_id] = []

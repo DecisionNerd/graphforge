@@ -4,8 +4,10 @@ This module evaluates AST expressions in an execution context to produce
 CypherValue results.
 """
 
+from typing import Any
+
 from graphforge.ast.expression import BinaryOp, Literal, PropertyAccess, Variable
-from graphforge.types.graph import NodeRef, EdgeRef
+from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,
     CypherNull,
@@ -24,9 +26,9 @@ class ExecutionContext:
 
     def __init__(self):
         """Initialize empty execution context."""
-        self.bindings: dict[str, any] = {}
+        self.bindings: dict[str, Any] = {}
 
-    def bind(self, name: str, value: any):
+    def bind(self, name: str, value: Any) -> None:
         """Bind a variable to a value.
 
         Args:
@@ -91,8 +93,7 @@ def evaluate_expression(expr, ctx: ExecutionContext):
         if isinstance(obj, (NodeRef, EdgeRef)):
             if expr.property in obj.properties:
                 return obj.properties[expr.property]
-            else:
-                return CypherNull()
+            return CypherNull()
 
         raise TypeError(f"Cannot access property on {type(obj).__name__}")
 
@@ -145,7 +146,7 @@ def evaluate_expression(expr, ctx: ExecutionContext):
             # Both must be booleans
             if isinstance(left_val, CypherBool) and isinstance(right_val, CypherBool):
                 return CypherBool(left_val.value and right_val.value)
-            raise TypeError(f"AND requires boolean operands")
+            raise TypeError("AND requires boolean operands")
 
         if expr.op == "OR":
             # Handle NULL propagation
@@ -154,7 +155,7 @@ def evaluate_expression(expr, ctx: ExecutionContext):
             # Both must be booleans
             if isinstance(left_val, CypherBool) and isinstance(right_val, CypherBool):
                 return CypherBool(left_val.value or right_val.value)
-            raise TypeError(f"OR requires boolean operands")
+            raise TypeError("OR requires boolean operands")
 
         raise ValueError(f"Unknown binary operator: {expr.op}")
 

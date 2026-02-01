@@ -198,9 +198,7 @@ class TestComplexExpressions:
 
     def test_property_comparison(self):
         """Evaluate property comparison."""
-        node = NodeRef(
-            id=1, labels=frozenset(), properties={"age": CypherInt(35)}
-        )
+        node = NodeRef(id=1, labels=frozenset(), properties={"age": CypherInt(35)})
         ctx = ExecutionContext()
         ctx.bind("n", node)
 

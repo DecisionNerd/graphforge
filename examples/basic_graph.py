@@ -15,19 +15,19 @@ db = GraphForge()
 
 # Create some people
 print("\n Creating nodes...")
-alice = db.create_node(['Person'], name='Alice', age=30, city='NYC')
-bob = db.create_node(['Person'], name='Bob', age=25, city='NYC')
-charlie = db.create_node(['Person'], name='Charlie', age=35, city='LA')
-dave = db.create_node(['Person'], name='Dave', age=28, city='LA')
+alice = db.create_node(["Person"], name="Alice", age=30, city="NYC")
+bob = db.create_node(["Person"], name="Bob", age=25, city="NYC")
+charlie = db.create_node(["Person"], name="Charlie", age=35, city="LA")
+dave = db.create_node(["Person"], name="Dave", age=28, city="LA")
 
 print(f"Created {4} people")
 
 # Create friendships
 print("\nCreating relationships...")
-db.create_relationship(alice, bob, 'KNOWS', since=2015)
-db.create_relationship(alice, charlie, 'KNOWS', since=2018)
-db.create_relationship(bob, dave, 'KNOWS', since=2020)
-db.create_relationship(charlie, dave, 'KNOWS', since=2019)
+db.create_relationship(alice, bob, "KNOWS", since=2015)
+db.create_relationship(alice, charlie, "KNOWS", since=2018)
+db.create_relationship(bob, dave, "KNOWS", since=2020)
+db.create_relationship(charlie, dave, "KNOWS", since=2019)
 
 print(f"Created {4} friendships")
 

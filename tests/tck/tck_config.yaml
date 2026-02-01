@@ -1,0 +1,137 @@
+# openCypher TCK Compliance Configuration
+#
+# This file defines which TCK scenarios GraphForge currently supports.
+# Supported scenarios are REQUIRED to pass in CI/CD.
+# Unsupported scenarios are run for measurement but allowed to fail.
+#
+# Format:
+#   feature_file: [scenario_name1, scenario_name2, ...]
+#   use "*" to mark all scenarios in a feature as supported
+
+version: "2024.2"
+
+# Supported TCK scenarios (REQUIRED to pass)
+# These are scenarios GraphForge officially claims to support
+supported:
+  # MATCH clause - basic patterns (5 scenarios)
+  clauses/match/Match1.feature:
+    - "[1] Match non-existent nodes returns empty"
+    - "[2] Matching all nodes"
+    - "[3] Matching nodes using multiple labels"
+    - "[4] Simple node inline property predicate"
+    - "[5] Use multiple MATCH clauses to do a Cartesian product"
+
+  # MATCH clause - relationships (1 scenario)
+  clauses/match/Match2.feature:
+    - "[1] Match non-existent relationships returns empty"
+
+  # MATCH-WHERE - property filtering (2 scenarios)
+  clauses/match-where/MatchWhere1.feature:
+    - "[1] Filter node with property predicate on a single variable with multiple bindings"
+    - "[2] Join between node properties of adjacent nodes"
+
+  # CREATE - nodes (11 scenarios)
+  clauses/create/Create1.feature:
+    - "[1] Create a single node"
+    - "[2] Create two nodes"
+    - "[3] Create a single node with a label"
+    - "[4] Create two nodes with same label"
+    - "[5] Create a single node with multiple labels"
+    - "[6] Create three nodes with multiple labels"
+    - "[7] Create a single node with a property"
+    - "[8] Create a single node with a property and return it"
+    - "[9] Create a single node with two properties"
+    - "[10] Create a single node with two properties and return them"
+    - "[11] Create a single node with null properties should not return those properties"
+
+  # CREATE - relationships (8 scenarios)
+  clauses/create/Create2.feature:
+    - "[1] Create two nodes and a single relationship in a single pattern"
+    - "[2] Create two nodes and a single relationship in separate patterns"
+    - "[7] Create a single node and a single self loop in a single pattern"
+    - "[8] Create a single node and a single self loop in separate patterns"
+    - "[13] Create a single relationship with a property"
+    - "[14] Create a single relationship with a property and return it"
+    - "[15] Create a single relationship with two properties"
+    - "[16] Create a single relationship with two properties and return them"
+
+  # MERGE - basic (1 scenario)
+  clauses/merge/Merge1.feature:
+    - "[1] Merge node when no nodes exist"
+
+  # SET - basic (1 scenario)
+  clauses/set/Set1.feature:
+    - "[1] Set a property"
+
+  # DELETE - basic (1 scenario)
+  clauses/delete/Delete1.feature:
+    - "[1] Delete nodes"
+
+  # RETURN - projection (1 scenario)
+  clauses/return/Return1.feature:
+    - "[1] Support column renaming"
+
+  # SKIP/LIMIT (2 scenarios)
+  clauses/return-skip-limit/ReturnSkipLimit1.feature:
+    - "[1] Accept skip zero"
+    - "[2] LIMIT 0 should return an empty result"
+
+  # Aggregation (1 scenario)
+  expressions/aggregation/Aggregation1.feature:
+    - "[1] Return `count(*)` of aggregation over nodes"
+
+  # Comparison - integers (2 scenarios)
+  expressions/comparison/Comparison1.feature:
+    - "[30] Handling inlined equality of large integer non-equal values"
+    - "[31] Handling explicit equality of large integer non-equal values"
+
+# Known unsupported features (will be skipped with xfail marker)
+unsupported:
+  # Variable-length paths
+  clauses/match/Match3.feature: "*"  # All variable-length path scenarios
+  clauses/match/Match4.feature: "*"  # More variable-length patterns
+
+  # Optional match
+  clauses/match/Match5.feature: "*"  # OPTIONAL MATCH
+
+  # UNWIND
+  clauses/unwind/Unwind1.feature: "*"
+
+  # WITH clause
+  clauses/with/With1.feature: "*"
+
+  # CALL procedures
+  clauses/call/Call1.feature: "*"
+
+  # UNION
+  clauses/union/Union1.feature: "*"
+
+  # Complex expressions not yet supported
+  expressions/list/List1.feature: "*"  # List comprehensions
+  expressions/map/Map1.feature: "*"    # Map projections
+  expressions/case/Case1.feature: "*"  # CASE expressions
+
+  # String functions (partial support)
+  expressions/string/String1.feature:
+    - except: ["[1] String concatenation", "[2] String comparison"]
+
+# Named graphs required by TCK
+named_graphs:
+  binary-tree-1:
+    script: "graphs/binary-tree-1/binary-tree-1.cypher"
+    description: "Binary tree depth 4, label :X, 3 relationship types"
+
+  binary-tree-2:
+    script: "graphs/binary-tree-2/binary-tree-2.cypher"
+    description: "Binary tree depth 4, labels :X or :Y, 3 relationship types"
+
+# Statistics (updated automatically by test runs)
+last_run:
+  date: null
+  total_scenarios: 0
+  supported_scenarios: 0
+  passed: 0
+  failed: 0
+  skipped: 0
+  compliance_percentage: 0.0
+  supported_compliance_percentage: 0.0

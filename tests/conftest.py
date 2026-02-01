@@ -1,9 +1,12 @@
 """Shared pytest fixtures for all test categories."""
 
-import tempfile
 from pathlib import Path
+import tempfile
 
 import pytest
+
+# TCK test markers plugin (must be at top level)
+pytest_plugins = ["tests.tck.tck_markers"]
 
 
 @pytest.fixture

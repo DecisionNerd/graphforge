@@ -1,12 +1,53 @@
 // openCypher Grammar (v1 Subset)
-// Supports: MATCH, WHERE, RETURN, ORDER BY, LIMIT, SKIP
+// Supports: MATCH, CREATE, SET, DELETE, MERGE, WHERE, RETURN, ORDER BY, LIMIT, SKIP, WITH
 
 ?start: query
 
-query: match_clause where_clause? return_clause order_by_clause? skip_clause? limit_clause?
+query: single_part_query | multi_part_query
+
+// Multi-part queries with WITH clause
+multi_part_query: reading_clause+ with_clause+ final_query_part
+
+// Single-part queries (without WITH)
+single_part_query: read_query | write_query | update_query
+
+// Final part of multi-part query (allows RETURN without MATCH)
+final_query_part: read_query
+                | return_only_query
+                | write_query
+                | update_query
+
+return_only_query: return_clause order_by_clause? skip_clause? limit_clause?
+
+read_query: match_clause where_clause? return_clause order_by_clause? skip_clause? limit_clause?
+
+write_query: create_clause return_clause?
+           | merge_clause return_clause?
+
+update_query: match_clause where_clause? set_clause? delete_clause? return_clause?
+
+// Reading clauses that can precede WITH
+reading_clause: match_clause where_clause?
+
+// WITH clause
+with_clause: "WITH"i return_item ("," return_item)* where_clause? order_by_clause? skip_clause? limit_clause?
 
 // MATCH clause
 match_clause: "MATCH"i pattern ("," pattern)*
+
+// CREATE clause
+create_clause: "CREATE"i pattern ("," pattern)*
+
+// SET clause
+set_clause: "SET"i set_item ("," set_item)*
+
+set_item: property_access "=" expression
+
+// DELETE clause
+delete_clause: "DELETE"i variable ("," variable)*
+
+// MERGE clause
+merge_clause: "MERGE"i pattern ("," pattern)*
 
 pattern: node_pattern (relationship_pattern node_pattern)*
 
