@@ -169,8 +169,8 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
 
 
 # Function categories
-STRING_FUNCTIONS = {'LENGTH', 'SUBSTRING', 'UPPER', 'LOWER', 'TRIM'}
-TYPE_FUNCTIONS = {'toInteger', 'toFloat', 'toString', 'type'}
+STRING_FUNCTIONS = {"LENGTH", "SUBSTRING", "UPPER", "LOWER", "TRIM"}
+TYPE_FUNCTIONS = {"toInteger", "toFloat", "toString", "type"}
 
 
 def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> CypherValue:
@@ -190,7 +190,7 @@ def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> Cypher
     func_name = func_call.name.upper()
 
     # COALESCE is special - it doesn't propagate NULL, returns first non-NULL value
-    if func_name == 'COALESCE':
+    if func_name == "COALESCE":
         args = [evaluate_expression(arg, ctx) for arg in func_call.args]
         for arg in args:
             if not isinstance(arg, CypherNull):
