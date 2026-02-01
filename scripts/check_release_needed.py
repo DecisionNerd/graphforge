@@ -21,33 +21,93 @@ def count_unreleased_changes(changelog_path: Path) -> dict:
         dict with counts: {'added': int, 'changed': int, 'fixed': int, 'total': int}
     """
     if not changelog_path.exists():
-        return {'added': 0, 'changed': 0, 'fixed': 0, 'deprecated': 0, 'removed': 0, 'security': 0, 'total': 0}
+        return {
+            "added": 0,
+            "changed": 0,
+            "fixed": 0,
+            "deprecated": 0,
+            "removed": 0,
+            "security": 0,
+            "total": 0,
+        }
 
     content = changelog_path.read_text()
 
     # Extract [Unreleased] section
-    match = re.search(
-        r'## \[Unreleased\](.*?)(?=## \[|\Z)',
-        content,
-        re.DOTALL
-    )
+    match = re.search(r"## \[Unreleased\](.*?)(?=## \[|\Z)", content, re.DOTALL)
 
     if not match:
-        return {'added': 0, 'changed': 0, 'fixed': 0, 'deprecated': 0, 'removed': 0, 'security': 0, 'total': 0}
+        return {
+            "added": 0,
+            "changed": 0,
+            "fixed": 0,
+            "deprecated": 0,
+            "removed": 0,
+            "security": 0,
+            "total": 0,
+        }
 
     unreleased = match.group(1)
 
     # Count by category
     counts = {
-        'added': len(re.findall(r'^- .+', unreleased.split('### Added')[1].split('###')[0] if '### Added' in unreleased else '', re.MULTILINE)),
-        'changed': len(re.findall(r'^- .+', unreleased.split('### Changed')[1].split('###')[0] if '### Changed' in unreleased else '', re.MULTILINE)),
-        'fixed': len(re.findall(r'^- .+', unreleased.split('### Fixed')[1].split('###')[0] if '### Fixed' in unreleased else '', re.MULTILINE)),
-        'deprecated': len(re.findall(r'^- .+', unreleased.split('### Deprecated')[1].split('###')[0] if '### Deprecated' in unreleased else '', re.MULTILINE)),
-        'removed': len(re.findall(r'^- .+', unreleased.split('### Removed')[1].split('###')[0] if '### Removed' in unreleased else '', re.MULTILINE)),
-        'security': len(re.findall(r'^- .+', unreleased.split('### Security')[1].split('###')[0] if '### Security' in unreleased else '', re.MULTILINE)),
+        "added": len(
+            re.findall(
+                r"^- .+",
+                unreleased.split("### Added")[1].split("###")[0]
+                if "### Added" in unreleased
+                else "",
+                re.MULTILINE,
+            )
+        ),
+        "changed": len(
+            re.findall(
+                r"^- .+",
+                unreleased.split("### Changed")[1].split("###")[0]
+                if "### Changed" in unreleased
+                else "",
+                re.MULTILINE,
+            )
+        ),
+        "fixed": len(
+            re.findall(
+                r"^- .+",
+                unreleased.split("### Fixed")[1].split("###")[0]
+                if "### Fixed" in unreleased
+                else "",
+                re.MULTILINE,
+            )
+        ),
+        "deprecated": len(
+            re.findall(
+                r"^- .+",
+                unreleased.split("### Deprecated")[1].split("###")[0]
+                if "### Deprecated" in unreleased
+                else "",
+                re.MULTILINE,
+            )
+        ),
+        "removed": len(
+            re.findall(
+                r"^- .+",
+                unreleased.split("### Removed")[1].split("###")[0]
+                if "### Removed" in unreleased
+                else "",
+                re.MULTILINE,
+            )
+        ),
+        "security": len(
+            re.findall(
+                r"^- .+",
+                unreleased.split("### Security")[1].split("###")[0]
+                if "### Security" in unreleased
+                else "",
+                re.MULTILINE,
+            )
+        ),
     }
 
-    counts['total'] = sum(counts.values())
+    counts["total"] = sum(counts.values())
     return counts
 
 
@@ -59,13 +119,13 @@ def get_last_release_date(changelog_path: Path) -> datetime | None:
     content = changelog_path.read_text()
 
     # Find first version entry: ## [X.Y.Z] - YYYY-MM-DD
-    match = re.search(r'## \[\d+\.\d+\.\d+\] - (\d{4}-\d{2}-\d{2})', content)
+    match = re.search(r"## \[\d+\.\d+\.\d+\] - (\d{4}-\d{2}-\d{2})", content)
 
     if not match:
         return None
 
     try:
-        return datetime.strptime(match.group(1), '%Y-%m-%d')
+        return datetime.strptime(match.group(1), "%Y-%m-%d")
     except ValueError:
         return None
 
@@ -76,22 +136,22 @@ def determine_version_bump(counts: dict) -> str:
     Returns:
         'major', 'minor', 'patch', or 'none'
     """
-    if counts['total'] == 0:
-        return 'none'
+    if counts["total"] == 0:
+        return "none"
 
     # If there are breaking changes (removed/deprecated), suggest major
-    if counts['removed'] > 0 or counts['deprecated'] > 0:
-        return 'major'
+    if counts["removed"] > 0 or counts["deprecated"] > 0:
+        return "major"
 
     # If there are new features (added), suggest minor
-    if counts['added'] > 0:
-        return 'minor'
+    if counts["added"] > 0:
+        return "minor"
 
     # If there are only fixes/changes, suggest patch
-    if counts['fixed'] > 0 or counts['changed'] > 0:
-        return 'patch'
+    if counts["fixed"] > 0 or counts["changed"] > 0:
+        return "patch"
 
-    return 'none'
+    return "none"
 
 
 def main():
@@ -105,7 +165,7 @@ def main():
 
     # Count changes
     counts = count_unreleased_changes(changelog)
-    total = counts['total']
+    total = counts["total"]
 
     # Get last release date
     last_release = get_last_release_date(changelog)
@@ -133,17 +193,17 @@ def main():
     # Show counts by type
     print(f"📦 Unreleased Changes: {total}")
     print()
-    if counts['added'] > 0:
+    if counts["added"] > 0:
         print(f"   ✨ Added:      {counts['added']}")
-    if counts['changed'] > 0:
+    if counts["changed"] > 0:
         print(f"   🔄 Changed:    {counts['changed']}")
-    if counts['fixed'] > 0:
+    if counts["fixed"] > 0:
         print(f"   🐛 Fixed:      {counts['fixed']}")
-    if counts['deprecated'] > 0:
+    if counts["deprecated"] > 0:
         print(f"   ⚠️  Deprecated: {counts['deprecated']}")
-    if counts['removed'] > 0:
+    if counts["removed"] > 0:
         print(f"   🗑️  Removed:    {counts['removed']}")
-    if counts['security'] > 0:
+    if counts["security"] > 0:
         print(f"   🔒 Security:   {counts['security']}")
     print()
 
@@ -166,7 +226,7 @@ def main():
     print("📋 Recommendation:")
     print()
 
-    if counts['security'] > 0:
+    if counts["security"] > 0:
         print("   🚨 SECURITY FIXES PRESENT - Release immediately!")
         print()
         print("   Action:")
@@ -202,7 +262,7 @@ def main():
     print()
 
     # Exit code: 0 = no action needed, 1 = consider release, 2 = release needed
-    if counts['security'] > 0:
+    if counts["security"] > 0:
         sys.exit(2)
     elif total >= 10 or (total >= 5 and days_since_release and days_since_release >= 21):
         sys.exit(1)
