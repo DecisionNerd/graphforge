@@ -1,7 +1,14 @@
 # Feature: RETURN Aliasing
 
-**Status**: ✅ Complete
+**Status**: ✅ Complete (outdated - see note below)
 **Date**: 2026-01-30
+
+> **⚠️ Note (2026-02-01):** This document describes the original v0.1.0 implementation.
+> As of v0.1.3, column naming behavior has changed to align with openCypher TCK:
+> - `RETURN n` now produces column "n" (not "col_0")
+> - `RETURN n AS alias` produces column "alias" (unchanged)
+> - `RETURN n.property` produces column "col_0" (unchanged)
+> See CHANGELOG.md for details.
 
 ## Overview
 

@@ -1,6 +1,11 @@
 # Integration Test Regression Fix
 ## January 31, 2026
 
+> **⚠️ Historical Note (2026-02-01):** This document describes a temporary regression fix.
+> The "correct" behavior documented here (`col_0` for unnamed items) was itself later changed
+> in v0.1.3 to use variable names for openCypher TCK compliance. The current implementation
+> intentionally uses variable names: `RETURN n` produces column "n" (not "col_0").
+
 ## Problem
 
 The WITH clause implementation (commit `0ddfa48`) introduced a regression that broke 20 integration tests (5.7% failure rate). All queries were returning results with variable names instead of `col_N` column names, and queries with SKIP/LIMIT were returning empty results.

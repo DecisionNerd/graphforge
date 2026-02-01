@@ -1,0 +1,239 @@
+# Column Naming Behavior in GraphForge
+
+**Last Updated:** 2026-02-01
+**Version:** 0.1.3+
+
+## Summary
+
+GraphForge follows the **openCypher TCK specification** for column naming in query results. This means that simple variable references preserve their variable names as column names.
+
+## Behavior
+
+### Simple Variable References
+
+When you return a simple variable without an alias, the column name is the **variable name**:
+
+```cypher
+MATCH (n:Person)
+RETURN n
+```
+
+**Result:** Column name is `"n"` (not `"col_0"`)
+
+```python
+results = db.execute("MATCH (n:Person) RETURN n")
+for row in results:
+    node = row['n']  # Access using variable name
+```
+
+### Explicit Aliases
+
+When you provide an explicit alias, the column name is the **alias**:
+
+```cypher
+MATCH (n:Person)
+RETURN n AS person
+```
+
+**Result:** Column name is `"person"`
+
+```python
+results = db.execute("MATCH (n:Person) RETURN n AS person")
+for row in results:
+    node = row['person']  # Access using alias
+```
+
+### Complex Expressions
+
+Complex expressions without aliases use **`col_N` naming** (where N is the 0-based index):
+
+```cypher
+MATCH (n:Person)
+RETURN n.name
+```
+
+**Result:** Column name is `"col_0"`
+
+```cypher
+MATCH (n:Person)
+RETURN n.name, n.age
+```
+
+**Result:** Column names are `"col_0"` and `"col_1"`
+
+```python
+results = db.execute("MATCH (n:Person) RETURN n.name, n.age")
+for row in results:
+    name = row['col_0']
+    age = row['col_1']
+```
+
+To avoid `col_N` naming, use explicit aliases:
+
+```cypher
+MATCH (n:Person)
+RETURN n.name AS name, n.age AS age
+```
+
+**Result:** Column names are `"name"` and `"age"`
+
+## Summary Table
+
+| Query | Column Name | Reasoning |
+|-------|-------------|-----------|
+| `RETURN n` | `"n"` | Simple variable - use variable name |
+| `RETURN n AS person` | `"person"` | Explicit alias - use alias |
+| `RETURN n.name` | `"col_0"` | Complex expression - use col_N |
+| `RETURN n.name AS name` | `"name"` | Explicit alias - use alias |
+| `RETURN count(*)` | `"col_0"` | Aggregation - use col_N |
+| `RETURN count(*) AS total` | `"total"` | Explicit alias - use alias |
+
+## Why This Design?
+
+### openCypher TCK Compliance
+
+This behavior aligns with the **openCypher specification** and matches how Neo4j and other Cypher implementations work:
+
+```cypher
+// Neo4j behavior
+MATCH (n) RETURN n
+// Column name: "n"
+```
+
+GraphForge aims to be compatible with openCypher TCK (Technology Compatibility Kit) tests, which expect variable names to be preserved.
+
+### WITH Clause Correctness
+
+The WITH clause requires variable names to be preserved through the query pipeline:
+
+```cypher
+WITH p.name AS name
+RETURN name
+```
+
+In this example:
+1. WITH binds `"name"` to the value of `p.name`
+2. RETURN sees a simple variable `name`
+3. The result column must be `"name"` (not `"col_0"`)
+
+If we used `col_0` for all unnamed items, the WITH clause would break.
+
+### Consistency with Neo4j
+
+Users familiar with Neo4j expect this behavior. Maintaining compatibility makes GraphForge easier to learn and use.
+
+## Historical Context
+
+### Version History
+
+- **v0.1.0 - v0.1.1:** Used `col_N` for all unnamed return items
+- **v0.1.2:** Briefly changed to variable names, then reverted to `col_N` due to test failures
+- **v0.1.3+:** Permanently changed to variable names for openCypher TCK compliance
+
+### Why Did It Change?
+
+The original `col_N` behavior was GraphForge's initial design decision. However:
+
+1. **WITH clause implementation revealed the issue:** WITH requires variable names to flow through the pipeline
+2. **openCypher TCK compliance:** The TCK expects variable names, not `col_N`
+3. **Neo4j compatibility:** Matching Neo4j behavior improves user experience
+4. **Future-proofing:** Aligning with standards now prevents migration pain later
+
+### Breaking Change
+
+This is a **breaking change** from v0.1.2. If you have code that accesses columns by name:
+
+**Before (v0.1.2):**
+```python
+results = db.execute("MATCH (n) RETURN n")
+node = results[0]['col_0']  # Old behavior
+```
+
+**After (v0.1.3+):**
+```python
+results = db.execute("MATCH (n) RETURN n")
+node = results[0]['n']  # New behavior
+```
+
+**Migration:** Update code that accesses result columns to use variable names instead of `col_0`.
+
+## Best Practices
+
+### Always Use Explicit Aliases
+
+For production code, use explicit aliases to make column names clear and avoid ambiguity:
+
+```cypher
+MATCH (p:Person)-[:KNOWS]->(friend:Person)
+RETURN p.name AS person_name, friend.name AS friend_name
+```
+
+This makes your code:
+- **More readable** - clear what each column represents
+- **More maintainable** - column names won't change if variable names change
+- **More portable** - works across different Cypher implementations
+
+### Access by Variable Name
+
+For simple queries, access columns by variable name:
+
+```python
+results = db.execute("MATCH (n:Person) RETURN n")
+for row in results:
+    node = row['n']  # Use variable name
+```
+
+### Use List Access for Complex Expressions
+
+If you don't want to use aliases, remember that `col_N` indices are 0-based:
+
+```python
+results = db.execute("MATCH (n:Person) RETURN n.name, n.age")
+for row in results:
+    name = row['col_0']  # First expression
+    age = row['col_1']   # Second expression
+```
+
+But **explicit aliases are strongly recommended** for clarity:
+
+```python
+results = db.execute("MATCH (n:Person) RETURN n.name AS name, n.age AS age")
+for row in results:
+    name = row['name']  # Much clearer!
+    age = row['age']
+```
+
+## Implementation Details
+
+### Code Location
+
+The column naming logic is implemented in `src/graphforge/executor/executor.py` in the `_execute_project` method:
+
+```python
+if return_item.alias:
+    # Explicit alias provided - use it
+    key = return_item.alias
+elif isinstance(return_item.expression, Variable):
+    # Simple variable reference - use variable name as column name
+    # This preserves names from WITH clauses
+    key = return_item.expression.name
+else:
+    # Complex expression without alias - use default column naming
+    key = f"col_{i}"
+```
+
+### Testing
+
+This behavior is tested in:
+- `tests/integration/test_e2e_queries.py` - End-to-end query tests
+- `tests/integration/test_with_clause.py` - WITH clause tests
+- `tests/integration/test_persistence.py` - Persistence tests
+
+All 153 integration tests verify this behavior.
+
+## See Also
+
+- [CHANGELOG.md](../CHANGELOG.md) - Version history and changes
+- [feature-return-aliasing.md](feature-return-aliasing.md) - Original RETURN aliasing feature (historical)
+- [session-2026-01-31-regression-fix.md](session-2026-01-31-regression-fix.md) - Regression fix history (historical)
+- [tck-compliance.md](tck-compliance.md) - openCypher TCK compliance documentation
