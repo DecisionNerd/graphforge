@@ -2,49 +2,55 @@
 
 Complete API reference for GraphForge.
 
-## Core Classes
+## Main API
 
-::: graphforge.GraphForge
+::: graphforge.api
     options:
       show_root_heading: true
       show_source: true
+      members_order: source
+
+## AST (Abstract Syntax Tree)
+
+::: graphforge.ast
+    options:
+      show_root_heading: true
+      show_source: false
 
 ## Parser
 
 ::: graphforge.parser
     options:
       show_root_heading: true
-      members:
-        - CypherParser
+      show_source: false
 
 ## Query Planner
 
 ::: graphforge.planner
     options:
       show_root_heading: true
+      show_source: false
 
 ## Executor
 
 ::: graphforge.executor
     options:
       show_root_heading: true
+      show_source: false
 
-## Models
+## Storage
 
-::: graphforge.models
+::: graphforge.storage
     options:
       show_root_heading: true
-      members:
-        - Node
-        - Relationship
-        - Path
-        - Graph
+      show_source: false
 
-## Utilities
+## Types
 
-::: graphforge.utils
+::: graphforge.types
     options:
       show_root_heading: true
+      show_source: false
 
 ---
 
