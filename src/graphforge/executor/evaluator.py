@@ -64,7 +64,6 @@ class ExecutionContext:
         return name in self.bindings
 
 
-<<<<<<< HEAD
 def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
     """Evaluate an AST expression in a context.
 
