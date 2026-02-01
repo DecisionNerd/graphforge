@@ -246,7 +246,8 @@ class QueryPlanner:
                 # Add Filter for inline property predicates
                 if node_pattern.properties:
                     predicate = self._properties_to_predicate(
-                        node_pattern.variable, node_pattern.properties  # type: ignore[arg-type]
+                        node_pattern.variable,
+                        node_pattern.properties,  # type: ignore[arg-type]
                     )
                     operators.append(Filter(predicate=predicate))  # type: ignore[arg-type]
 
@@ -265,7 +266,8 @@ class QueryPlanner:
                     # Add Filter for inline property predicates on src node
                     if src_pattern.properties:
                         predicate = self._properties_to_predicate(
-                            src_pattern.variable, src_pattern.properties  # type: ignore[arg-type]
+                            src_pattern.variable,
+                            src_pattern.properties,  # type: ignore[arg-type]
                         )
                         operators.append(Filter(predicate=predicate))  # type: ignore[arg-type]
 

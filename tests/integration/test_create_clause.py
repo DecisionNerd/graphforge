@@ -3,7 +3,6 @@
 Tests the ability to create nodes and relationships using Cypher CREATE syntax.
 """
 
-
 from graphforge import GraphForge
 
 

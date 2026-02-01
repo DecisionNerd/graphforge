@@ -3,7 +3,6 @@
 Tests the ability to update, delete, and merge nodes using Cypher syntax.
 """
 
-
 from graphforge import GraphForge
 
 
