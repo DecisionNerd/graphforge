@@ -6,7 +6,7 @@ CypherValue results.
 
 from typing import Any
 
-from graphforge.ast.expression import BinaryOp, Literal, PropertyAccess, Variable
+from graphforge.ast.expression import BinaryOp, FunctionCall, Literal, PropertyAccess, Variable
 from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,
@@ -160,4 +160,89 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
 
         raise ValueError(f"Unknown binary operator: {expr.op}")
 
+    # Function calls
+    if isinstance(expr, FunctionCall):
+        return _evaluate_function(expr, ctx)
+
     raise TypeError(f"Cannot evaluate expression type: {type(expr).__name__}")
+
+
+# Function categories
+STRING_FUNCTIONS = {"LENGTH", "SUBSTRING", "UPPER", "LOWER", "TRIM"}
+TYPE_FUNCTIONS = {"TOINTEGER", "TOFLOAT", "TOSTRING", "TYPE"}
+
+
+def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> CypherValue:
+    """Evaluate scalar function calls.
+
+    Args:
+        func_call: Function call AST node
+        ctx: Execution context with variable bindings
+
+    Returns:
+        CypherValue result of the function
+
+    Raises:
+        ValueError: If function is unknown
+        TypeError: If function arguments have invalid types
+    """
+    func_name = func_call.name.upper()
+
+    # COALESCE is special - it doesn't propagate NULL, returns first non-NULL value
+    if func_name == "COALESCE":
+        args = [evaluate_expression(arg, ctx) for arg in func_call.args]
+        for arg in args:
+            if not isinstance(arg, CypherNull):
+                return arg
+        return CypherNull()
+
+    # Evaluate arguments
+    args = [evaluate_expression(arg, ctx) for arg in func_call.args]
+
+    # NULL propagation: if any arg is NULL, return NULL (for most functions)
+    if any(isinstance(arg, CypherNull) for arg in args):
+        return CypherNull()
+
+    # Dispatch to specific function handlers
+    if func_name in STRING_FUNCTIONS:
+        return _evaluate_string_function(func_name, args)
+    elif func_name in TYPE_FUNCTIONS:
+        return _evaluate_type_function(func_name, args)
+    else:
+        raise ValueError(f"Unknown function: {func_name}")
+
+
+def _evaluate_string_function(func_name: str, _args: list[CypherValue]) -> CypherValue:
+    """Evaluate string functions.
+
+    Args:
+        func_name: Name of the string function (uppercase)
+        _args: List of evaluated arguments (non-NULL) - unused in placeholder
+
+    Returns:
+        CypherValue result of the string function
+
+    Raises:
+        ValueError: If function is unknown
+        TypeError: If arguments have invalid types
+    """
+    # Placeholder - will be implemented in Feature 2
+    raise ValueError(f"String function not yet implemented: {func_name}")
+
+
+def _evaluate_type_function(func_name: str, _args: list[CypherValue]) -> CypherValue:
+    """Evaluate type conversion and introspection functions.
+
+    Args:
+        func_name: Name of the type function
+        _args: List of evaluated arguments (non-NULL) - unused in placeholder
+
+    Returns:
+        CypherValue result of the type function
+
+    Raises:
+        ValueError: If function is unknown
+        TypeError: If arguments have invalid types
+    """
+    # Placeholder - will be implemented in Feature 3
+    raise ValueError(f"Type function not yet implemented: {func_name}")

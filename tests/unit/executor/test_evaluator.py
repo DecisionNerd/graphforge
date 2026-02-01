@@ -5,7 +5,7 @@ Tests cover evaluation of AST expressions in an execution context.
 
 import pytest
 
-from graphforge.ast.expression import BinaryOp, Literal, PropertyAccess, Variable
+from graphforge.ast.expression import BinaryOp, FunctionCall, Literal, PropertyAccess, Variable
 from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
 from graphforge.types.graph import NodeRef
 from graphforge.types.values import CypherBool, CypherInt, CypherNull, CypherString
@@ -225,3 +225,107 @@ class TestComplexExpressions:
 
         assert isinstance(result, CypherBool)
         assert result.value is True
+
+
+@pytest.mark.unit
+class TestFunctionCalls:
+    """Tests for function call evaluation."""
+
+    def test_coalesce_returns_first_non_null(self):
+        """COALESCE returns first non-NULL value."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="COALESCE",
+            args=[Literal(None), Literal(42), Literal(100)],
+        )
+        result = evaluate_expression(expr, ctx)
+
+        assert isinstance(result, CypherInt)
+        assert result.value == 42
+
+    def test_coalesce_all_null(self):
+        """COALESCE with all NULL returns NULL."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="COALESCE",
+            args=[Literal(None), Literal(None)],
+        )
+        result = evaluate_expression(expr, ctx)
+
+        assert isinstance(result, CypherNull)
+
+    def test_coalesce_no_null(self):
+        """COALESCE returns first value when none are NULL."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="COALESCE",
+            args=[Literal("first"), Literal("second")],
+        )
+        result = evaluate_expression(expr, ctx)
+
+        assert isinstance(result, CypherString)
+        assert result.value == "first"
+
+    def test_function_null_propagation(self):
+        """Regular functions propagate NULL."""
+        ctx = ExecutionContext()
+        # LENGTH(NULL) should return NULL
+        expr = FunctionCall(
+            name="LENGTH",
+            args=[Literal(None)],
+        )
+        result = evaluate_expression(expr, ctx)
+
+        assert isinstance(result, CypherNull)
+
+    def test_unknown_function_raises_error(self):
+        """Unknown function raises ValueError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="UNKNOWN_FUNC",
+            args=[Literal(42)],
+        )
+
+        with pytest.raises(ValueError, match="Unknown function"):
+            evaluate_expression(expr, ctx)
+
+    def test_function_with_property_access(self):
+        """Function can evaluate property access arguments."""
+        node = NodeRef(id=1, labels=frozenset(), properties={"name": CypherString("Alice")})
+        ctx = ExecutionContext()
+        ctx.bind("n", node)
+
+        # COALESCE(n.missing, n.name) should return "Alice"
+        expr = FunctionCall(
+            name="COALESCE",
+            args=[
+                PropertyAccess(variable="n", property="missing"),
+                PropertyAccess(variable="n", property="name"),
+            ],
+        )
+        result = evaluate_expression(expr, ctx)
+
+        assert isinstance(result, CypherString)
+        assert result.value == "Alice"
+
+    def test_string_function_not_implemented(self):
+        """String functions raise error (placeholder for Feature 2)."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="LENGTH",
+            args=[Literal("test")],
+        )
+
+        with pytest.raises(ValueError, match="String function not yet implemented"):
+            evaluate_expression(expr, ctx)
+
+    def test_type_function_not_implemented(self):
+        """Type functions raise error (placeholder for Feature 3)."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toInteger",
+            args=[Literal("42")],
+        )
+
+        with pytest.raises(ValueError, match="Type function not yet implemented"):
+            evaluate_expression(expr, ctx)
