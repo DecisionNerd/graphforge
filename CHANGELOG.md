@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- CodeRabbit configuration file to use only valid schema properties
+
 ## [0.1.2] - 2026-02-01
 
 ### Added
