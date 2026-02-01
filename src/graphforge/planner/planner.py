@@ -3,6 +3,8 @@
 This module converts parsed AST into executable logical plans.
 """
 
+from typing import Any
+
 from graphforge.ast.clause import (
     CreateClause,
     DeleteClause,
@@ -173,7 +175,7 @@ class QueryPlanner:
 
         return operators
 
-    def _plan_with_query(self, ast: CypherQuery) -> list:
+    def _plan_with_query(self, ast: CypherQuery) -> list[Any]:
         """Plan a query with WITH clauses.
 
         WITH acts as a pipeline boundary, so we plan each segment separately
@@ -185,7 +187,7 @@ class QueryPlanner:
         Returns:
             List of logical plan operators
         """
-        operators = []
+        operators: list[Any] = []
 
         # Split clauses at WITH boundaries
         segments: list[list | WithClause] = []
@@ -211,8 +213,7 @@ class QueryPlanner:
             if isinstance(segment, WithClause):
                 # Check if WITH contains aggregations
                 has_aggregates = any(
-                    self._contains_aggregate(item.expression)
-                    for item in segment.items
+                    self._contains_aggregate(item.expression) for item in segment.items
                 )
 
                 if has_aggregates:
@@ -238,7 +239,9 @@ class QueryPlanner:
                     if segment.where:
                         operators.append(Filter(predicate=segment.where.predicate))
                     if segment.order_by:
-                        operators.append(Sort(items=segment.order_by.items, return_items=segment.items))
+                        operators.append(
+                            Sort(items=segment.order_by.items, return_items=segment.items)
+                        )
                     if segment.skip:
                         operators.append(Skip(count=segment.skip.count))
                     if segment.limit:

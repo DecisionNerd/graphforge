@@ -233,7 +233,7 @@ All 153 integration tests verify this behavior.
 
 ## See Also
 
-- [CHANGELOG.md](../CHANGELOG.md) - Version history and changes
+- CHANGELOG.md (in repository root) - Version history and changes
 - [feature-return-aliasing.md](feature-return-aliasing.md) - Original RETURN aliasing feature (historical)
 - [session-2026-01-31-regression-fix.md](session-2026-01-31-regression-fix.md) - Regression fix history (historical)
 - [tck-compliance.md](tck-compliance.md) - openCypher TCK compliance documentation

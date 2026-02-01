@@ -733,7 +733,7 @@ Congratulations! You've learned the fundamentals of GraphForge.
 - **[API Reference](api-reference.md)** — Complete Python API documentation
 - **[Cypher Guide](cypher-guide.md)** — Full openCypher subset reference
 - **[Architecture Overview](architecture-overview.md)** — System design and internals
-- **[README](../README.md)** — Full feature list and examples
+- **README.md** (repository root) — Full feature list and examples
 
 ### Try These Exercises
 

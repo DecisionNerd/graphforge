@@ -146,7 +146,7 @@ graphforge/
 - **Clear**: Test names describe what is being tested
 - **Maintainable**: Easy to update when requirements change
 
-See [docs/testing-strategy.md](docs/testing-strategy.md) for comprehensive testing documentation.
+See [testing-strategy.md](../testing-strategy.md) for comprehensive testing documentation.
 
 ## Code Style
 
@@ -332,7 +332,7 @@ When contributing, keep these principles in mind:
 4. **Minimal dependencies** - Keep the dependency tree small
 5. **Python-first** - Optimize for Python workflows
 
-See [docs/0-requirements.md](docs/0-requirements.md) for complete requirements.
+See [0-requirements.md](../0-requirements.md) for complete requirements.
 
 ## openCypher TCK Compliance
 
@@ -355,8 +355,8 @@ When implementing openCypher features:
 
 Update relevant docs when adding features:
 - README.md - User-facing features
-- docs/0-requirements.md - Requirement changes
-- docs/testing-strategy.md - Testing approach changes
+- [0-requirements.md](../0-requirements.md) - Requirement changes
+- [testing-strategy.md](../testing-strategy.md) - Testing approach changes
 
 ## Getting Help
 
@@ -366,7 +366,7 @@ Update relevant docs when adding features:
 
 ## Releases and Versioning
 
-GraphForge follows [Semantic Versioning](https://semver.org/) and maintains a detailed [CHANGELOG.md](CHANGELOG.md).
+GraphForge follows [Semantic Versioning](https://semver.org/) and maintains a detailed CHANGELOG.md (repository root).
 
 ### For Contributors
 
@@ -384,7 +384,7 @@ When submitting PRs, update the `[Unreleased]` section of CHANGELOG.md:
 
 ### For Maintainers
 
-See [RELEASING.md](RELEASING.md) for the release process, or [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) for comprehensive documentation.
+See RELEASING.md (repository root) for the release process, or [RELEASE_PROCESS.md](../RELEASE_PROCESS.md) for comprehensive documentation.
 
 Quick release:
 ```bash

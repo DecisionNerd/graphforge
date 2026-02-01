@@ -55,7 +55,7 @@ class QueryExecutor:
             List of result rows (dicts mapping column names to values)
         """
         # Start with empty context
-        rows = [ExecutionContext()]
+        rows: list[Any] = [ExecutionContext()]
 
         # Execute each operator in sequence
         for i, op in enumerate(operators):
@@ -67,15 +67,15 @@ class QueryExecutor:
             return []
 
         # At this point, rows has been converted to list[dict] by Project/Aggregate operator
-        return rows  # type: ignore[return-value]
+        return rows
 
     def _execute_operator(
         self,
         op,
-        input_rows: list[ExecutionContext],
+        input_rows: list[Any],
         op_index: int,
         total_ops: int,
-    ) -> list[ExecutionContext] | list[dict]:
+    ) -> list[Any]:
         """Execute a single operator.
 
         Args:
@@ -97,7 +97,7 @@ class QueryExecutor:
             return self._execute_filter(op, input_rows)
 
         if isinstance(op, Project):
-            return self._execute_project(op, input_rows)  # type: ignore[return-value]
+            return self._execute_project(op, input_rows)
 
         if isinstance(op, Limit):
             return self._execute_limit(op, input_rows)
@@ -112,7 +112,7 @@ class QueryExecutor:
             # Determine if we're in WITH context (more operators follow)
             # In WITH, return ExecutionContexts; in RETURN, return dicts
             for_with = op_index < total_ops - 1
-            return self._execute_aggregate(op, input_rows, for_with=for_with)  # type: ignore[return-value]
+            return self._execute_aggregate(op, input_rows, for_with=for_with)
 
         if isinstance(op, Create):
             return self._execute_create(op, input_rows)
@@ -552,7 +552,7 @@ class QueryExecutor:
             groups = {(): input_rows}  # type: ignore[assignment]
 
         # Compute aggregates for each group
-        result = []
+        result: list[Any] = []
         for group_key, group_rows in groups.items():
             if for_with:
                 # Return ExecutionContext for WITH clauses

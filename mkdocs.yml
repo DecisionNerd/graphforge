@@ -3,6 +3,10 @@ site_description: Composable graph tooling for analysis, construction, and refin
 site_author: David Spencer
 site_url: https://decisionnerd.github.io/graphforge/
 
+# Exclude files from documentation build (symlink targets to avoid duplicates)
+exclude_docs: |
+  /cypher-guide.md
+
 repo_name: DecisionNerd/graphforge
 repo_url: https://github.com/DecisionNerd/graphforge
 edit_uri: edit/main/docs/

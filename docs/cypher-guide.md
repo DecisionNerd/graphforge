@@ -5,15 +5,15 @@ Reference guide for the openCypher subset supported by GraphForge v0.1.1.
 ## Table of Contents
 
 - [Supported Features](#supported-features)
-- [MATCH - Pattern Matching](#match---pattern-matching)
-- [WHERE - Filtering](#where---filtering)
-- [RETURN - Projection](#return---projection)
-- [CREATE - Creating Data](#create---creating-data)
-- [SET - Updating Properties](#set---updating-properties)
-- [DELETE - Removing Data](#delete---removing-data)
-- [MERGE - Idempotent Creation](#merge---idempotent-creation)
-- [ORDER BY - Sorting](#order-by---sorting)
-- [LIMIT and SKIP - Pagination](#limit-and-skip---pagination)
+- [MATCH - Pattern Matching](#match-pattern-matching)
+- [WHERE - Filtering](#where-filtering)
+- [RETURN - Projection](#return-projection)
+- [CREATE - Creating Data](#create-creating-data)
+- [SET - Updating Properties](#set-updating-properties)
+- [DELETE - Removing Data](#delete-removing-data)
+- [MERGE - Idempotent Creation](#merge-idempotent-creation)
+- [ORDER BY - Sorting](#order-by-sorting)
+- [LIMIT and SKIP - Pagination](#limit-and-skip-pagination)
 - [Aggregation Functions](#aggregation-functions)
 - [Operators and Expressions](#operators-and-expressions)
 - [Planned Features](#planned-features)
@@ -800,10 +800,10 @@ RETURN p.name AS person
 
 ## See Also
 
-- [Tutorial](tutorial.md) - Step-by-step guide
-- [API Reference](api-reference.md) - Python API documentation
+- [Getting Started](overview.md) - Step-by-step guide
+- [API Reference](../api-reference.md) - Python API documentation
 - [Examples](../examples/) - Real-world use cases
-- [TCK Compliance](tck-compliance.md) - openCypher conformance status
+- [TCK Compliance](../tck-compliance.md) - openCypher conformance status
 
 ---
 
