@@ -142,6 +142,119 @@ git merge origin/develop
 
 ## Pull Request Workflow
 
+### PR Best Practices
+
+#### Keep PRs Small and Focused
+
+**CI/CD tools work best with small, reviewable PRs.**
+
+Large PRs (1,000+ lines, 20+ files) are:
+- ❌ Difficult for humans to review thoroughly
+- ❌ Overwhelming for CI/CD tools (CodeRabbit, GitHub Actions)
+- ❌ More likely to introduce bugs
+- ❌ Slower to get merged
+- ❌ Harder to debug if issues arise
+
+**Optimal PR size:**
+- ✅ **50-300 lines** of code changed
+- ✅ **1-5 files** modified
+- ✅ **Single focused change** (one feature, one bug fix)
+- ✅ **Reviewable in < 30 minutes**
+
+**How to break down large changes:**
+
+```bash
+# ❌ BAD: One massive PR
+feature/add-with-clause (2,000 lines, 25 files)
+  - Parser changes
+  - AST nodes
+  - Planner logic
+  - Executor implementation
+  - Integration tests
+  - Documentation
+
+# ✅ GOOD: Multiple focused PRs
+feature/with-clause-parser (200 lines, 3 files)
+  → PR merged
+
+feature/with-clause-planner (180 lines, 2 files)
+  → PR merged
+
+feature/with-clause-executor (220 lines, 2 files)
+  → PR merged
+
+feature/with-clause-tests (150 lines, 2 files)
+  → PR merged
+```
+
+**Tips for keeping PRs small:**
+1. Use feature flags for incomplete features
+2. Submit infrastructure changes separately from features
+3. Refactor in one PR, add features in another
+4. Break features into vertical slices (parser → planner → executor)
+
+#### Fix Problems Properly (No Bandaids)
+
+**When you encounter an issue, fix the root cause.**
+
+**❌ Bandaid fixes to avoid:**
+```python
+# Hiding errors
+try:
+    result = function()
+except:  # Catch everything and hope
+    pass
+
+# Ignoring type issues without understanding
+value = get_value()  # type: ignore
+
+# Commenting out failing tests
+# def test_feature():
+#     assert feature_works()  # TODO: fix later
+
+# Skipping CI checks
+pytest -k "not test_that_fails"
+```
+
+**✅ Proper fixes:**
+```python
+# Handle errors explicitly
+try:
+    result = process_data(input)
+except ValidationError as e:
+    logger.error(f"Invalid input: {e}")
+    return None  # Explicit null case
+
+# Fix type issues properly
+value: str | None = get_value()  # Proper type annotation
+if value is None:
+    return default_value
+
+# Fix failing tests
+def test_feature():
+    # Fixed the underlying bug in feature()
+    assert feature_works()
+
+# All tests must pass
+pytest  # No skips, no ignores
+```
+
+**When tempted to use a bandaid, ask:**
+1. **Why** is this failing?
+2. What's the **root cause**?
+3. How can I **fix it properly**?
+4. What **tests** will prevent regression?
+
+**Common scenarios:**
+
+| Issue | ❌ Bandaid | ✅ Proper Fix |
+|-------|-----------|---------------|
+| Type error | Add `# type: ignore` | Fix type annotations |
+| Failing test | Comment out test | Fix the bug or update test |
+| CI failure | Skip check temporarily | Fix the underlying issue |
+| Import error | Wrap in try/except | Install missing dependency |
+| Flaky test | Mark as `@pytest.mark.skip` | Make test deterministic |
+
 ### 1. Create Pull Request
 
 1. Push your branch to GitHub
@@ -185,11 +298,15 @@ When you open a PR, these checks run automatically:
 ### 5. Merging
 
 **Requirements before merging:**
-- ✅ All CI checks pass
+- ✅ All CI checks pass (no exceptions)
 - ✅ At least 1 approval from CODEOWNERS
 - ✅ No unresolved conversations
 - ✅ Branch is up-to-date with base branch
 - ✅ No merge conflicts
+- ✅ No bandaid fixes (all issues properly resolved)
+- ✅ PR is reasonably sized (< 500 lines preferred)
+- ✅ All tests passing (no skipped or commented tests)
+- ✅ No temporary workarounds or TODOs introduced
 
 **Merge strategies:**
 - **Squash and merge** (preferred): Clean history, single commit per PR

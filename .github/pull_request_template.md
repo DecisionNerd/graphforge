@@ -55,6 +55,15 @@ pytest -m "not slow"
 
 <!-- Mark completed items with an "x" -->
 
+### PR Size and Quality
+
+- [ ] This PR is **small and focused** (< 300 lines preferred, < 500 max)
+- [ ] This PR addresses **one logical change** (one feature OR one bug fix)
+- [ ] All issues are **fixed properly** (no bandaids, workarounds, or TODOs)
+- [ ] No `# type: ignore` comments without clear explanation
+- [ ] No commented-out code or skipped tests
+- [ ] All CI checks pass (no temporary bypasses)
+
 ### Code Quality
 
 - [ ] My code follows the project's style guidelines

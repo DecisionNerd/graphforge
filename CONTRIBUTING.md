@@ -188,6 +188,95 @@ def create_node(
 
 ## Pull Request Process
 
+### PR Size Guidelines
+
+**IMPORTANT: Keep PRs small and focused.**
+
+CI/CD tools (CodeRabbit, GitHub Actions) work best with small, reviewable PRs. Large PRs are:
+- Harder to review thoroughly
+- More likely to introduce bugs
+- Slower to get merged
+- More difficult for CI/CD tools to process
+
+**Good PR size:**
+- ✅ Single feature or bug fix
+- ✅ 50-300 lines of code changed
+- ✅ 1-5 files modified
+- ✅ Reviewable in < 30 minutes
+- ✅ Clear, focused purpose
+
+**Too large:**
+- ❌ Multiple unrelated changes
+- ❌ 1,000+ lines changed
+- ❌ Refactoring + new feature + bug fixes combined
+- ❌ Takes > 1 hour to review
+
+**How to keep PRs small:**
+1. Break large features into smaller PRs
+2. Submit infrastructure changes separately from features
+3. Refactor in one PR, add features in another
+4. Use feature flags for incomplete features
+
+**Example breakdown:**
+```
+❌ Bad: "Add WITH clause support" (2,000 lines, 20 files)
+
+✅ Good: Break into multiple PRs
+  PR 1: "Add WITH AST nodes and parser support" (200 lines)
+  PR 2: "Add WITH planner operators" (150 lines)
+  PR 3: "Add WITH executor logic" (180 lines)
+  PR 4: "Add WITH integration tests" (120 lines)
+```
+
+### No Bandaid Fixes
+
+**Fix problems properly, not with temporary workarounds.**
+
+When you encounter an issue:
+
+**❌ Bad approach (bandaids):**
+- Add `# type: ignore` without understanding the issue
+- Comment out failing tests
+- Add workarounds instead of fixing root causes
+- Use try/except to hide errors
+- Skip CI checks temporarily
+
+**✅ Good approach (proper fixes):**
+- Investigate the root cause
+- Fix the underlying problem
+- Add tests to prevent regression
+- Document why the fix is correct
+- Update related code to be consistent
+
+**Example:**
+
+```python
+# ❌ BANDAID - hides the real issue
+try:
+    result = process_data(input)
+except Exception:
+    result = None  # Hope this works...
+
+# ✅ PROPER FIX - addresses root cause
+def process_data(input: str | None) -> Result | None:
+    """Process data with proper null handling."""
+    if input is None:
+        return None  # Explicitly handle null case
+
+    try:
+        return _parse_and_validate(input)
+    except ValidationError as e:
+        raise ValueError(f"Invalid input: {e}") from e
+```
+
+**When you're tempted to add a bandaid, ask:**
+1. Why is this failing?
+2. What's the root cause?
+3. How can I fix it properly?
+4. What tests will prevent this from happening again?
+
+### Creating a PR
+
 1. **Create a feature branch**
    ```bash
    git checkout -b feature/your-feature-name
@@ -221,12 +310,17 @@ def create_node(
 ### PR Requirements
 
 All PRs must:
-- Pass all CI checks
-- Include tests for new functionality
-- Maintain or improve code coverage (≥85%)
-- Update relevant documentation
-- Follow the code style guidelines
-- Have a clear description of changes
+- ✅ Pass all CI checks (no exceptions)
+- ✅ Include tests for new functionality
+- ✅ Maintain or improve code coverage (≥85%)
+- ✅ Update relevant documentation
+- ✅ Follow the code style guidelines
+- ✅ Have a clear description of changes
+- ✅ Be small and focused (< 300 lines preferred)
+- ✅ Fix issues properly, not with bandaids
+- ✅ No failing tests (fix or remove them)
+- ✅ No `# type: ignore` without explanation
+- ✅ No skipped CI checks
 
 ## Design Principles
 
