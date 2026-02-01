@@ -164,9 +164,9 @@ def verify_result_in_order(tck_context, datatable):
     for i, (actual_row, expected_row) in enumerate(zip(result, expected)):
         actual_comparable = _row_to_comparable(actual_row)
         expected_comparable = _row_to_comparable(expected_row)
-        assert (
-            actual_comparable == expected_comparable
-        ), f"Row {i} mismatch: expected {expected_comparable}, got {actual_comparable}"
+        assert actual_comparable == expected_comparable, (
+            f"Row {i} mismatch: expected {expected_comparable}, got {actual_comparable}"
+        )
 
 
 @then("the result should be empty")
@@ -214,6 +214,7 @@ def verify_side_effects(tck_context, datatable):
 
 # Error assertion step definitions
 # These handle TCK scenarios that test error conditions
+
 
 @then(parsers.parse("a {error_type} should be raised at compile time: {error_code}"))
 def verify_compile_error_with_code(tck_context, error_type, error_code):
@@ -298,8 +299,6 @@ def verify_error_any_time(tck_context, error_type):
     pass
 
 
-
-
 def _parse_value(value_str: str):
     """Parse a value string into appropriate CypherValue or node pattern."""
     value_str = value_str.strip()
@@ -375,7 +374,7 @@ def _parse_node_pattern(pattern: str) -> dict:
     if label_match:
         label_str = label_match.group(1)
         labels = [l.strip() for l in label_str.split(":") if l.strip()]
-        pattern = pattern[len(label_str):].strip()
+        pattern = pattern[len(label_str) :].strip()
 
     # Extract properties {key: 'value', ...}
     if pattern.startswith("{") and pattern.endswith("}"):
@@ -416,8 +415,7 @@ def _row_to_comparable(row: dict) -> dict:
             comparable[key] = {
                 "labels": sorted(value.labels),
                 "properties": {
-                    k: v.value if hasattr(v, "value") else v
-                    for k, v in value.properties.items()
+                    k: v.value if hasattr(v, "value") else v for k, v in value.properties.items()
                 },
             }
         elif isinstance(value, EdgeRef):
@@ -425,8 +423,7 @@ def _row_to_comparable(row: dict) -> dict:
             comparable[key] = {
                 "type": value.type,
                 "properties": {
-                    k: v.value if hasattr(v, "value") else v
-                    for k, v in value.properties.items()
+                    k: v.value if hasattr(v, "value") else v for k, v in value.properties.items()
                 },
             }
         else:

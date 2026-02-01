@@ -7,6 +7,7 @@ Use Case: Find influential papers, co-author networks, and citation patterns
 
 from graphforge import GraphForge
 
+
 def main():
     db = GraphForge()
 
@@ -78,7 +79,9 @@ def main():
             CREATE (citing)-[:CITES]->(cited)
         """)
 
-    print(f"Created {len(papers)} papers, {len(authors)} authors, {len(citations_data)} citations\n")
+    print(
+        f"Created {len(papers)} papers, {len(authors)} authors, {len(citations_data)} citations\n"
+    )
 
     # Analysis 1: Most cited papers (in-network)
     print("=" * 60)

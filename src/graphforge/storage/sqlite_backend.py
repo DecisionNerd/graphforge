@@ -41,7 +41,7 @@ class SQLiteBackend:
         # Configure SQLite for durability and concurrency
         self.conn.execute("PRAGMA journal_mode=WAL")  # Single writer, multiple readers
         self.conn.execute("PRAGMA synchronous=FULL")  # Durability guarantee
-        self.conn.execute("PRAGMA foreign_keys=ON")   # Referential integrity
+        self.conn.execute("PRAGMA foreign_keys=ON")  # Referential integrity
 
         # Create schema if needed
         self._init_schema()
@@ -179,9 +179,7 @@ class SQLiteBackend:
         Returns:
             Dict mapping edge_id to (type, src_id, dst_id, properties)
         """
-        cursor = self.conn.execute(
-            "SELECT id, type, src_id, dst_id, properties FROM edges"
-        )
+        cursor = self.conn.execute("SELECT id, type, src_id, dst_id, properties FROM edges")
 
         edges = {}
         for row in cursor.fetchall():

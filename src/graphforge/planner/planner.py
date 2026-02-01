@@ -3,7 +3,19 @@
 This module converts parsed AST into executable logical plans.
 """
 
-from graphforge.ast.clause import CreateClause, DeleteClause, LimitClause, MatchClause, MergeClause, OrderByClause, ReturnClause, SetClause, SkipClause, WhereClause, WithClause
+from graphforge.ast.clause import (
+    CreateClause,
+    DeleteClause,
+    LimitClause,
+    MatchClause,
+    MergeClause,
+    OrderByClause,
+    ReturnClause,
+    SetClause,
+    SkipClause,
+    WhereClause,
+    WithClause,
+)
 from graphforge.ast.expression import FunctionCall
 from graphforge.ast.pattern import Direction, NodePattern, RelationshipPattern
 from graphforge.ast.query import CypherQuery
@@ -234,7 +246,9 @@ class QueryPlanner:
 
                 # Add Filter for inline property predicates
                 if node_pattern.properties:
-                    predicate = self._properties_to_predicate(node_pattern.variable, node_pattern.properties)
+                    predicate = self._properties_to_predicate(
+                        node_pattern.variable, node_pattern.properties
+                    )
                     operators.append(Filter(predicate=predicate))
 
             # Handle node-relationship-node pattern
@@ -251,7 +265,9 @@ class QueryPlanner:
 
                     # Add Filter for inline property predicates on src node
                     if src_pattern.properties:
-                        predicate = self._properties_to_predicate(src_pattern.variable, src_pattern.properties)
+                        predicate = self._properties_to_predicate(
+                            src_pattern.variable, src_pattern.properties
+                        )
                         operators.append(Filter(predicate=predicate))
 
                 # Relationship

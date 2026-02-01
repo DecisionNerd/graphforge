@@ -25,17 +25,17 @@ def simple_graph():
     alice = NodeRef(
         id=1,
         labels=frozenset(["Person"]),
-        properties={"name": CypherString("Alice"), "age": CypherInt(30)}
+        properties={"name": CypherString("Alice"), "age": CypherInt(30)},
     )
     bob = NodeRef(
         id=2,
         labels=frozenset(["Person"]),
-        properties={"name": CypherString("Bob"), "age": CypherInt(25)}
+        properties={"name": CypherString("Bob"), "age": CypherInt(25)},
     )
     charlie = NodeRef(
         id=3,
         labels=frozenset(["Person"]),
-        properties={"name": CypherString("Charlie"), "age": CypherInt(35)}
+        properties={"name": CypherString("Charlie"), "age": CypherInt(35)},
     )
 
     gf.graph.add_node(alice)
@@ -43,19 +43,9 @@ def simple_graph():
     gf.graph.add_node(charlie)
 
     # Add edges
-    knows1 = EdgeRef(
-        id=1,
-        type="KNOWS",
-        src=alice,
-        dst=bob,
-        properties={"since": CypherInt(2020)}
-    )
+    knows1 = EdgeRef(id=1, type="KNOWS", src=alice, dst=bob, properties={"since": CypherInt(2020)})
     knows2 = EdgeRef(
-        id=2,
-        type="KNOWS",
-        src=bob,
-        dst=charlie,
-        properties={"since": CypherInt(2021)}
+        id=2, type="KNOWS", src=bob, dst=charlie, properties={"since": CypherInt(2021)}
     )
 
     gf.graph.add_edge(knows1)
@@ -111,36 +101,28 @@ class TestWhereClause:
 
     def test_where_property_equals(self, simple_graph):
         """Test WHERE with property equality."""
-        results = simple_graph.execute(
-            "MATCH (n:Person) WHERE n.name = 'Alice' RETURN n"
-        )
+        results = simple_graph.execute("MATCH (n:Person) WHERE n.name = 'Alice' RETURN n")
         assert len(results) == 1
         node = results[0]["col_0"]
         assert node.properties["name"].value == "Alice"
 
     def test_where_property_greater_than(self, simple_graph):
         """Test WHERE with greater than comparison."""
-        results = simple_graph.execute(
-            "MATCH (n:Person) WHERE n.age > 30 RETURN n"
-        )
+        results = simple_graph.execute("MATCH (n:Person) WHERE n.age > 30 RETURN n")
         assert len(results) == 1
         node = results[0]["col_0"]
         assert node.properties["age"].value == 35
 
     def test_where_property_less_than(self, simple_graph):
         """Test WHERE with less than comparison."""
-        results = simple_graph.execute(
-            "MATCH (n:Person) WHERE n.age < 30 RETURN n"
-        )
+        results = simple_graph.execute("MATCH (n:Person) WHERE n.age < 30 RETURN n")
         assert len(results) == 1
         node = results[0]["col_0"]
         assert node.properties["age"].value == 25
 
     def test_where_and_condition(self, simple_graph):
         """Test WHERE with AND operator."""
-        results = simple_graph.execute(
-            "MATCH (n:Person) WHERE n.age > 20 AND n.age < 30 RETURN n"
-        )
+        results = simple_graph.execute("MATCH (n:Person) WHERE n.age > 20 AND n.age < 30 RETURN n")
         assert len(results) == 1
         node = results[0]["col_0"]
         assert node.properties["age"].value == 25
@@ -151,9 +133,7 @@ class TestRelationshipQueries:
 
     def test_match_relationship_out(self, simple_graph):
         """Test matching outgoing relationships."""
-        results = simple_graph.execute(
-            "MATCH (a:Person)-[r:KNOWS]->(b:Person) RETURN a, r, b"
-        )
+        results = simple_graph.execute("MATCH (a:Person)-[r:KNOWS]->(b:Person) RETURN a, r, b")
         assert len(results) == 2
 
         # Check first result
@@ -211,9 +191,7 @@ class TestOrderBy:
 
     def test_order_by_single_property_asc(self, simple_graph):
         """Test ORDER BY with single property ASC."""
-        results = simple_graph.execute(
-            "MATCH (n:Person) RETURN n.name AS name ORDER BY n.age"
-        )
+        results = simple_graph.execute("MATCH (n:Person) RETURN n.name AS name ORDER BY n.age")
         assert len(results) == 3
         # Should be ordered by age: Bob (25), Alice (30), Charlie (35)
         assert results[0]["name"].value == "Bob"
@@ -222,9 +200,7 @@ class TestOrderBy:
 
     def test_order_by_single_property_desc(self, simple_graph):
         """Test ORDER BY with single property DESC."""
-        results = simple_graph.execute(
-            "MATCH (n:Person) RETURN n.name AS name ORDER BY n.age DESC"
-        )
+        results = simple_graph.execute("MATCH (n:Person) RETURN n.name AS name ORDER BY n.age DESC")
         assert len(results) == 3
         # Should be ordered by age DESC: Charlie (35), Alice (30), Bob (25)
         assert results[0]["name"].value == "Charlie"
@@ -233,9 +209,7 @@ class TestOrderBy:
 
     def test_order_by_multiple_properties(self, simple_graph):
         """Test ORDER BY with multiple properties."""
-        results = simple_graph.execute(
-            "MATCH (n:Person) RETURN n ORDER BY n.age DESC, n.name ASC"
-        )
+        results = simple_graph.execute("MATCH (n:Person) RETURN n ORDER BY n.age DESC, n.name ASC")
         assert len(results) == 3
         # First by age DESC, then by name ASC
         assert results[0]["col_0"].properties["name"].value == "Charlie"
@@ -245,8 +219,7 @@ class TestOrderBy:
     def test_order_by_with_where(self, simple_graph):
         """Test ORDER BY with WHERE clause."""
         results = simple_graph.execute(
-            "MATCH (n:Person) WHERE n.age > 25 "
-            "RETURN n.name AS name ORDER BY n.age"
+            "MATCH (n:Person) WHERE n.age > 25 RETURN n.name AS name ORDER BY n.age"
         )
         assert len(results) == 2
         # Alice (30), Charlie (35)
@@ -290,44 +263,34 @@ class TestAggregationFunctions:
 
     def test_sum_function(self, simple_graph):
         """Test SUM aggregation."""
-        results = simple_graph.execute(
-            "MATCH (n:Person) RETURN SUM(n.age) AS total_age"
-        )
+        results = simple_graph.execute("MATCH (n:Person) RETURN SUM(n.age) AS total_age")
         assert len(results) == 1
         # 25 + 30 + 35 = 90
         assert results[0]["total_age"].value == 90
 
     def test_avg_function(self, simple_graph):
         """Test AVG aggregation."""
-        results = simple_graph.execute(
-            "MATCH (n:Person) RETURN AVG(n.age) AS avg_age"
-        )
+        results = simple_graph.execute("MATCH (n:Person) RETURN AVG(n.age) AS avg_age")
         assert len(results) == 1
         # (25 + 30 + 35) / 3 = 30.0
         assert results[0]["avg_age"].value == 30.0
 
     def test_min_function(self, simple_graph):
         """Test MIN aggregation."""
-        results = simple_graph.execute(
-            "MATCH (n:Person) RETURN MIN(n.age) AS min_age"
-        )
+        results = simple_graph.execute("MATCH (n:Person) RETURN MIN(n.age) AS min_age")
         assert len(results) == 1
         assert results[0]["min_age"].value == 25
 
     def test_max_function(self, simple_graph):
         """Test MAX aggregation."""
-        results = simple_graph.execute(
-            "MATCH (n:Person) RETURN MAX(n.age) AS max_age"
-        )
+        results = simple_graph.execute("MATCH (n:Person) RETURN MAX(n.age) AS max_age")
         assert len(results) == 1
         assert results[0]["max_age"].value == 35
 
     def test_grouping_with_count(self, simple_graph):
         """Test grouping with COUNT - count relationships per person."""
         # Alice has 1 outgoing, Bob has 1 outgoing, Charlie has 0
-        results = simple_graph.execute(
-            "MATCH (n:Person) RETURN n.name AS name, COUNT(*) AS cnt"
-        )
+        results = simple_graph.execute("MATCH (n:Person) RETURN n.name AS name, COUNT(*) AS cnt")
         # Each person gets one row (grouped by name)
         assert len(results) == 3
 
@@ -350,17 +313,14 @@ class TestAggregationFunctions:
 
     def test_count_with_where(self, simple_graph):
         """Test COUNT with WHERE clause."""
-        results = simple_graph.execute(
-            "MATCH (n:Person) WHERE n.age > 25 RETURN COUNT(n) AS count"
-        )
+        results = simple_graph.execute("MATCH (n:Person) WHERE n.age > 25 RETURN COUNT(n) AS count")
         assert len(results) == 1
         assert results[0]["count"].value == 2  # Alice and Charlie
 
     def test_multiple_aggregates(self, simple_graph):
         """Test multiple aggregation functions in one query."""
         results = simple_graph.execute(
-            "MATCH (n:Person) "
-            "RETURN COUNT(n) AS count, SUM(n.age) AS total, AVG(n.age) AS avg"
+            "MATCH (n:Person) RETURN COUNT(n) AS count, SUM(n.age) AS total, AVG(n.age) AS avg"
         )
         assert len(results) == 1
         assert results[0]["count"].value == 3

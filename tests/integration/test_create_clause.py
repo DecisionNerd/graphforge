@@ -17,7 +17,7 @@ class TestBasicCreate:
         gf.execute("CREATE (n:Person)")
 
         results = gf.execute("MATCH (p:Person) RETURN count(*) AS count")
-        assert results[0]['count'].value == 1
+        assert results[0]["count"].value == 1
 
     def test_create_node_with_properties(self):
         """CREATE a node with properties."""
@@ -26,8 +26,8 @@ class TestBasicCreate:
 
         results = gf.execute("MATCH (p:Person) RETURN p.name AS name, p.age AS age")
         assert len(results) == 1
-        assert results[0]['name'].value == 'Alice'
-        assert results[0]['age'].value == 30
+        assert results[0]["name"].value == "Alice"
+        assert results[0]["age"].value == 30
 
     def test_create_node_multiple_labels(self):
         """CREATE a node with multiple labels."""
@@ -35,10 +35,10 @@ class TestBasicCreate:
         gf.execute("CREATE (n:Person:Employee)")
 
         results = gf.execute("MATCH (p:Person) RETURN count(*) AS count")
-        assert results[0]['count'].value == 1
+        assert results[0]["count"].value == 1
 
         results = gf.execute("MATCH (e:Employee) RETURN count(*) AS count")
-        assert results[0]['count'].value == 1
+        assert results[0]["count"].value == 1
 
     def test_create_multiple_nodes(self):
         """CREATE multiple nodes in one statement."""
@@ -47,17 +47,19 @@ class TestBasicCreate:
 
         results = gf.execute("MATCH (p:Person) RETURN p.name AS name ORDER BY name")
         assert len(results) == 2
-        names = [r['name'].value for r in results]
-        assert names == ['Alice', 'Bob']
+        names = [r["name"].value for r in results]
+        assert names == ["Alice", "Bob"]
 
     def test_create_with_return(self):
         """CREATE with RETURN clause."""
         gf = GraphForge()
-        results = gf.execute("CREATE (n:Person {name: 'Alice', age: 30}) RETURN n.name AS name, n.age AS age")
+        results = gf.execute(
+            "CREATE (n:Person {name: 'Alice', age: 30}) RETURN n.name AS name, n.age AS age"
+        )
 
         assert len(results) == 1
-        assert results[0]['name'].value == 'Alice'
-        assert results[0]['age'].value == 30
+        assert results[0]["name"].value == "Alice"
+        assert results[0]["age"].value == 30
 
 
 class TestCreateRelationships:
@@ -68,24 +70,28 @@ class TestCreateRelationships:
         gf = GraphForge()
         gf.execute("CREATE (a:Person {name: 'Alice'})-[r:KNOWS]->(b:Person {name: 'Bob'})")
 
-        results = gf.execute("MATCH (a:Person)-[r:KNOWS]->(b:Person) RETURN a.name AS a_name, b.name AS b_name")
+        results = gf.execute(
+            "MATCH (a:Person)-[r:KNOWS]->(b:Person) RETURN a.name AS a_name, b.name AS b_name"
+        )
         assert len(results) == 1
-        assert results[0]['a_name'].value == 'Alice'
-        assert results[0]['b_name'].value == 'Bob'
+        assert results[0]["a_name"].value == "Alice"
+        assert results[0]["b_name"].value == "Bob"
 
     def test_create_relationship_with_properties(self):
         """CREATE a relationship with properties."""
         gf = GraphForge()
-        gf.execute("CREATE (a:Person {name: 'Alice'})-[r:KNOWS {since: 2020}]->(b:Person {name: 'Bob'})")
+        gf.execute(
+            "CREATE (a:Person {name: 'Alice'})-[r:KNOWS {since: 2020}]->(b:Person {name: 'Bob'})"
+        )
 
         results = gf.execute("""
             MATCH (a:Person)-[r:KNOWS]->(b:Person)
             RETURN a.name AS a_name, b.name AS b_name, r.since AS since
         """)
         assert len(results) == 1
-        assert results[0]['a_name'].value == 'Alice'
-        assert results[0]['b_name'].value == 'Bob'
-        assert results[0]['since'].value == 2020
+        assert results[0]["a_name"].value == "Alice"
+        assert results[0]["b_name"].value == "Bob"
+        assert results[0]["since"].value == 2020
 
     def test_create_multiple_relationships(self):
         """CREATE multiple relationships."""
@@ -93,8 +99,10 @@ class TestCreateRelationships:
         gf.execute("CREATE (a:Person {name: 'Alice'})-[r:KNOWS]->(b:Person {name: 'Bob'})")
         gf.execute("CREATE (a:Person {name: 'Alice'})-[r:KNOWS]->(c:Person {name: 'Charlie'})")
 
-        results = gf.execute("MATCH (a:Person {name: 'Alice'})-[r:KNOWS]->(b:Person) RETURN count(*) AS count")
-        assert results[0]['count'].value == 2
+        results = gf.execute(
+            "MATCH (a:Person {name: 'Alice'})-[r:KNOWS]->(b:Person) RETURN count(*) AS count"
+        )
+        assert results[0]["count"].value == 2
 
     def test_create_two_relationships_separately(self):
         """CREATE two relationships in separate statements."""
@@ -103,8 +111,10 @@ class TestCreateRelationships:
         gf.execute("CREATE (a:Person {name: 'Alice'})-[r1:KNOWS]->(b:Person {name: 'Bob'})")
         gf.execute("CREATE (a:Person {name: 'Alice'})-[r2:LIKES]->(b:Person {name: 'Bob'})")
 
-        results = gf.execute("MATCH (a:Person {name: 'Alice'})-[r]->(b:Person) RETURN count(*) AS count")
-        assert results[0]['count'].value == 2
+        results = gf.execute(
+            "MATCH (a:Person {name: 'Alice'})-[r]->(b:Person) RETURN count(*) AS count"
+        )
+        assert results[0]["count"].value == 2
 
 
 class TestCreatePropertyTypes:
@@ -116,7 +126,7 @@ class TestCreatePropertyTypes:
         gf.execute("CREATE (n:Person {name: 'Alice'})")
 
         results = gf.execute("MATCH (p:Person) RETURN p.name AS name")
-        assert results[0]['name'].value == 'Alice'
+        assert results[0]["name"].value == "Alice"
 
     def test_create_with_int_property(self):
         """CREATE with int property."""
@@ -124,7 +134,7 @@ class TestCreatePropertyTypes:
         gf.execute("CREATE (n:Person {age: 30})")
 
         results = gf.execute("MATCH (p:Person) RETURN p.age AS age")
-        assert results[0]['age'].value == 30
+        assert results[0]["age"].value == 30
 
     def test_create_with_bool_property(self):
         """CREATE with boolean property."""
@@ -132,7 +142,7 @@ class TestCreatePropertyTypes:
         gf.execute("CREATE (n:Person {active: true})")
 
         results = gf.execute("MATCH (p:Person) RETURN p.active AS active")
-        assert results[0]['active'].value is True
+        assert results[0]["active"].value is True
 
     def test_create_with_null_property(self):
         """CREATE with null property."""
@@ -140,18 +150,20 @@ class TestCreatePropertyTypes:
         gf.execute("CREATE (n:Person {nickname: null})")
 
         results = gf.execute("MATCH (p:Person) RETURN p.nickname AS nickname")
-        assert results[0]['nickname'].value is None
+        assert results[0]["nickname"].value is None
 
     def test_create_with_multiple_property_types(self):
         """CREATE with multiple property types."""
         gf = GraphForge()
         gf.execute("CREATE (n:Person {name: 'Alice', age: 30, active: true, nickname: null})")
 
-        results = gf.execute("MATCH (p:Person) RETURN p.name AS name, p.age AS age, p.active AS active, p.nickname AS nickname")
-        assert results[0]['name'].value == 'Alice'
-        assert results[0]['age'].value == 30
-        assert results[0]['active'].value is True
-        assert results[0]['nickname'].value is None
+        results = gf.execute(
+            "MATCH (p:Person) RETURN p.name AS name, p.age AS age, p.active AS active, p.nickname AS nickname"
+        )
+        assert results[0]["name"].value == "Alice"
+        assert results[0]["age"].value == 30
+        assert results[0]["active"].value is True
+        assert results[0]["nickname"].value is None
 
 
 class TestCreateAndQuery:
@@ -165,7 +177,7 @@ class TestCreateAndQuery:
 
         results = gf.execute("MATCH (p:Person) WHERE p.age > 25 RETURN p.name AS name")
         assert len(results) == 1
-        assert results[0]['name'].value == 'Alice'
+        assert results[0]["name"].value == "Alice"
 
     def test_create_with_return_and_alias(self):
         """CREATE with RETURN and alias."""
@@ -173,7 +185,7 @@ class TestCreateAndQuery:
         results = gf.execute("CREATE (n:Person {name: 'Alice'}) RETURN n.name AS person_name")
 
         assert len(results) == 1
-        assert results[0]['person_name'].value == 'Alice'
+        assert results[0]["person_name"].value == "Alice"
 
     def test_create_multiple_then_aggregate(self):
         """CREATE multiple nodes then aggregate."""
@@ -183,8 +195,8 @@ class TestCreateAndQuery:
         gf.execute("CREATE (c:Person {name: 'Charlie', age: 35})")
 
         results = gf.execute("MATCH (p:Person) RETURN count(*) AS count, sum(p.age) AS total_age")
-        assert results[0]['count'].value == 3
-        assert results[0]['total_age'].value == 90
+        assert results[0]["count"].value == 3
+        assert results[0]["total_age"].value == 90
 
 
 class TestCreatePersistence:
@@ -207,8 +219,8 @@ class TestCreatePersistence:
             gf2 = GraphForge(db_path)
             results = gf2.execute("MATCH (p:Person) RETURN p.name AS name, p.age AS age")
             assert len(results) == 1
-            assert results[0]['name'].value == 'Alice'
-            assert results[0]['age'].value == 30
+            assert results[0]["name"].value == "Alice"
+            assert results[0]["age"].value == 30
             gf2.close()
 
     def test_create_with_transactions(self):
@@ -221,7 +233,7 @@ class TestCreatePersistence:
 
         results = gf.execute("MATCH (p:Person) RETURN p.name AS name")
         assert len(results) == 1
-        assert results[0]['name'].value == 'Alice'
+        assert results[0]["name"].value == "Alice"
 
     def test_create_rollback(self):
         """CREATE can be rolled back."""
@@ -235,7 +247,7 @@ class TestCreatePersistence:
 
         results = gf.execute("MATCH (p:Person) RETURN p.name AS name")
         assert len(results) == 1
-        assert results[0]['name'].value == 'Alice'
+        assert results[0]["name"].value == "Alice"
 
 
 class TestCreateEdgeCases:
@@ -248,7 +260,7 @@ class TestCreateEdgeCases:
 
         results = gf.execute("MATCH (p:Person) RETURN p.name AS name")
         assert len(results) == 1
-        assert results[0]['name'].value == 'Alice'
+        assert results[0]["name"].value == "Alice"
 
     def test_create_no_labels(self):
         """CREATE without labels."""
@@ -257,7 +269,7 @@ class TestCreateEdgeCases:
 
         results = gf.execute("MATCH (n) RETURN n.name AS name")
         assert len(results) == 1
-        assert results[0]['name'].value == 'Alice'
+        assert results[0]["name"].value == "Alice"
 
     def test_create_no_properties(self):
         """CREATE without properties."""
@@ -265,4 +277,4 @@ class TestCreateEdgeCases:
         gf.execute("CREATE (n:Person)")
 
         results = gf.execute("MATCH (p:Person) RETURN count(*) AS count")
-        assert results[0]['count'].value == 1
+        assert results[0]["count"].value == 1

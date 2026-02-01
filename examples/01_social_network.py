@@ -7,6 +7,7 @@ Use Case: Friend recommendations based on mutual connections
 
 from graphforge import GraphForge
 
+
 def main():
     # Create in-memory graph for this example
     db = GraphForge()
@@ -50,7 +51,7 @@ def main():
     print(f"Created {len(people)} people and {len(friendships) * 2} friendships\n")
 
     # Analysis 1: Find all of Alice's friends
-    print("="* 60)
+    print("=" * 60)
     print("ANALYSIS 1: Alice's Direct Friends")
     print("=" * 60)
 
@@ -118,7 +119,7 @@ def main():
         RETURN mutual.name AS mutual_friend
     """)
 
-    mutual_friends = [row['mutual_friend'].value for row in results]
+    mutual_friends = [row["mutual_friend"].value for row in results]
     if mutual_friends:
         for friend in mutual_friends:
             print(f"  → {friend}")

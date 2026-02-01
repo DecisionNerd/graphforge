@@ -164,9 +164,7 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "tck_unsupported: TCK scenario that GraphForge does not support"
     )
-    config.addinivalue_line(
-        "markers", "tck: openCypher TCK compliance test"
-    )
+    config.addinivalue_line("markers", "tck: openCypher TCK compliance test")
 
     # Load TCK configuration
     global _tck_config, _tck_reporter
@@ -207,7 +205,9 @@ def pytest_collection_modifyitems(config, items):
         elif _tck_config.is_unsupported(feature_path, scenario_name):
             item.add_marker(pytest.mark.tck_unsupported)
             # Apply xfail to unsupported scenarios (allow them to fail)
-            item.add_marker(pytest.mark.xfail(reason="Not yet supported by GraphForge", strict=False))
+            item.add_marker(
+                pytest.mark.xfail(reason="Not yet supported by GraphForge", strict=False)
+            )
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -243,11 +243,9 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
         # Fail CI if supported scenarios failed
         if _tck_reporter.supported_failed > 0:
             terminalreporter.write_line(
-                "\n❌ CI Status: FAILURE - Supported TCK scenarios failing\n",
-                red=True, bold=True
+                "\n❌ CI Status: FAILURE - Supported TCK scenarios failing\n", red=True, bold=True
             )
         elif _tck_reporter.supported_scenarios > 0:
             terminalreporter.write_line(
-                "\n✓ CI Status: SUCCESS - All supported scenarios passing\n",
-                green=True, bold=True
+                "\n✓ CI Status: SUCCESS - All supported scenarios passing\n", green=True, bold=True
             )

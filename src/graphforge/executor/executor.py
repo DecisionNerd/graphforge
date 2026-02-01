@@ -116,7 +116,9 @@ class QueryExecutor:
 
         raise TypeError(f"Unknown operator type: {type(op).__name__}")
 
-    def _execute_scan(self, op: ScanNodes, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+    def _execute_scan(
+        self, op: ScanNodes, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
         """Execute ScanNodes operator.
 
         If the variable is already bound in the input context (e.g., from WITH),
@@ -148,7 +150,8 @@ class QueryExecutor:
                     # Filter to only nodes with ALL required labels
                     if len(op.labels) > 1:
                         nodes = [
-                            node for node in nodes
+                            node
+                            for node in nodes
                             if all(label in node.labels for label in op.labels)
                         ]
                 else:
@@ -166,7 +169,9 @@ class QueryExecutor:
 
         return result
 
-    def _execute_expand(self, op: ExpandEdges, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+    def _execute_expand(
+        self, op: ExpandEdges, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
         """Execute ExpandEdges operator."""
         result = []
 
@@ -179,7 +184,9 @@ class QueryExecutor:
             elif op.direction == "IN":
                 edges = self.graph.get_incoming_edges(src_node.id)
             else:  # UNDIRECTED
-                edges = self.graph.get_outgoing_edges(src_node.id) + self.graph.get_incoming_edges(src_node.id)
+                edges = self.graph.get_outgoing_edges(src_node.id) + self.graph.get_incoming_edges(
+                    src_node.id
+                )
 
             # Filter by type if specified
             if op.edge_types:
@@ -206,7 +213,9 @@ class QueryExecutor:
 
         return result
 
-    def _execute_filter(self, op: Filter, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+    def _execute_filter(
+        self, op: Filter, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
         """Execute Filter operator."""
         result = []
 
@@ -341,21 +350,21 @@ class QueryExecutor:
 
         # Step 4: Apply optional SKIP
         if op.skip_count is not None:
-            result = result[op.skip_count:]
+            result = result[op.skip_count :]
 
         # Step 5: Apply optional LIMIT
         if op.limit_count is not None:
-            result = result[:op.limit_count]
+            result = result[: op.limit_count]
 
         return result
 
     def _execute_limit(self, op: Limit, input_rows: list) -> list:
         """Execute Limit operator."""
-        return input_rows[:op.count]
+        return input_rows[: op.count]
 
     def _execute_skip(self, op: Skip, input_rows: list) -> list:
         """Execute Skip operator."""
-        return input_rows[op.count:]
+        return input_rows[op.count :]
 
     def _execute_sort(self, op: Sort, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
         """Execute Sort operator.
@@ -486,13 +495,15 @@ class QueryExecutor:
             return None
         if isinstance(value, (CypherInt, CypherFloat, CypherBool)):
             return (type(value).__name__, value.value)
-        if hasattr(value, 'value'):
+        if hasattr(value, "value"):
             # CypherString, etc.
             return (type(value).__name__, value.value)
         # NodeRef, EdgeRef have their own hash
         return value
 
-    def _compute_aggregates_for_group(self, op: Aggregate, group_rows: list[ExecutionContext], group_key=None) -> dict:
+    def _compute_aggregates_for_group(
+        self, op: Aggregate, group_rows: list[ExecutionContext], group_key=None
+    ) -> dict:
         """Compute aggregates for a single group.
 
         Args:
@@ -518,15 +529,17 @@ class QueryExecutor:
                             row[key] = CypherNull()
                         elif isinstance(hashable_val, tuple) and len(hashable_val) == 2:
                             type_name, val = hashable_val
-                            if type_name == 'CypherInt':
+                            if type_name == "CypherInt":
                                 row[key] = CypherInt(val)
-                            elif type_name == 'CypherFloat':
+                            elif type_name == "CypherFloat":
                                 row[key] = CypherFloat(val)
-                            elif type_name == 'CypherBool':
+                            elif type_name == "CypherBool":
                                 from graphforge.types.values import CypherBool as CB
+
                                 row[key] = CB(val)
                             else:
                                 from graphforge.types.values import CypherString
+
                                 row[key] = CypherString(val)
                         else:
                             # NodeRef, EdgeRef, etc.
@@ -639,7 +652,9 @@ class QueryExecutor:
 
         raise ValueError(f"Unknown aggregation function: {func_name}")
 
-    def _execute_create(self, op: Create, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+    def _execute_create(
+        self, op: Create, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
         """Execute CREATE operator.
 
         Creates nodes and relationships from patterns.
@@ -738,7 +753,9 @@ class QueryExecutor:
         node = self.graphforge.create_node(labels, **properties)
         return node
 
-    def _create_relationship_from_pattern(self, src_node, dst_node, rel_type, rel_pattern, ctx: ExecutionContext):
+    def _create_relationship_from_pattern(
+        self, src_node, dst_node, rel_type, rel_pattern, ctx: ExecutionContext
+    ):
         """Create a relationship from a RelationshipPattern.
 
         Args:
@@ -753,7 +770,7 @@ class QueryExecutor:
         """
         # Extract and evaluate properties
         properties = {}
-        if hasattr(rel_pattern, 'properties') and rel_pattern.properties:
+        if hasattr(rel_pattern, "properties") and rel_pattern.properties:
             for key, value_expr in rel_pattern.properties.items():
                 # Evaluate the expression to get the value
                 cypher_value = evaluate_expression(value_expr, ctx)
@@ -781,8 +798,12 @@ class QueryExecutor:
             # Process each SET item
             for property_access, value_expr in op.items:
                 # Evaluate the target (should be a PropertyAccess node)
-                if hasattr(property_access, 'variable') and hasattr(property_access, 'property'):
-                    var_name = property_access.variable.name if hasattr(property_access.variable, 'name') else property_access.variable
+                if hasattr(property_access, "variable") and hasattr(property_access, "property"):
+                    var_name = (
+                        property_access.variable.name
+                        if hasattr(property_access.variable, "name")
+                        else property_access.variable
+                    )
                     prop_name = property_access.property
 
                     # Get the node or edge from context
@@ -800,7 +821,9 @@ class QueryExecutor:
 
         return result
 
-    def _execute_delete(self, op: Delete, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+    def _execute_delete(
+        self, op: Delete, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
         """Execute DELETE operator.
 
         Removes nodes and relationships from the graph.
@@ -858,11 +881,15 @@ class QueryExecutor:
                         # Remove from adjacency lists
                         if element.src.id in self.graph._outgoing:
                             self.graph._outgoing[element.src.id] = [
-                                e for e in self.graph._outgoing[element.src.id] if e.id != element.id
+                                e
+                                for e in self.graph._outgoing[element.src.id]
+                                if e.id != element.id
                             ]
                         if element.dst.id in self.graph._incoming:
                             self.graph._incoming[element.dst.id] = [
-                                e for e in self.graph._incoming[element.dst.id] if e.id != element.id
+                                e
+                                for e in self.graph._incoming[element.dst.id]
+                                if e.id != element.id
                             ]
                         # Remove from type index
                         if element.type in self.graph._type_index:
@@ -871,7 +898,9 @@ class QueryExecutor:
         # DELETE produces no output rows
         return []
 
-    def _execute_merge(self, op: Merge, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+    def _execute_merge(
+        self, op: Merge, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
         """Execute MERGE operator.
 
         Creates patterns if they don't exist, or matches them if they do.
@@ -928,7 +957,10 @@ class QueryExecutor:
                                     # Compare CypherValue objects using equality
                                     node_value = node.properties[key]
                                     comparison_result = node_value.equals(expected_value)
-                                    if isinstance(comparison_result, CypherBool) and not comparison_result.value:
+                                    if (
+                                        isinstance(comparison_result, CypherBool)
+                                        and not comparison_result.value
+                                    ):
                                         match = False
                                         break
 

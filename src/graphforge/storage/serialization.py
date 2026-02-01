@@ -86,9 +86,7 @@ def deserialize_cypher_value(data: dict):
         return CypherList([deserialize_cypher_value(item) for item in data["value"]])
 
     if value_type == "map":
-        return CypherMap(
-            {key: deserialize_cypher_value(val) for key, val in data["value"].items()}
-        )
+        return CypherMap({key: deserialize_cypher_value(val) for key, val in data["value"].items()})
 
     raise TypeError(f"Cannot deserialize type: {value_type}")
 

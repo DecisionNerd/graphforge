@@ -7,6 +7,7 @@ Use Case: Understand data flow in an ETL pipeline and impact analysis
 
 from graphforge import GraphForge
 
+
 def main():
     # Create persistent graph
     db = GraphForge("data-lineage.db")
@@ -102,7 +103,9 @@ def main():
             """)
 
         db.commit()
-        print(f"Created lineage graph with {len(sources)} sources, {len(datasets)} datasets, and {len(jobs)} jobs\n")
+        print(
+            f"Created lineage graph with {len(sources)} sources, {len(datasets)} datasets, and {len(jobs)} jobs\n"
+        )
 
     except Exception as e:
         db.rollback()
@@ -227,7 +230,7 @@ def main():
             MATCH (n:{node_type})
             RETURN count(*) AS count
         """)
-        count = results[0]['count'].value
+        count = results[0]["count"].value
         print(f"  {node_type}s: {count}")
 
     print("\n" + "=" * 60)

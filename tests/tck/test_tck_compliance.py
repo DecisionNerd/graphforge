@@ -39,7 +39,9 @@ def add_node(gf: GraphForge, node_id: int, labels: list[str], properties: dict):
     return node
 
 
-def add_edge(gf: GraphForge, edge_id: int, edge_type: str, src: NodeRef, dst: NodeRef, properties: dict):
+def add_edge(
+    gf: GraphForge, edge_id: int, edge_type: str, src: NodeRef, dst: NodeRef, properties: dict
+):
     """Helper to add an edge to the graph."""
     cypher_props = {}
     for key, value in properties.items():
@@ -322,7 +324,9 @@ class TestTCKNullSemantics:
         add_node(gf, 2, ["Person"], {"name": "Bob"})  # No age
 
         # Execute
-        results = gf.execute("MATCH (p:Person) RETURN COUNT(*) AS all_count, COUNT(p.age) AS age_count")
+        results = gf.execute(
+            "MATCH (p:Person) RETURN COUNT(*) AS all_count, COUNT(p.age) AS age_count"
+        )
 
         # Verify
         assert len(results) == 1, "Should return 1 row"

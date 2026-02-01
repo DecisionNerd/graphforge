@@ -7,6 +7,7 @@ Use Case: Store facts about concepts and query relationships between them
 
 from graphforge import GraphForge
 
+
 def main():
     # Create persistent graph
     db = GraphForge("knowledge-graph.db")

@@ -84,7 +84,7 @@ def graphforge_example():
         MATCH (alice:Person {name: 'Alice'})-[:KNOWS]->(neighbor)
         RETURN neighbor.name AS name
     """)
-    neighbors = [row['name'].value for row in results]
+    neighbors = [row["name"].value for row in results]
     print(f"Alice's neighbors: {neighbors}")
 
     # Access properties
@@ -125,30 +125,30 @@ def migration_patterns():
     print("\nGraphForge (Python API):")
     print("  db.create_relationship(alice, bob, 'KNOWS', weight=0.9)")
     print("\nGraphForge (Cypher):")
-    print("  db.execute(\"\"\"")
+    print('  db.execute("""')
     print("    MATCH (a {name: 'Alice'}), (b {name: 'Bob'})")
     print("    CREATE (a)-[:KNOWS {weight: 0.9}]->(b)")
-    print("  \"\"\")")
+    print('  """)')
 
     print("\n3. FIND NEIGHBORS")
     print("-" * 60)
     print("NetworkX:")
     print("  neighbors = list(G.neighbors('Alice'))")
     print("\nGraphForge:")
-    print("  results = db.execute(\"\"\"")
+    print('  results = db.execute("""')
     print("    MATCH (alice:Person {name: 'Alice'})-[:KNOWS]->(neighbor)")
     print("    RETURN neighbor.name AS name")
-    print("  \"\"\")")
+    print('  """)')
 
     print("\n4. GET NODE ATTRIBUTES")
     print("-" * 60)
     print("NetworkX:")
     print("  age = G.nodes['Alice']['age']")
     print("\nGraphForge:")
-    print("  results = db.execute(\"\"\"")
+    print('  results = db.execute("""')
     print("    MATCH (alice:Person {name: 'Alice'})")
     print("    RETURN alice.age AS age")
-    print("  \"\"\")")
+    print('  """)')
     print("  age = results[0]['age'].value")
 
     print("\n5. FILTER NODES")
@@ -157,22 +157,22 @@ def migration_patterns():
     print("  young = [n for n, data in G.nodes(data=True)")
     print("           if data.get('age', 0) < 30]")
     print("\nGraphForge:")
-    print("  results = db.execute(\"\"\"")
+    print('  results = db.execute("""')
     print("    MATCH (p:Person)")
     print("    WHERE p.age < 30")
     print("    RETURN p.name AS name")
-    print("  \"\"\")")
+    print('  """)')
 
     print("\n6. DEGREE CENTRALITY")
     print("-" * 60)
     print("NetworkX:")
     print("  centrality = nx.degree_centrality(G)")
     print("\nGraphForge:")
-    print("  results = db.execute(\"\"\"")
+    print('  results = db.execute("""')
     print("    MATCH (p:Person)-[:KNOWS]-(neighbor)")
     print("    RETURN p.name AS name, count(neighbor) AS degree")
     print("    ORDER BY degree DESC")
-    print("  \"\"\")")
+    print('  """)')
 
 
 def key_differences():
