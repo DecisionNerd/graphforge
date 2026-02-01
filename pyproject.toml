@@ -98,6 +98,8 @@ unfixable = []
     "PLW0603", # Global statement (ok in test configuration)
     "E501",    # Line too long (test assertions can be long)
     "E741",    # Ambiguous variable names (single-letter ok in tests)
+    "SIM105",  # Use contextlib.suppress (try/except-pass is clearer)
+    "PERF203", # Try-except in loop (acceptable for test collection)
 ]
 "examples/**/*.py" = [
     "E501",    # Line too long (examples can be verbose)
