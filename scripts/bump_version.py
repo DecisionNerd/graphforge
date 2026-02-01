@@ -7,10 +7,10 @@ Usage:
     python scripts/bump_version.py major  # 0.1.1 → 1.0.0
 """
 
-import re
-import sys
 from datetime import date
 from pathlib import Path
+import re
+import sys
 
 
 def get_current_version(pyproject_path: Path) -> tuple[int, int, int]:
@@ -144,11 +144,11 @@ def main():
     print("✅ Version bumped successfully!")
     print()
     print("Next steps:")
-    print(f"  1. Review changes: git diff")
-    print(f"  2. Update CHANGELOG.md with actual changes")
+    print("  1. Review changes: git diff")
+    print("  2. Update CHANGELOG.md with actual changes")
     print(f"  3. Commit: git commit -am 'chore(release): bump version to {new_str}'")
     print(f"  4. Tag: git tag -a v{new_str} -m 'Release version {new_str}'")
-    print(f"  5. Push: git push origin main --tags")
+    print("  5. Push: git push origin main --tags")
 
 
 if __name__ == "__main__":

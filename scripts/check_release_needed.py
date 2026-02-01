@@ -8,10 +8,10 @@ Usage:
     python scripts/check_release_needed.py
 """
 
+from datetime import datetime
+from pathlib import Path
 import re
 import sys
-from datetime import datetime, timedelta
-from pathlib import Path
 
 
 def count_unreleased_changes(changelog_path: Path) -> dict:
@@ -256,9 +256,9 @@ def main():
         print()
 
     print("Next Steps:")
-    print(f"  1. Review changes: cat CHANGELOG.md")
+    print("  1. Review changes: cat CHANGELOG.md")
     print(f"  2. Bump version: python scripts/bump_version.py {bump_type}")
-    print(f"  3. Follow release process: see RELEASING.md")
+    print("  3. Follow release process: see RELEASING.md")
     print()
 
     # Exit code: 0 = no action needed, 1 = consider release, 2 = release needed
