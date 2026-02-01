@@ -7,21 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-02-01
+
 ### Added
 - Professional versioning and release management system
-- Comprehensive CHANGELOG.md following Keep a Changelog format
-- Automated release workflow with version bumping
-- Release process documentation
+  - Comprehensive CHANGELOG.md following Keep a Changelog format
+  - Automated version bumping script (`scripts/bump_version.py`)
+  - Release process documentation (RELEASING.md, docs/RELEASE_PROCESS.md, docs/RELEASE_STRATEGY.md)
+  - Weekly automated release check with GitHub issue reminders
+  - Release tracking workflow with auto-labeling
+- MkDocs Material documentation site
+  - Auto-generated API documentation from docstrings
+  - Complete user guide (installation, quickstart, Cypher guide)
+  - Auto-deploy to GitHub Pages on every push
+- CI/CD enhancements
+  - CHANGELOG validation workflow (ensures PRs update changelog)
+  - Automated PR labeling based on changed files
+  - Labels for component tracking (parser, planner, executor)
+- `.editorconfig` for consistent editor settings across IDEs
 
 ### Changed
 - Updated GitHub Actions to Node.js 24 (actions/checkout v6, actions/setup-python v6, astral-sh/setup-uv v7)
 - Enhanced PR guidelines to enforce small PRs and proper fixes
+- Updated README badges to professional numpy-style flat badges
 
 ### Fixed
 - Integration test regression from WITH clause implementation
 - Column naming now correctly uses `col_N` for unnamed return items
 - SKIP/LIMIT queries no longer return empty results
 - TCK test collection error resolved
+- API documentation now references actual modules (api, ast, parser, planner, executor, storage, types)
 
 ## [0.1.1] - 2026-01-31
 
@@ -60,6 +75,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 81% code coverage
 - Multi-OS, multi-Python CI/CD (3 OS × 4 Python versions)
 
-[Unreleased]: https://github.com/DecisionNerd/graphforge/compare/v0.1.1...HEAD
-[0.1.1]: https://github.com/DecisionNerd/graphforge/compare/v0.1.0...v0.1.1
+[Unreleased]: https://github.com/DecisionNerd/graphforge/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/DecisionNerd/graphforge/compare/v0.1.1...v0.1.2
 [0.1.0]: https://github.com/DecisionNerd/graphforge/releases/tag/v0.1.0
