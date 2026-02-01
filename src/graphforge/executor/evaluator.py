@@ -169,7 +169,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
 
 # Function categories
 STRING_FUNCTIONS = {"LENGTH", "SUBSTRING", "UPPER", "LOWER", "TRIM"}
-TYPE_FUNCTIONS = {"toInteger", "toFloat", "toString", "type"}
+TYPE_FUNCTIONS = {"TOINTEGER", "TOFLOAT", "TOSTRING", "TYPE"}
 
 
 def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> CypherValue:
