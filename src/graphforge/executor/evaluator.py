@@ -10,6 +10,7 @@ from graphforge.ast.expression import BinaryOp, FunctionCall, Literal, PropertyA
 from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,
+    CypherFloat,
     CypherInt,
     CypherNull,
     CypherString,
@@ -277,12 +278,12 @@ def _evaluate_string_function(func_name: str, args: list[CypherValue]) -> Cypher
     raise ValueError(f"Unknown string function: {func_name}")
 
 
-def _evaluate_type_function(func_name: str, _args: list[CypherValue]) -> CypherValue:
+def _evaluate_type_function(func_name: str, args: list[CypherValue]) -> CypherValue:
     """Evaluate type conversion and introspection functions.
 
     Args:
         func_name: Name of the type function
-        _args: List of evaluated arguments (non-NULL) - unused in placeholder
+        args: List of evaluated arguments (non-NULL)
 
     Returns:
         CypherValue result of the type function
@@ -291,5 +292,56 @@ def _evaluate_type_function(func_name: str, _args: list[CypherValue]) -> CypherV
         ValueError: If function is unknown
         TypeError: If arguments have invalid types
     """
-    # Placeholder - will be implemented in Feature 3
-    raise ValueError(f"Type function not yet implemented: {func_name}")
+    # Special handling for NULL in type conversions
+    if isinstance(args[0], CypherNull):
+        return CypherNull()
+
+    if func_name == "TOINTEGER":
+        try:
+            if isinstance(args[0], CypherInt):
+                return args[0]
+            elif isinstance(args[0], (CypherFloat, CypherString)):
+                return CypherInt(int(args[0].value))
+            elif isinstance(args[0], CypherBool):
+                # Booleans convert to 1 (true) or 0 (false)
+                return CypherInt(1 if args[0].value else 0)
+            else:
+                return CypherNull()  # Cannot convert
+        except (ValueError, TypeError):
+            return CypherNull()
+
+    elif func_name == "TOFLOAT":
+        try:
+            if isinstance(args[0], CypherFloat):
+                return args[0]
+            elif isinstance(args[0], (CypherInt, CypherString)):
+                return CypherFloat(float(args[0].value))
+            elif isinstance(args[0], CypherBool):
+                # Booleans convert to 1.0 (true) or 0.0 (false)
+                return CypherFloat(1.0 if args[0].value else 0.0)
+            else:
+                return CypherNull()
+        except (ValueError, TypeError):
+            return CypherNull()
+
+    elif func_name == "TOSTRING":
+        if isinstance(args[0], CypherString):
+            return args[0]
+        elif isinstance(args[0], (CypherInt, CypherFloat)):
+            return CypherString(str(args[0].value))
+        elif isinstance(args[0], CypherBool):
+            # Booleans convert to "true" or "false"
+            return CypherString("true" if args[0].value else "false")
+        else:
+            return CypherNull()
+
+    elif func_name == "TYPE":
+        # TYPE function returns the type name as a string
+        # Return the CypherValue type name
+        type_name = type(args[0]).__name__
+        # Strip "Cypher" prefix for cleaner output
+        if type_name.startswith("Cypher"):
+            type_name = type_name[6:]  # Remove "Cypher" prefix
+        return CypherString(type_name)
+
+    raise ValueError(f"Unknown type function: {func_name}")

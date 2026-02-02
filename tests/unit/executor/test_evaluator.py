@@ -320,16 +320,69 @@ class TestFunctionCalls:
         assert isinstance(result, CypherInt)
         assert result.value == 4
 
-    def test_type_function_not_implemented(self):
-        """Type functions raise error (placeholder for Feature 3)."""
+    def test_to_integer_from_string(self):
+        """toInteger converts string to integer."""
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toInteger",
             args=[Literal("42")],
         )
 
-        with pytest.raises(ValueError, match="Type function not yet implemented"):
-            evaluate_expression(expr, ctx)
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherInt)
+        assert result.value == 42
+
+    def test_to_float_from_string(self):
+        """toFloat converts string to float."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toFloat",
+            args=[Literal("3.14")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherFloat
+
+        assert isinstance(result, CypherFloat)
+        assert abs(result.value - 3.14) < 0.001
+
+    def test_to_string_from_integer(self):
+        """toString converts integer to string."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toString",
+            args=[Literal(42)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "42"
+
+    def test_to_integer_invalid_string_returns_null(self):
+        """toInteger with invalid string returns NULL."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toInteger",
+            args=[Literal("not a number")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_to_float_invalid_string_returns_null(self):
+        """toFloat with invalid string returns NULL."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toFloat",
+            args=[Literal("not a number")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
 
     def test_substring_negative_start_raises_error(self):
         """SUBSTRING with negative start raises TypeError."""
