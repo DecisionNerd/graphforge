@@ -116,7 +116,7 @@ rel_type: ":" IDENTIFIER
 
 // Properties
 properties: "{" property ("," property)* "}"
-property: IDENTIFIER ":" literal
+property: IDENTIFIER ":" expression
 
 // Literals
 ?literal: INT           -> int_literal
@@ -125,6 +125,12 @@ property: IDENTIFIER ":" literal
         | TRUE          -> true_literal
         | FALSE         -> false_literal
         | NULL          -> null_literal
+        | list_literal
+        | map_literal
+
+list_literal: "[" [expression ("," expression)*] "]"
+map_literal: "{" [map_pair ("," map_pair)*] "}"
+map_pair: (IDENTIFIER | STRING) ":" expression
 
 // Variables and identifiers
 variable: IDENTIFIER

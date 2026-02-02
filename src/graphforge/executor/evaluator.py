@@ -12,6 +12,8 @@ from graphforge.types.values import (
     CypherBool,
     CypherFloat,
     CypherInt,
+    CypherList,
+    CypherMap,
     CypherNull,
     CypherString,
     CypherValue,
@@ -83,7 +85,29 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
     """
     # Literal
     if isinstance(expr, Literal):
-        return from_python(expr.value)
+        value = expr.value
+        # Handle nested structures (lists and maps)
+        if isinstance(value, list):
+            # Evaluate each item in the list
+            evaluated_items = [
+                evaluate_expression(item, ctx)
+                if isinstance(item, (Literal, Variable, PropertyAccess, BinaryOp, FunctionCall))
+                else from_python(item)
+                for item in value
+            ]
+            return CypherList(evaluated_items)
+        elif isinstance(value, dict):
+            # Evaluate each value in the dict
+            evaluated_dict = {}
+            for key, val in value.items():
+                if isinstance(val, (Literal, Variable, PropertyAccess, BinaryOp, FunctionCall)):
+                    evaluated_dict[key] = evaluate_expression(val, ctx)
+                else:
+                    evaluated_dict[key] = from_python(val)
+            return CypherMap(evaluated_dict)
+        else:
+            # Simple scalar value
+            return from_python(value)
 
     # Variable reference
     if isinstance(expr, Variable):

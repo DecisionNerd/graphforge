@@ -25,7 +25,39 @@ from graphforge.planner.operators import (
     With,
 )
 from graphforge.storage.memory import Graph
-from graphforge.types.values import CypherBool, CypherFloat, CypherInt, CypherNull
+from graphforge.types.values import (
+    CypherBool,
+    CypherFloat,
+    CypherInt,
+    CypherList,
+    CypherMap,
+    CypherNull,
+    CypherValue,
+)
+
+
+def _cypher_to_python(cypher_val: CypherValue) -> Any:
+    """Convert CypherValue to Python value for storage.
+
+    Recursively converts CypherList and CypherMap to Python list and dict.
+
+    Args:
+        cypher_val: CypherValue to convert
+
+    Returns:
+        Python value (None, bool, int, float, str, list, dict)
+    """
+    if isinstance(cypher_val, CypherNull):
+        return None
+    elif isinstance(cypher_val, (CypherBool, CypherInt, CypherFloat)):
+        return cypher_val.value
+    elif isinstance(cypher_val, CypherList):
+        return [_cypher_to_python(item) for item in cypher_val.value]
+    elif isinstance(cypher_val, CypherMap):
+        return {k: _cypher_to_python(v) for k, v in cypher_val.value.items()}
+    else:
+        # CypherString or any other type
+        return cypher_val.value
 
 
 class QueryExecutor:
@@ -863,7 +895,8 @@ class QueryExecutor:
             for key, value_expr in node_pattern.properties.items():
                 # Evaluate the expression to get the value
                 cypher_value = evaluate_expression(value_expr, ctx)
-                properties[key] = cypher_value.value
+                # Convert CypherValue to Python value (handles nested lists/maps)
+                properties[key] = _cypher_to_python(cypher_value)
 
         # Create node using GraphForge API
         node = self.graphforge.create_node(labels, **properties)
@@ -890,7 +923,8 @@ class QueryExecutor:
             for key, value_expr in rel_pattern.properties.items():
                 # Evaluate the expression to get the value
                 cypher_value = evaluate_expression(value_expr, ctx)
-                properties[key] = cypher_value.value
+                # Convert CypherValue to Python value (handles nested lists/maps)
+                properties[key] = _cypher_to_python(cypher_value)
 
         # Create relationship using GraphForge API
         edge = self.graphforge.create_relationship(src_node, dst_node, rel_type, **properties)
