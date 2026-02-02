@@ -24,7 +24,39 @@ test-unit:  ## Run unit tests only
 test-integration:  ## Run integration tests only
 	uv run pytest tests/integration -v
 
-pre-push: format-check lint type-check test-unit test-integration  ## Run all pre-push checks (mirrors CI)
+coverage:  ## Run tests with coverage measurement
+	@echo "Running tests with coverage..."
+	uv run pytest tests/unit tests/integration \
+		--cov=src \
+		--cov-branch \
+		--cov-report=term-missing \
+		--cov-report=xml \
+		--cov-report=html
+
+check-coverage:  ## Validate coverage meets 85% threshold
+	@echo "Checking coverage thresholds..."
+	@uv run coverage report --fail-under=85 || \
+		(echo "❌ Coverage below 85% threshold" && exit 1)
+	@echo "✅ Coverage meets threshold"
+
+coverage-strict:  ## Strict 90% coverage check for new features
+	@echo "Checking strict coverage (90%)..."
+	@uv run coverage report --fail-under=90 || \
+		(echo "❌ Coverage below 90% - consider adding more tests" && exit 1)
+	@echo "✅ Coverage meets strict threshold"
+
+coverage-report:  ## Open HTML coverage report in browser
+	@echo "Opening coverage report in browser..."
+	@open htmlcov/index.html || xdg-open htmlcov/index.html || \
+		echo "Coverage report generated at htmlcov/index.html"
+
+coverage-diff:  ## Show coverage for changed files only
+	@echo "Showing coverage for changed files..."
+	@git diff --name-only origin/main... | \
+		grep '\.py$$' | \
+		xargs uv run coverage report --include
+
+pre-push: format-check lint type-check coverage check-coverage  ## Run all pre-push checks (mirrors CI)
 	@echo "✅ All pre-push checks passed!"
 
 clean:  ## Clean up cache files

@@ -1118,7 +1118,56 @@ For production workloads, consider Neo4j, Memgraph, or other production graph da
 
 GraphForge is in active development. Contributions are welcome!
 
-**Areas for Contribution:**
+### Development Workflow
+
+Before pushing code, run:
+
+```bash
+make pre-push
+```
+
+This runs:
+- Code formatting checks (ruff format --check)
+- Linting (ruff check)
+- Type checking (mypy)
+- Tests with coverage measurement
+- Coverage threshold validation (minimum 85%)
+
+### Coverage
+
+View detailed coverage report:
+
+```bash
+make coverage-report
+```
+
+Check coverage for your changes only:
+
+```bash
+make coverage-diff
+```
+
+Run tests with coverage manually:
+
+```bash
+make coverage
+```
+
+For new features, optionally check against a stricter 90% threshold:
+
+```bash
+make coverage-strict
+```
+
+### Coverage Requirements
+
+- **Project coverage**: 85% of entire codebase (checked by `make pre-push`)
+- **Patch coverage**: 80% of new/changed lines (checked by codecov in CI)
+
+**Best practice**: Aim for 100% coverage of new code to ensure both thresholds pass.
+
+### Areas for Contribution
+
 - Additional Cypher features
 - Performance optimizations
 - Documentation and examples

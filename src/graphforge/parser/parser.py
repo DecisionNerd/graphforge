@@ -429,6 +429,43 @@ class ASTTransformer(Transformer):
         # items[0] is now a NULL terminal token
         return Literal(value=None)
 
+    def list_literal(self, items):
+        """Transform list literal.
+
+        items can be empty (for []) or contain expressions.
+        Returns a Literal containing a Python list.
+        """
+        # items contains the expressions in the list
+        # We return a Literal with a list of expressions
+        # The executor will evaluate these expressions later
+        return Literal(value=list(items))
+
+    def map_literal(self, items):
+        """Transform map literal.
+
+        items contains map_pair tuples (key, value_expression).
+        Returns a Literal containing a Python dict.
+        """
+        # items contains (key, value_expr) tuples from map_pair
+        # We return a Literal with a dict
+        return Literal(value=dict(items))
+
+    def map_pair(self, items):
+        """Transform map key-value pair.
+
+        Returns tuple of (key_string, value_expression).
+        """
+        # First item is the key (IDENTIFIER or STRING token)
+        key = self._get_token_value(items[0])
+        # Strip quotes from STRING keys
+        if (key.startswith('"') and key.endswith('"')) or (
+            key.startswith("'") and key.endswith("'")
+        ):
+            key = key[1:-1]
+        # Second item is the value expression
+        value_expr = items[1]
+        return (key, value_expr)
+
 
 class CypherParser:
     """Main parser for openCypher queries.
