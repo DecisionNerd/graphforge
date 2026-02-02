@@ -11,9 +11,10 @@ GraphForge implements a **practical subset of OpenCypher** focused on common gra
 
 | Version | TCK Scenarios | Compliance | Status |
 |---------|--------------|------------|--------|
-| v0.1.4 | 638/3,837 | 16.6% | Released |
-| v0.2.0 | ~950/3,837 | ~25% | In Progress ([9 issues](https://github.com/DecisionNerd/graphforge/milestone/1)) |
-| v0.3.0 | ~1,500/3,837 | ~39% | Planned ([1 issue](https://github.com/DecisionNerd/graphforge/milestone/2)) |
+| v0.1.4 | 1,277/7,722 | 16.5% | Released |
+| v0.2.0 | ~1,900/7,722 | ~25% | In Progress ([9 issues](https://github.com/DecisionNerd/graphforge/milestone/1)) |
+| v0.3.0 | ~3,000/7,722 | ~39% | Planned ([1 issue](https://github.com/DecisionNerd/graphforge/milestone/2)) |
+| v1.0 | >7,650/7,722 | >99% | Goal (Full OpenCypher) |
 
 ### Design Philosophy
 
@@ -285,7 +286,9 @@ The **Technology Compatibility Kit (TCK)** is the official openCypher test suite
 
 ### Current Coverage (v0.1.4)
 
-**638/3,837 scenarios passing (16.6%)**
+**1,277/7,722 scenarios passing (16.5%)**
+
+*Note: TCK suite contains 7,722 total scenarios. Earlier documentation referenced a subset of 3,837 scenarios.*
 
 #### Passing Scenario Categories
 - ✅ Basic MATCH patterns
@@ -320,7 +323,7 @@ The **Technology Compatibility Kit (TCK)** is the official openCypher test suite
 
 ### Projected v0.2.0 Coverage
 
-**~950/3,837 scenarios passing (~25%)**
+**~1,900/7,722 scenarios passing (~25%)**
 
 Adding 9 new features in v0.2 will close ~300-350 scenarios:
 - UNWIND: +50
@@ -335,7 +338,7 @@ Adding 9 new features in v0.2 will close ~300-350 scenarios:
 
 ### Projected v0.3.0 Coverage
 
-**~1,500/3,837 scenarios passing (~39%)**
+**~3,000/7,722 scenarios passing (~39%)**
 
 Adding advanced features in v0.3 will close ~550 scenarios:
 - OPTIONAL MATCH: +150
@@ -386,32 +389,47 @@ Adding advanced features in v0.3 will close ~550 scenarios:
 |-----------|--------|-------|-------|
 | v0.2.0 | Mar 2026 | 25% | Core features complete |
 | v0.3.0 | Jun 2026 | 39% | Advanced patterns |
-| v0.4.0 | Sep 2026 | 50% | Performance + functions |
-| v0.5.0 | Dec 2026 | 60% | Advanced expressions |
-| v1.0.0 | Mar 2027 | 73% | Full core OpenCypher |
+| v0.4.0 | Sep 2026 | 55% | Comprehensive functions |
+| v0.5.0 | Dec 2026 | 70% | Advanced expressions |
+| v0.6.0 | Mar 2027 | 82% | Subqueries & procedures |
+| v0.7.0 | Jun 2027 | 92% | Edge cases & optimization |
+| v1.0.0 | Sep 2027 | >99% | Full OpenCypher |
 
-**Note:** 100% TCK compliance is **not a goal**. Many scenarios test enterprise features (user management, distributed systems) or advanced types (temporal, spatial) that are out of scope for GraphForge's embedded design.
+**Goal:** GraphForge v1.0 will be a **complete production platform** with:
+- >99% OpenCypher compliance (full query language)
+- Modern APIs (REST, GraphQL, WebSocket)
+- Analytical integrations (NetworkX, iGraph, QuantumFusion)
+- Comprehensive import/export (GraphML, CSV, JSON, Parquet, Neo4j)
+- Web GUI for exploration and querying
+- Production features (monitoring, backup/restore, auth)
 
-### Target Compliance: 70-75%
+The remaining <1% TCK scenarios represent enterprise features (user management, distributed systems) that are incompatible with the embedded design.
 
-GraphForge v1.0 will target **70-75% TCK compliance**, covering:
-- ✅ All core clauses (MATCH, CREATE, MERGE, etc.)
-- ✅ All essential expressions (CASE, arithmetic, logical)
-- ✅ Most common functions (string, list, math)
-- ✅ Pattern matching (including variable-length)
-- ✅ Subqueries and advanced queries
-- ❌ Temporal/spatial types (out of scope)
-- ❌ Enterprise features (out of scope)
-- ❌ Distributed features (out of scope)
+**See [v1.0 Roadmap](../ROADMAP_V1.0.md) for complete production platform plan.**
+
+### Target Compliance: >99%
+
+GraphForge v1.0 will target **>99% TCK compliance** (Full OpenCypher), covering:
+- ✅ All core clauses (MATCH, CREATE, MERGE, DELETE, etc.)
+- ✅ All expressions (CASE, arithmetic, logical, pattern predicates)
+- ✅ All standard functions (string, list, math, aggregations)
+- ✅ Pattern matching (including variable-length, shortest path)
+- ✅ Subqueries and advanced queries (EXISTS, CALL)
+- ✅ List comprehensions and map projections
+- ✅ UNION, FOREACH, and advanced control flow
+- ⚠️ Temporal/spatial types (may defer to v1.1+)
+- ❌ Enterprise features (user management, multi-DB - out of scope for embedded design)
+- ❌ Distributed features (clustering, sharding - single-node architecture)
 
 ---
 
 ## Contributing
 
-Help improve OpenCypher compliance! See:
-- [GitHub Issues by Milestone](https://github.com/DecisionNerd/graphforge/milestones)
-- [CONTRIBUTING.md](../CONTRIBUTING.md)
-- [Issue Workflow](../../.github/ISSUE_WORKFLOW.md)
+Help build GraphForge v1.0! See:
+- [v1.0 Roadmap](../ROADMAP_V1.0.md) - Complete production platform plan
+- [GitHub Milestones](https://github.com/DecisionNerd/graphforge/milestones)
+- [Contributing Guide](https://github.com/DecisionNerd/graphforge/blob/main/CONTRIBUTING.md)
+- [Issue Workflow](https://github.com/DecisionNerd/graphforge/blob/main/.github/ISSUE_WORKFLOW.md)
 
 ### High-Impact Contributions
 
