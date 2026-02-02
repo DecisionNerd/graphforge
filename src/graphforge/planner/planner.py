@@ -135,7 +135,7 @@ class QueryPlanner:
 
         # 6. DELETE
         if delete_clause:
-            operators.append(Delete(variables=delete_clause.variables))
+            operators.append(Delete(variables=delete_clause.variables, detach=delete_clause.detach))
 
         # 7. ORDER BY (before projection!)
         if order_by_clause:

@@ -44,7 +44,8 @@ set_clause: "SET"i set_item ("," set_item)*
 set_item: property_access "=" expression
 
 // DELETE clause
-delete_clause: "DELETE"i variable ("," variable)*
+delete_clause: "DETACH"i "DELETE"i variable ("," variable)*  -> detach_delete
+             | "DELETE"i variable ("," variable)*            -> regular_delete
 
 // MERGE clause
 merge_clause: "MERGE"i pattern ("," pattern)*
