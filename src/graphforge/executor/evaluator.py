@@ -244,10 +244,17 @@ def _evaluate_string_function(func_name: str, args: list[CypherValue]) -> Cypher
         string = args[0].value
         start = args[1].value
 
+        # Validate start is non-negative (openCypher requirement)
+        if start < 0:
+            raise TypeError("SUBSTRING start must be non-negative")
+
         if len(args) == 3:
             if not isinstance(args[2], CypherInt):
                 raise TypeError("SUBSTRING length must be integer")
             length = args[2].value
+            # Validate length is non-negative (openCypher requirement)
+            if length < 0:
+                raise TypeError("SUBSTRING length must be non-negative")
             return CypherString(string[start : start + length])
         else:
             return CypherString(string[start:])

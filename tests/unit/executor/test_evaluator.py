@@ -330,3 +330,25 @@ class TestFunctionCalls:
 
         with pytest.raises(ValueError, match="Type function not yet implemented"):
             evaluate_expression(expr, ctx)
+
+    def test_substring_negative_start_raises_error(self):
+        """SUBSTRING with negative start raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SUBSTRING",
+            args=[Literal("hello"), Literal(-1)],
+        )
+
+        with pytest.raises(TypeError, match="SUBSTRING start must be non-negative"):
+            evaluate_expression(expr, ctx)
+
+    def test_substring_negative_length_raises_error(self):
+        """SUBSTRING with negative length raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SUBSTRING",
+            args=[Literal("hello"), Literal(0), Literal(-1)],
+        )
+
+        with pytest.raises(TypeError, match="SUBSTRING length must be non-negative"):
+            evaluate_expression(expr, ctx)
