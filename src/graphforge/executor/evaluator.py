@@ -6,7 +6,14 @@ CypherValue results.
 
 from typing import Any
 
-from graphforge.ast.expression import BinaryOp, FunctionCall, Literal, PropertyAccess, UnaryOp, Variable
+from graphforge.ast.expression import (
+    BinaryOp,
+    FunctionCall,
+    Literal,
+    PropertyAccess,
+    UnaryOp,
+    Variable,
+)
 from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,

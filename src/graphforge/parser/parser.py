@@ -23,7 +23,14 @@ from graphforge.ast.clause import (
     WhereClause,
     WithClause,
 )
-from graphforge.ast.expression import BinaryOp, FunctionCall, Literal, PropertyAccess, UnaryOp, Variable
+from graphforge.ast.expression import (
+    BinaryOp,
+    FunctionCall,
+    Literal,
+    PropertyAccess,
+    UnaryOp,
+    Variable,
+)
 from graphforge.ast.pattern import Direction, NodePattern, RelationshipPattern
 from graphforge.ast.query import CypherQuery
 
