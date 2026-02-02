@@ -33,61 +33,87 @@ Thank you for your interest in contributing to GraphForge! This document provide
 
 ## Development Workflow
 
+### Before Pushing Code
+
+**Always run this before pushing:**
+
+```bash
+make pre-push
+```
+
+This runs the complete validation suite:
+- ✅ Code formatting checks (`ruff format --check`)
+- ✅ Linting (`ruff check`)
+- ✅ Type checking (`mypy`)
+- ✅ Tests with coverage measurement
+- ✅ Coverage threshold validation (≥85%)
+
+If all checks pass, you're ready to push!
+
 ### Running Tests
 
 ```bash
-# Run all tests
-pytest
+# Run all tests (use make pre-push for full validation)
+make test
 
 # Run specific categories
+make test-unit           # Fast unit tests only
+make test-integration    # Integration tests only
+
+# Run with coverage reporting
+make coverage            # Run tests + generate coverage reports
+make coverage-report     # Open HTML coverage report in browser
+make coverage-diff       # Show coverage for changed files only
+
+# For new features, check against stricter threshold
+make coverage-strict     # Requires ≥90% coverage
+```
+
+**Direct pytest usage (if needed):**
+```bash
 pytest -m unit           # Fast unit tests
 pytest -m integration    # Integration tests
 pytest -m tck            # TCK compliance tests
-
-# Run with coverage
-pytest --cov=src --cov-report=html
-open htmlcov/index.html
-
-# Run in parallel
-pytest -n auto
-
-# Watch mode (requires pytest-watch)
-pytest-watch
+pytest -n auto           # Run in parallel
 ```
 
 ### Code Quality
 
 ```bash
 # Format code
-ruff format .
+make format              # Format all code with ruff
 
-# Check formatting
-ruff format --check .
+# Check without modifying
+make format-check        # Verify formatting
+make lint                # Run linting checks
+make type-check          # Run mypy type checking
 
-# Lint code
-ruff check .
-
-# Auto-fix linting issues
-ruff check --fix .
+# View all available targets
+make help
 ```
 
-### Before Committing
-
-Run this checklist:
-
+**Direct ruff usage (if needed):**
 ```bash
-# 1. Format code
-ruff format .
-
-# 2. Fix linting issues
-ruff check --fix .
-
-# 3. Run tests
-pytest
-
-# 4. Check coverage
-pytest --cov=src --cov-report=term-missing
+ruff format .            # Format code
+ruff check .             # Lint code
+ruff check --fix .       # Auto-fix issues
 ```
+
+### Coverage Requirements
+
+GraphForge maintains high test coverage standards:
+
+- **Project coverage**: ≥85% of entire codebase (checked by `make pre-push`)
+- **Patch coverage**: ≥80% of new/changed lines (checked by codecov in CI)
+
+**Best practice**: Aim for 100% coverage of new code to ensure both thresholds pass.
+
+**Coverage workflow:**
+1. Write your code with tests
+2. Run `make coverage` to see coverage report
+3. Check missing lines with `make coverage-report` (opens HTML)
+4. Add tests for uncovered lines
+5. Run `make pre-push` to validate before pushing
 
 ## Project Structure
 
@@ -290,10 +316,9 @@ def process_data(input: str | None) -> Result | None:
 
 3. **Ensure quality**
    ```bash
-   ruff format .
-   ruff check .
-   pytest --cov=src
+   make pre-push
    ```
+   This validates everything: formatting, linting, types, tests, and coverage.
 
 4. **Commit your changes**
    ```bash
