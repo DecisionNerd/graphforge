@@ -308,16 +308,17 @@ class TestFunctionCalls:
         assert isinstance(result, CypherString)
         assert result.value == "Alice"
 
-    def test_string_function_not_implemented(self):
-        """String functions raise error (placeholder for Feature 2)."""
+    def test_string_function_length(self):
+        """LENGTH string function returns string length."""
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="LENGTH",
             args=[Literal("test")],
         )
 
-        with pytest.raises(ValueError, match="String function not yet implemented"):
-            evaluate_expression(expr, ctx)
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherInt)
+        assert result.value == 4
 
     def test_type_function_not_implemented(self):
         """Type functions raise error (placeholder for Feature 3)."""

@@ -404,10 +404,14 @@ class QueryPlanner:
             expr: Expression to check
 
         Returns:
-            True if expression is or contains a FunctionCall
+            True if expression is or contains an aggregation FunctionCall
         """
+        # Define aggregation functions
+        aggregation_functions = {"COUNT", "SUM", "AVG", "MIN", "MAX"}
+
         if isinstance(expr, FunctionCall):
-            return True
+            # Only return True if it's an aggregation function
+            return expr.name.upper() in aggregation_functions
         # Could add recursive checking for complex expressions in the future
         return False
 

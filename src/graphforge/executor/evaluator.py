@@ -10,7 +10,9 @@ from graphforge.ast.expression import BinaryOp, FunctionCall, Literal, PropertyA
 from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,
+    CypherInt,
     CypherNull,
+    CypherString,
     CypherValue,
     from_python,
 )
@@ -212,12 +214,12 @@ def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> Cypher
         raise ValueError(f"Unknown function: {func_name}")
 
 
-def _evaluate_string_function(func_name: str, _args: list[CypherValue]) -> CypherValue:
+def _evaluate_string_function(func_name: str, args: list[CypherValue]) -> CypherValue:
     """Evaluate string functions.
 
     Args:
         func_name: Name of the string function (uppercase)
-        _args: List of evaluated arguments (non-NULL) - unused in placeholder
+        args: List of evaluated arguments (non-NULL)
 
     Returns:
         CypherValue result of the string function
@@ -226,8 +228,46 @@ def _evaluate_string_function(func_name: str, _args: list[CypherValue]) -> Cyphe
         ValueError: If function is unknown
         TypeError: If arguments have invalid types
     """
-    # Placeholder - will be implemented in Feature 2
-    raise ValueError(f"String function not yet implemented: {func_name}")
+    if func_name == "LENGTH":
+        # LENGTH(string) -> int
+        if not isinstance(args[0], CypherString):
+            raise TypeError(f"LENGTH expects string, got {type(args[0]).__name__}")
+        return CypherInt(len(args[0].value))
+
+    elif func_name == "SUBSTRING":
+        # SUBSTRING(string, start) or SUBSTRING(string, start, length)
+        if not isinstance(args[0], CypherString):
+            raise TypeError(f"SUBSTRING expects string, got {type(args[0]).__name__}")
+        if not isinstance(args[1], CypherInt):
+            raise TypeError("SUBSTRING start must be integer")
+
+        string = args[0].value
+        start = args[1].value
+
+        if len(args) == 3:
+            if not isinstance(args[2], CypherInt):
+                raise TypeError("SUBSTRING length must be integer")
+            length = args[2].value
+            return CypherString(string[start : start + length])
+        else:
+            return CypherString(string[start:])
+
+    elif func_name == "UPPER":
+        if not isinstance(args[0], CypherString):
+            raise TypeError(f"UPPER expects string, got {type(args[0]).__name__}")
+        return CypherString(args[0].value.upper())
+
+    elif func_name == "LOWER":
+        if not isinstance(args[0], CypherString):
+            raise TypeError(f"LOWER expects string, got {type(args[0]).__name__}")
+        return CypherString(args[0].value.lower())
+
+    elif func_name == "TRIM":
+        if not isinstance(args[0], CypherString):
+            raise TypeError(f"TRIM expects string, got {type(args[0]).__name__}")
+        return CypherString(args[0].value.strip())
+
+    raise ValueError(f"Unknown string function: {func_name}")
 
 
 def _evaluate_type_function(func_name: str, _args: list[CypherValue]) -> CypherValue:
