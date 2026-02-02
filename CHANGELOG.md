@@ -7,13 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-02-02
+
 ### Added
+- **Local coverage validation workflow** (#15, #16)
+  - `make pre-push` now validates 85% combined line+branch coverage locally before pushing
+  - `make coverage` - Run tests with coverage measurement and generate reports
+  - `make check-coverage` - Validate 85% combined coverage threshold
+  - `make coverage-strict` - Strict 90% threshold validation for new features
+  - `make coverage-report` - Open HTML coverage report in browser
+  - `make coverage-diff` - Show coverage for changed files only
+  - Catches 90% of coverage issues before CI, eliminating codecov patch failures
+  - Current coverage: 88.69% (92.41% line + 81.19% branch)
+- **Codecov Test Analytics integration** (#17, #18)
+  - JUnit XML generation for all test runs across 8,203 tests (481 unit/integration + 7,722 TCK)
+  - Test performance monitoring with execution time trends
+  - Flaky test detection for intermittent failures
+  - Failure rate tracking and reliability pattern analysis
+  - Cross-platform analytics tracking (12 OS/Python combinations)
+  - `make test-analytics` - Generate JUnit XML locally for analysis
+  - Analytics dashboard at https://app.codecov.io/gh/DecisionNerd/graphforge
+- **List and map literal support in CREATE statements** (#15)
+  - CREATE now accepts complex property types: lists, maps, and nested structures
+  - Proper bidirectional CypherValue ↔ Python type conversion
+  - 10 new integration tests covering complex property edge cases
 - Codecov integration for automated coverage tracking
   - Coverage reports uploaded from GitHub Actions
   - Component-level coverage tracking (parser, planner, executor, storage, ast, types)
   - PR comments with coverage changes
   - Branch coverage analysis
   - Configuration file (`.codecov.yml`) with 85% project target, 80% patch target
+
+### Changed
+- **Development workflow modernization** (#16)
+  - Updated CONTRIBUTING.md with comprehensive make-based workflow documentation
+  - Single command for all pre-push validation: `make pre-push` (format-check, lint, type-check, coverage, check-coverage)
+  - Clear documentation of coverage requirements (85% project, 80% patch)
+  - Complete guidance on all available make targets with examples
+- Test suite significantly expanded to 479 unit/integration tests + 7,722 TCK compliance tests
+
+### Fixed
+- Codecov test analytics deprecation warning (#18)
+  - Migrated from deprecated `test-results-action@v1` to `codecov-action@v5`
+  - Uses `report_type: test_results` parameter for future-proof compatibility
 
 ## [0.1.3] - 2026-02-01
 
@@ -109,7 +145,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 81% code coverage
 - Multi-OS, multi-Python CI/CD (3 OS × 4 Python versions)
 
-[Unreleased]: https://github.com/DecisionNerd/graphforge/compare/v0.1.3...HEAD
-[0.1.3]: https://github.com/DecisionNerd/graphforge/compare/v0.1.2...v0.1.3
+[Unreleased]: https://github.com/DecisionNerd/graphforge/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/DecisionNerd/graphforge/compare/v0.1.3...v0.1.4
 [0.1.2]: https://github.com/DecisionNerd/graphforge/compare/v0.1.1...v0.1.2
 [0.1.0]: https://github.com/DecisionNerd/graphforge/releases/tag/v0.1.0
