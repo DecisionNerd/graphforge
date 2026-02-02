@@ -23,7 +23,14 @@ from graphforge.ast.clause import (
     WhereClause,
     WithClause,
 )
-from graphforge.ast.expression import BinaryOp, FunctionCall, Literal, PropertyAccess, Variable
+from graphforge.ast.expression import (
+    BinaryOp,
+    FunctionCall,
+    Literal,
+    PropertyAccess,
+    UnaryOp,
+    Variable,
+)
 from graphforge.ast.pattern import Direction, NodePattern, RelationshipPattern
 from graphforge.ast.query import CypherQuery
 
@@ -346,6 +353,15 @@ class ASTTransformer(Transformer):
         for item in items[1:]:
             result = BinaryOp(op="AND", left=result, right=item)
         return result
+
+    def not_operation(self, items):
+        """Transform NOT operation (when NOT keyword is present)."""
+        # items[0] is the operand (result of transforming the inner not_expr)
+        return UnaryOp(op="NOT", operand=items[0])
+
+    def not_passthrough(self, items):
+        """Transform not_expr when there's no NOT (just passes through comparison_expr)."""
+        return items[0]
 
     def comparison_expr(self, items):
         """Transform comparison expression."""

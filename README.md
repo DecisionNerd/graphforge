@@ -1090,27 +1090,114 @@ For production workloads, consider Neo4j, Memgraph, or other production graph da
 
 ## Roadmap
 
-**Completed (v0.1):**
-- ✅ MATCH, WHERE, RETURN, ORDER BY, LIMIT, SKIP
+**Completed (v0.1.4):**
+- ✅ MATCH, WHERE, RETURN, ORDER BY, LIMIT, SKIP, WITH
 - ✅ Aggregations (COUNT, SUM, AVG, MIN, MAX)
 - ✅ CREATE, SET, DELETE, MERGE clauses
 - ✅ Python builder API
-- ✅ SQLite persistence
-- ✅ ACID transactions
+- ✅ SQLite persistence with ACID transactions
+- ✅ 638/3,837 TCK scenarios (16.6%)
 
-**Planned (v0.2):**
-- MATCH-CREATE combinations (connecting existing nodes)
-- DETACH DELETE (cascading relationship deletion)
-- Path expressions and variable-length patterns
-- UNWIND for list processing
-- CASE expressions
+**In Progress (v0.2.0 - Core Cypher Complete):** [See milestone](https://github.com/DecisionNerd/graphforge/milestone/1)
+- 🚧 UNWIND for list iteration ([#20](https://github.com/DecisionNerd/graphforge/issues/20))
+- 🚧 DETACH DELETE - cascading deletion ([#21](https://github.com/DecisionNerd/graphforge/issues/21))
+- 🚧 CASE expressions for conditional logic ([#22](https://github.com/DecisionNerd/graphforge/issues/22))
+- 🚧 MATCH-CREATE formalization and tests ([#23](https://github.com/DecisionNerd/graphforge/issues/23))
+- 🚧 REMOVE clause for property/label removal ([#25](https://github.com/DecisionNerd/graphforge/issues/25))
+- 🚧 Arithmetic operators (+, -, *, /, %) ([#26](https://github.com/DecisionNerd/graphforge/issues/26))
+- 🚧 COLLECT aggregation ([#27](https://github.com/DecisionNerd/graphforge/issues/27))
+- 🚧 String matching (STARTS WITH, ENDS WITH, CONTAINS) ([#28](https://github.com/DecisionNerd/graphforge/issues/28))
+- 🚧 NOT logical operator ([#29](https://github.com/DecisionNerd/graphforge/issues/29))
+- 🎯 Target: ~950 TCK scenarios (~25%)
+
+**Planned (v0.3.0 - Advanced Patterns):** [See milestone](https://github.com/DecisionNerd/graphforge/milestone/2)
+- ⏳ Variable-length patterns `-[*1..5]->` ([#24](https://github.com/DecisionNerd/graphforge/issues/24))
+- ⏳ OPTIONAL MATCH (left outer joins)
+- ⏳ List comprehensions
+- ⏳ Subqueries (EXISTS, COUNT)
+- ⏳ UNION / UNION ALL
+- 🎯 Target: ~1,500 TCK scenarios (~39%)
 
 **Future Considerations:**
+- v0.4+: Additional functions, performance optimization
+- v1.0: Full core OpenCypher (70-75% TCK compliance)
 - Query plan visualization
 - Performance profiling tools
-- Import/export to standard formats (GraphML, CSV)
-- Integration with popular data science libraries
-- Pydantic schema validation
+- Import/export formats (GraphML, CSV)
+
+**See [OpenCypher Compatibility](docs/reference/opencypher-compatibility.md) for detailed feature matrix.**
+
+---
+
+## Cypher Compatibility
+
+GraphForge implements a **practical subset of OpenCypher** focused on common graph operations. It is **not** a full OpenCypher implementation.
+
+### ✅ Supported (v0.2.0)
+
+**Reading & Writing:**
+- MATCH, WHERE, RETURN, WITH, ORDER BY, LIMIT, SKIP
+- CREATE, SET, DELETE, REMOVE, MERGE, DETACH DELETE
+- Pattern matching (nodes and relationships)
+- Property filtering and updates
+
+**Expressions:**
+- CASE expressions (conditional logic)
+- Arithmetic operators: +, -, *, /, %
+- Comparison operators: =, <>, <, >, <=, >=
+- Logical operators: AND, OR, NOT
+- String matching: STARTS WITH, ENDS WITH, CONTAINS
+
+**Aggregations:**
+- COUNT, SUM, AVG, MIN, MAX, COLLECT
+- Implicit GROUP BY
+- DISTINCT modifier
+
+**Functions:**
+- String: length, substring, toUpper, toLower, trim
+- Type conversion: toInteger, toFloat, toString
+- Utility: coalesce, type
+
+**Data Types:**
+- Primitives: Integer, float, string, boolean, null
+- Collections: Lists, maps (nested structures)
+- Graph elements: Nodes, relationships
+
+**Other:**
+- UNWIND (list iteration)
+- List and map literals
+- NULL handling with ternary logic
+
+### ⏳ Planned (v0.3+)
+
+- OPTIONAL MATCH (left outer joins)
+- Variable-length patterns: `-[*1..5]->`
+- List comprehensions: `[x IN list WHERE ...]`
+- Subqueries: EXISTS, COUNT
+- UNION / UNION ALL
+- 50+ additional functions
+
+### ❌ Out of Scope
+
+- Temporal types (date, datetime, duration)
+- Spatial types (point, distance)
+- Full-text search
+- Multi-database features
+- User management / security
+- Stored procedures
+
+### TCK Compliance
+
+GraphForge tracks compliance using the openCypher Technology Compatibility Kit (TCK):
+
+| Version | Scenarios | Percentage |
+|---------|-----------|------------|
+| v0.1.4 | 638/3,837 | 16.6% |
+| v0.2.0 | ~950/3,837 | ~25% |
+| v0.3.0 | ~1,500/3,837 | ~39% |
+| v1.0 (target) | ~2,800/3,837 | ~73% |
+
+**See [OpenCypher Compatibility](docs/reference/opencypher-compatibility.md) for complete details.**
 
 ---
 

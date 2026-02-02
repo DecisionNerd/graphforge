@@ -85,7 +85,9 @@ skip_clause: "SKIP"i INT
 ?expression: or_expr
 
 or_expr: and_expr ("OR"i and_expr)*
-and_expr: comparison_expr ("AND"i comparison_expr)*
+and_expr: not_expr ("AND"i not_expr)*
+not_expr: "NOT"i not_expr     -> not_operation
+        | comparison_expr     -> not_passthrough
 
 comparison_expr: primary_expr (COMP_OP primary_expr)?
 

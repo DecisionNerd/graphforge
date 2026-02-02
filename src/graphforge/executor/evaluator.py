@@ -6,7 +6,14 @@ CypherValue results.
 
 from typing import Any
 
-from graphforge.ast.expression import BinaryOp, FunctionCall, Literal, PropertyAccess, Variable
+from graphforge.ast.expression import (
+    BinaryOp,
+    FunctionCall,
+    Literal,
+    PropertyAccess,
+    UnaryOp,
+    Variable,
+)
 from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,
@@ -124,6 +131,22 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
             return CypherNull()
 
         raise TypeError(f"Cannot access property on {type(obj).__name__}")
+
+    # Unary operations
+    if isinstance(expr, UnaryOp):
+        operand_val = evaluate_expression(expr.operand, ctx)
+
+        # NOT operator
+        if expr.op == "NOT":
+            # Handle NULL: NOT NULL → NULL
+            if isinstance(operand_val, CypherNull):
+                return CypherNull()
+            # Must be boolean
+            if isinstance(operand_val, CypherBool):
+                return CypherBool(not operand_val.value)
+            raise TypeError("NOT requires boolean operand")
+
+        raise ValueError(f"Unknown unary operator: {expr.op}")
 
     # Binary operations
     if isinstance(expr, BinaryOp):

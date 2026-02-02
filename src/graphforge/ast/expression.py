@@ -61,6 +61,19 @@ class BinaryOp:
 
 
 @dataclass
+class UnaryOp:
+    """Unary operation expression.
+
+    Supports:
+    - Logical: NOT
+    - Arithmetic: - (negation, future)
+    """
+
+    op: str
+    operand: Any  # Expression
+
+
+@dataclass
 class FunctionCall:
     """Function call expression.
 
