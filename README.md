@@ -1166,6 +1166,24 @@ make coverage-strict
 
 **Best practice**: Aim for 100% coverage of new code to ensure both thresholds pass.
 
+### Test Analytics
+
+GraphForge uses [Codecov Test Analytics](https://docs.codecov.com/docs/test-analytics) to monitor test performance and reliability across our **8,203 tests** (481 unit/integration + 7,722 TCK compliance tests).
+
+**What we track:**
+- ⏱️ Test execution time and performance trends
+- 🔄 Flaky tests (tests that intermittently fail)
+- ❌ Test failure rates and patterns
+- 📊 Test suite health over time
+
+**Benefits:**
+- Identify slow tests that need optimization
+- Catch flaky tests before they become problematic
+- Track test performance degradation
+- Improve CI/CD reliability
+
+Test analytics data is automatically collected in CI and viewable on the [Codecov dashboard](https://app.codecov.io/gh/DecisionNerd/graphforge).
+
 ### Areas for Contribution
 
 - Additional Cypher features
