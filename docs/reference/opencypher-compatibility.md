@@ -405,8 +405,6 @@ Adding advanced features in v0.3 will close ~550 scenarios:
 
 The remaining <1% TCK scenarios represent enterprise features (user management, distributed systems) that are incompatible with the embedded design.
 
-**See [v1.0 Roadmap](../ROADMAP_V1.0.md) for complete production platform plan.**
-
 ### Target Compliance: >99%
 
 GraphForge v1.0 will target **>99% TCK compliance** (Full OpenCypher), covering:
@@ -426,7 +424,6 @@ GraphForge v1.0 will target **>99% TCK compliance** (Full OpenCypher), covering:
 ## Contributing
 
 Help build GraphForge v1.0! See:
-- [v1.0 Roadmap](../ROADMAP_V1.0.md) - Complete production platform plan
 - [GitHub Milestones](https://github.com/DecisionNerd/graphforge/milestones)
 - [Contributing Guide](https://github.com/DecisionNerd/graphforge/blob/main/CONTRIBUTING.md)
 - [Issue Workflow](https://github.com/DecisionNerd/graphforge/blob/main/.github/ISSUE_WORKFLOW.md)
