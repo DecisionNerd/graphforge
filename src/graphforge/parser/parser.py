@@ -416,14 +416,17 @@ class ASTTransformer(Transformer):
 
     def true_literal(self, items):
         """Transform true literal."""
+        # items[0] is now a TRUE terminal token
         return Literal(value=True)
 
     def false_literal(self, items):
         """Transform false literal."""
+        # items[0] is now a FALSE terminal token
         return Literal(value=False)
 
     def null_literal(self, items):
         """Transform null literal."""
+        # items[0] is now a NULL terminal token
         return Literal(value=None)
 
 
