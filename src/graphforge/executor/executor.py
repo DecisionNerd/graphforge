@@ -984,6 +984,9 @@ class QueryExecutor:
 
         Returns:
             Empty list (DELETE produces no output rows)
+
+        Raises:
+            ValueError: If trying to delete a node with relationships without DETACH
         """
         from graphforge.types.graph import EdgeRef, NodeRef
 
@@ -994,26 +997,38 @@ class QueryExecutor:
 
                     # Delete from graph
                     if isinstance(element, NodeRef):
-                        # Remove node (need to remove edges first)
                         # Get all edges connected to this node
                         outgoing = self.graph.get_outgoing_edges(element.id)
                         incoming = self.graph.get_incoming_edges(element.id)
+                        all_edges = outgoing + incoming
 
-                        # Remove all connected edges first
-                        for edge in outgoing + incoming:
-                            self.graph._edges.pop(edge.id, None)
-                            # Remove from adjacency lists
-                            if edge.src.id in self.graph._outgoing:
-                                self.graph._outgoing[edge.src.id] = [
-                                    e for e in self.graph._outgoing[edge.src.id] if e.id != edge.id
-                                ]
-                            if edge.dst.id in self.graph._incoming:
-                                self.graph._incoming[edge.dst.id] = [
-                                    e for e in self.graph._incoming[edge.dst.id] if e.id != edge.id
-                                ]
-                            # Remove from type index
-                            if edge.type in self.graph._type_index:
-                                self.graph._type_index[edge.type].discard(edge.id)
+                        # Check if node has relationships
+                        if all_edges and not op.detach:
+                            raise ValueError(
+                                "Cannot delete node with relationships. "
+                                "Use DETACH DELETE to delete relationships first."
+                            )
+
+                        # Remove all connected edges first (if DETACH)
+                        if op.detach:
+                            for edge in all_edges:
+                                self.graph._edges.pop(edge.id, None)
+                                # Remove from adjacency lists
+                                if edge.src.id in self.graph._outgoing:
+                                    self.graph._outgoing[edge.src.id] = [
+                                        e
+                                        for e in self.graph._outgoing[edge.src.id]
+                                        if e.id != edge.id
+                                    ]
+                                if edge.dst.id in self.graph._incoming:
+                                    self.graph._incoming[edge.dst.id] = [
+                                        e
+                                        for e in self.graph._incoming[edge.dst.id]
+                                        if e.id != edge.id
+                                    ]
+                                # Remove from type index
+                                if edge.type in self.graph._type_index:
+                                    self.graph._type_index[edge.type].discard(edge.id)
 
                         # Remove node
                         self.graph._nodes.pop(element.id, None)

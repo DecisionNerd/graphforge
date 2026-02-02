@@ -97,13 +97,13 @@ class TestDeleteClause:
         assert results[0]["count"].value == 0
 
     def test_delete_node_and_relationships(self):
-        """DELETE a node and its relationships."""
+        """DETACH DELETE a node and its relationships."""
         gf = GraphForge()
         gf.execute("CREATE (a:Person {name: 'Alice'})-[r1:KNOWS]->(b:Person {name: 'Bob'})")
         gf.execute("CREATE (a:Person {name: 'Alice'})-[r2:LIKES]->(c:Person {name: 'Charlie'})")
 
-        # Delete Alice (should also delete connected edges)
-        gf.execute("MATCH (n:Person) WHERE n.name = 'Alice' DELETE n")
+        # Delete Alice with DETACH (deletes connected edges too)
+        gf.execute("MATCH (n:Person) WHERE n.name = 'Alice' DETACH DELETE n")
 
         # Alice should be gone
         results = gf.execute("MATCH (p:Person) WHERE p.name = 'Alice' RETURN count(*) AS count")

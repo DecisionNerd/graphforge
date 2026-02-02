@@ -207,9 +207,11 @@ class Delete:
 
     Attributes:
         variables: List of variable names to delete
+        detach: If True, delete relationships before deleting nodes (DETACH DELETE)
     """
 
     variables: list[str]  # List of variable names to delete
+    detach: bool = False  # True for DETACH DELETE
 
 
 @dataclass

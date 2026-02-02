@@ -59,10 +59,12 @@ class DeleteClause:
 
     Examples:
         DELETE n
+        DETACH DELETE n
         DELETE n, r
     """
 
     variables: list[str]  # List of variable names to delete
+    detach: bool = False  # True for DETACH DELETE
 
 
 @dataclass
