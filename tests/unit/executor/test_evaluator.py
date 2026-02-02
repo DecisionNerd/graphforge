@@ -615,7 +615,6 @@ class TestFunctionCalls:
     def test_to_integer_unsupported_type_returns_null(self):
         """toInteger with unsupported type returns NULL (else branch)."""
         ctx = ExecutionContext()
-        from graphforge.types.values import CypherList
 
         # Create a CypherList (unsupported for conversion)
         expr = FunctionCall(
@@ -645,7 +644,6 @@ class TestFunctionCalls:
     def test_type_function_without_cypher_prefix(self):
         """type() on type without Cypher prefix."""
         ctx = ExecutionContext()
-        from graphforge.types.values import CypherInt
 
         # Test with CypherInt - should strip "Cypher" prefix
         expr = FunctionCall(
