@@ -135,22 +135,14 @@ class ASTTransformer(Transformer):
 
     def detach_delete(self, items):
         """Transform DETACH DELETE clause."""
-        variables = []
-        for item in items:
-            if isinstance(item, Variable):
-                variables.append(item.name)
-            elif not isinstance(item, Token):  # Skip DELETE token
-                variables.append(self._get_token_value(item))
+        # Items are Variable nodes from the grammar
+        variables = [item.name for item in items if isinstance(item, Variable)]
         return DeleteClause(variables=variables, detach=True)
 
     def regular_delete(self, items):
         """Transform regular DELETE clause (without DETACH)."""
-        variables = []
-        for item in items:
-            if isinstance(item, Variable):
-                variables.append(item.name)
-            elif not isinstance(item, Token):  # Skip DELETE token
-                variables.append(self._get_token_value(item))
+        # Items are Variable nodes from the grammar
+        variables = [item.name for item in items if isinstance(item, Variable)]
         return DeleteClause(variables=variables, detach=False)
 
     def merge_clause(self, items):
