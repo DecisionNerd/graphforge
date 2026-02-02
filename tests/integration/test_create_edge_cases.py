@@ -212,7 +212,6 @@ class TestCreateWithMixedNumericTypes:
         assert isinstance(results[0]["rating"], CypherFloat)
         assert abs(results[0]["rating"].value - 4.0) < 0.001
 
-    @pytest.mark.skip(reason="Boolean literals parsed as variables - fixed in Feature 4 branch")
     def test_create_with_boolean(self, empty_graph):
         """CREATE with boolean property."""
         empty_graph.execute("""
@@ -238,12 +237,13 @@ class TestCreateWithMixedNumericTypes:
         assert results[0]["verified"].value is False
 
     def test_create_with_all_types(self, empty_graph):
-        """CREATE with all property types (except bool - parser issue)."""
+        """CREATE with all property types."""
         empty_graph.execute("""
             CREATE (n:Complex {
                 str_prop: 'text',
                 int_prop: 42,
                 float_prop: 3.14,
+                bool_prop: true,
                 null_prop: null,
                 list_prop: [1, 2, 3],
                 map_prop: {key: 'value'}
@@ -260,6 +260,7 @@ class TestCreateWithMixedNumericTypes:
 
         # Verify all types are correct
         from graphforge.types.values import (
+            CypherBool,
             CypherFloat,
             CypherInt,
             CypherList,
@@ -271,6 +272,7 @@ class TestCreateWithMixedNumericTypes:
         assert isinstance(node.properties["str_prop"], CypherString)
         assert isinstance(node.properties["int_prop"], CypherInt)
         assert isinstance(node.properties["float_prop"], CypherFloat)
+        assert isinstance(node.properties["bool_prop"], CypherBool)
         assert isinstance(node.properties["null_prop"], CypherNull)
         assert isinstance(node.properties["list_prop"], CypherList)
         assert isinstance(node.properties["map_prop"], CypherMap)
