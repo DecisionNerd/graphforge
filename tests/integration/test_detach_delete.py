@@ -215,3 +215,48 @@ class TestDetachDelete:
         # Alice had 1 outgoing and 1 incoming edge, should have 1 edge left (Bob->Charlie)
         edges_after = graph_with_relationships.execute("MATCH ()-[r]->() RETURN COUNT(r) AS count")
         assert edges_after[0]["count"].value == 1
+
+    def test_delete_multiple_nodes_mixed_with_without_relationships(self):
+        """DELETE multiple nodes where some have relationships should fail."""
+        gf = GraphForge()
+        gf.execute("CREATE (a:Person {name: 'Alice'})-[:KNOWS]->(b:Person {name: 'Bob'})")
+        gf.execute("CREATE (c:Person {name: 'Charlie'})")  # Isolated node
+
+        # Try to delete both - should fail because Alice has relationships
+        with pytest.raises(ValueError, match="Cannot delete node with relationships"):
+            gf.execute("""
+                MATCH (n:Person)
+                WHERE n.name = 'Alice' OR n.name = 'Charlie'
+                DELETE n
+            """)
+
+    def test_detach_delete_with_self_loop(self):
+        """DETACH DELETE works with self-referencing relationships."""
+        gf = GraphForge()
+        gf.execute("CREATE (a:Person {name: 'Alice'})-[:LIKES]->(a)")
+
+        # Delete node with self-loop
+        gf.execute("""
+            MATCH (a:Person {name: 'Alice'})
+            DETACH DELETE a
+        """)
+
+        # Node should be gone
+        results = gf.execute("MATCH (n) RETURN n")
+        assert len(results) == 0
+
+        # Relationship should be gone
+        results = gf.execute("MATCH ()-[r]->() RETURN r")
+        assert len(results) == 0
+
+    def test_delete_nonexistent_variable_is_noop(self):
+        """DELETE on non-existent variable is a no-op."""
+        gf = GraphForge()
+        gf.execute("CREATE (a:Person {name: 'Alice'})")
+
+        # Try to delete non-matching node
+        gf.execute("MATCH (n:Person) WHERE n.name = 'Bob' DELETE n")
+
+        # Alice should still exist
+        results = gf.execute("MATCH (n:Person) RETURN n")
+        assert len(results) == 1
