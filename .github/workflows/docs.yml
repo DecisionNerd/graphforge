@@ -15,7 +15,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -43,10 +50,10 @@ jobs:
       - name: Build documentation
         run: mkdocs build --strict
 
-      - name: Upload documentation artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload Pages artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: documentation
           path: site/
 
   deploy:
@@ -55,28 +62,11 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-
-      - name: Install documentation dependencies
-        run: |
-          uv pip install --system -e ".[docs]"
-
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Deploy documentation
-        run: mkdocs gh-deploy --force --clean --verbose
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
