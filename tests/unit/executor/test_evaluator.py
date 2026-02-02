@@ -523,6 +523,140 @@ class TestFunctionCalls:
 
         assert isinstance(result, CypherNull)
 
+    def test_to_integer_from_float_truncates(self):
+        """toInteger from float truncates decimal."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toInteger",
+            args=[Literal(3.99)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherInt)
+        assert result.value == 3
+
+    def test_to_integer_returns_same_for_int(self):
+        """toInteger with integer returns same value."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toInteger",
+            args=[Literal(42)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherInt)
+        assert result.value == 42
+
+    def test_to_float_returns_same_for_float(self):
+        """toFloat with float returns same value."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toFloat",
+            args=[Literal(3.14)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherFloat
+
+        assert isinstance(result, CypherFloat)
+        assert abs(result.value - 3.14) < 0.001
+
+    def test_to_float_from_integer(self):
+        """toFloat converts integer to float."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toFloat",
+            args=[Literal(42)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherFloat
+
+        assert isinstance(result, CypherFloat)
+        assert abs(result.value - 42.0) < 0.001
+
+    def test_to_string_returns_same_for_string(self):
+        """toString with string returns same value."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toString",
+            args=[Literal("hello")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "hello"
+
+    def test_to_string_unsupported_type_returns_null(self):
+        """toString with unsupported type returns NULL."""
+        ctx = ExecutionContext()
+        # Pass a list (unsupported type)
+        expr = FunctionCall(
+            name="toString",
+            args=[Literal([1, 2, 3])],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_unknown_type_function_raises_error(self):
+        """Unknown type function raises ValueError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toBoolean",  # Not implemented
+            args=[Literal("true")],
+        )
+
+        with pytest.raises(ValueError, match="Unknown function: TOBOOLEAN"):
+            evaluate_expression(expr, ctx)
+
+    def test_to_integer_unsupported_type_returns_null(self):
+        """toInteger with unsupported type returns NULL (else branch)."""
+        ctx = ExecutionContext()
+        from graphforge.types.values import CypherList
+
+        # Create a CypherList (unsupported for conversion)
+        expr = FunctionCall(
+            name="toInteger",
+            args=[Literal([1, 2, 3])],  # List - unsupported type
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_to_float_unsupported_type_returns_null(self):
+        """toFloat with unsupported type returns NULL (else branch)."""
+        ctx = ExecutionContext()
+        # Create a CypherList (unsupported for conversion)
+        expr = FunctionCall(
+            name="toFloat",
+            args=[Literal([1, 2, 3])],  # List - unsupported type
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_type_function_without_cypher_prefix(self):
+        """type() on type without Cypher prefix."""
+        ctx = ExecutionContext()
+        from graphforge.types.values import CypherInt
+
+        # Test with CypherInt - should strip "Cypher" prefix
+        expr = FunctionCall(
+            name="type",
+            args=[Literal(123)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "Int"  # "Cypher" prefix stripped
+
     def test_substring_negative_start_raises_error(self):
         """SUBSTRING with negative start raises TypeError."""
         ctx = ExecutionContext()
