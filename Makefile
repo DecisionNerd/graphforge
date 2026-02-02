@@ -33,6 +33,12 @@ coverage:  ## Run tests with coverage measurement
 		--cov-report=xml \
 		--cov-report=html
 
+test-analytics:  ## Run tests with analytics output (JUnit XML)
+	@echo "Running tests with analytics output..."
+	uv run pytest tests/unit tests/integration \
+		--junitxml=test-results-local.xml \
+		-v
+
 check-coverage:  ## Validate coverage meets 85% threshold
 	@echo "Checking coverage thresholds..."
 	@uv run coverage report --fail-under=85 || \
@@ -64,3 +70,5 @@ clean:  ## Clean up cache files
 	find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name .mypy_cache -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	rm -f test-results*.xml coverage.xml 2>/dev/null || true
+	rm -rf htmlcov/ 2>/dev/null || true
