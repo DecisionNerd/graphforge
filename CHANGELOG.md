@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **NOT logical operator** (#30)
+  - Unary negation operator for boolean expressions
+  - Grammar support with `not_expr` rule using Lark aliased alternatives
+  - `UnaryOp` AST node for unary operations (NOT, future: unary minus)
+  - Proper NULL semantics: `NOT true → false`, `NOT false → true`, `NOT NULL → NULL`
+  - 10 comprehensive integration tests covering basic negation, NULL propagation, complex expressions
+  - Usage in WHERE clauses and RETURN expressions
+  - Example: `MATCH (n) WHERE NOT n.active RETURN n`
+- **DETACH DELETE clause** (#33)
+  - OpenCypher-compliant DELETE semantics
+  - `DELETE` - Raises error if node has relationships
+  - `DETACH DELETE` - Deletes all connected edges first, then node
+  - Grammar support with aliased rules (`detach_delete`, `regular_delete`)
+  - Added `detach` flag to `DeleteClause` AST node and `Delete` operator
+  - 17 comprehensive tests (6 unit parser tests + 11 integration tests)
+  - Covers outgoing, incoming, bidirectional edges, self-loops, multiple nodes
+  - Example: `MATCH (n:Person) DETACH DELETE n`
+
+### Changed
+- **GitHub Pages deployment modernization** (#32)
+  - Migrated from legacy `mkdocs gh-deploy` to GitHub Actions native deployment
+  - Uses `actions/upload-pages-artifact@v3` and `actions/deploy-pages@v4`
+  - Removed dependency on `gh-pages` branch (deleted)
+  - Simpler, faster, more secure deployment with `id-token` authentication
+  - Added proper pages permissions and concurrency control
+  - Documentation served from: https://decisionnerd.github.io/graphforge/
+
 ## [0.1.4] - 2026-02-02
 
 ### Added
