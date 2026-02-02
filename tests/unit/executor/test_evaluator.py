@@ -308,16 +308,17 @@ class TestFunctionCalls:
         assert isinstance(result, CypherString)
         assert result.value == "Alice"
 
-    def test_string_function_not_implemented(self):
-        """String functions raise error (placeholder for Feature 2)."""
+    def test_string_function_length(self):
+        """LENGTH string function returns string length."""
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="LENGTH",
             args=[Literal("test")],
         )
 
-        with pytest.raises(ValueError, match="String function not yet implemented"):
-            evaluate_expression(expr, ctx)
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherInt)
+        assert result.value == 4
 
     def test_type_function_not_implemented(self):
         """Type functions raise error (placeholder for Feature 3)."""
@@ -328,4 +329,103 @@ class TestFunctionCalls:
         )
 
         with pytest.raises(ValueError, match="Type function not yet implemented"):
+            evaluate_expression(expr, ctx)
+
+    def test_substring_negative_start_raises_error(self):
+        """SUBSTRING with negative start raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SUBSTRING",
+            args=[Literal("hello"), Literal(-1)],
+        )
+
+        with pytest.raises(TypeError, match="SUBSTRING start must be non-negative"):
+            evaluate_expression(expr, ctx)
+
+    def test_substring_negative_length_raises_error(self):
+        """SUBSTRING with negative length raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SUBSTRING",
+            args=[Literal("hello"), Literal(0), Literal(-1)],
+        )
+
+        with pytest.raises(TypeError, match="SUBSTRING length must be non-negative"):
+            evaluate_expression(expr, ctx)
+
+    def test_length_with_non_string_raises_error(self):
+        """LENGTH with non-string raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="LENGTH",
+            args=[Literal(123)],
+        )
+
+        with pytest.raises(TypeError, match="LENGTH expects string"):
+            evaluate_expression(expr, ctx)
+
+    def test_substring_with_non_string_raises_error(self):
+        """SUBSTRING with non-string raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SUBSTRING",
+            args=[Literal(123), Literal(0)],
+        )
+
+        with pytest.raises(TypeError, match="SUBSTRING expects string"):
+            evaluate_expression(expr, ctx)
+
+    def test_substring_with_non_integer_start_raises_error(self):
+        """SUBSTRING with non-integer start raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SUBSTRING",
+            args=[Literal("hello"), Literal("0")],
+        )
+
+        with pytest.raises(TypeError, match="SUBSTRING start must be integer"):
+            evaluate_expression(expr, ctx)
+
+    def test_substring_with_non_integer_length_raises_error(self):
+        """SUBSTRING with non-integer length raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SUBSTRING",
+            args=[Literal("hello"), Literal(0), Literal("2")],
+        )
+
+        with pytest.raises(TypeError, match="SUBSTRING length must be integer"):
+            evaluate_expression(expr, ctx)
+
+    def test_upper_with_non_string_raises_error(self):
+        """UPPER with non-string raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="UPPER",
+            args=[Literal(123)],
+        )
+
+        with pytest.raises(TypeError, match="UPPER expects string"):
+            evaluate_expression(expr, ctx)
+
+    def test_lower_with_non_string_raises_error(self):
+        """LOWER with non-string raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="LOWER",
+            args=[Literal(123)],
+        )
+
+        with pytest.raises(TypeError, match="LOWER expects string"):
+            evaluate_expression(expr, ctx)
+
+    def test_trim_with_non_string_raises_error(self):
+        """TRIM with non-string raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="TRIM",
+            args=[Literal(123)],
+        )
+
+        with pytest.raises(TypeError, match="TRIM expects string"):
             evaluate_expression(expr, ctx)
