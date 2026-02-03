@@ -1166,13 +1166,13 @@ class QueryExecutor:
     def _execute_merge(
         self, op: Merge, input_rows: list[ExecutionContext]
     ) -> list[ExecutionContext]:
-        """Execute MERGE operator with ON CREATE SET support.
+        """Execute MERGE operator with ON CREATE SET and ON MATCH SET support.
 
         Creates patterns if they don't exist, or matches them if they do.
-        Conditionally executes SET operations based on whether elements were created.
+        Conditionally executes SET operations based on whether elements were created or matched.
 
         Args:
-            op: Merge operator with patterns and optional on_create clause
+            op: Merge operator with patterns, on_create, and on_match clauses
             input_rows: Input execution contexts
 
         Returns:
@@ -1253,9 +1253,13 @@ class QueryExecutor:
                         if node_pattern.variable:
                             new_ctx.bindings[node_pattern.variable] = node
 
-            # Execute conditional SET if we created something
+            # Execute conditional SET operations
             if was_created and op.on_create:
+                # Execute ON CREATE SET
                 self._execute_set_items(op.on_create.items, new_ctx)
+            elif not was_created and op.on_match:
+                # Execute ON MATCH SET
+                self._execute_set_items(op.on_match.items, new_ctx)
 
             result.append(new_ctx)
 

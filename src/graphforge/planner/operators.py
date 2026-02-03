@@ -234,15 +234,18 @@ class Merge:
     """Operator for merging patterns with conditional SET support.
 
     Creates patterns if they don't exist, or matches them if they do.
-    Optionally executes SET operations only when creating (ON CREATE SET).
+    Optionally executes SET operations when creating (ON CREATE SET) or
+    matching (ON MATCH SET).
 
     Attributes:
         patterns: List of patterns to merge
         on_create: Optional SetClause to execute when creating new elements
+        on_match: Optional SetClause to execute when matching existing elements
     """
 
     patterns: list[Any]  # List of node and relationship patterns to merge
     on_create: Any = None  # Optional SetClause for ON CREATE SET
+    on_match: Any = None  # Optional SetClause for ON MATCH SET
 
 
 @dataclass
