@@ -1,6 +1,5 @@
 """Unit tests for executing MERGE ON CREATE SET."""
 
-
 from graphforge import GraphForge
 
 

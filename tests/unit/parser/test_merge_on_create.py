@@ -1,6 +1,5 @@
 """Unit tests for parsing MERGE ON CREATE SET syntax."""
 
-
 from graphforge.ast.clause import MergeClause, SetClause
 from graphforge.ast.expression import Literal, PropertyAccess
 from graphforge.ast.pattern import NodePattern

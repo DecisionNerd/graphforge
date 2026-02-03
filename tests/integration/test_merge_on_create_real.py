@@ -1,6 +1,5 @@
 """Integration tests for MERGE ON CREATE SET with real-world patterns."""
 
-
 from graphforge import GraphForge
 
 
