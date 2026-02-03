@@ -652,11 +652,26 @@ class QueryExecutor:
         return result
 
     def _value_to_hashable(self, value):
-        """Convert CypherValue to hashable key for grouping."""
+        """Convert CypherValue to hashable key for grouping.
+
+        Recursively handles CypherList and CypherMap to produce stable,
+        hashable representations for use with COLLECT DISTINCT and grouping.
+        """
+        from graphforge.types.values import CypherList, CypherMap
+
         if isinstance(value, CypherNull):
             return None
         if isinstance(value, (CypherInt, CypherFloat, CypherBool)):
             return (type(value).__name__, value.value)
+        if isinstance(value, CypherList):
+            # Recursively convert list elements to hashable tuple
+            return (type(value).__name__, tuple(self._value_to_hashable(v) for v in value.value))
+        if isinstance(value, CypherMap):
+            # Convert map to tuple of sorted (key, hashable-value) pairs
+            return (
+                type(value).__name__,
+                tuple(sorted((k, self._value_to_hashable(v)) for k, v in value.value.items())),
+            )
         if hasattr(value, "value"):
             # CypherString, etc.
             return (type(value).__name__, value.value)

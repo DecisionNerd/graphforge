@@ -403,3 +403,81 @@ class TestCollectEdgeCases:
         ages = [v.value for v in results[0]["ages"].value]
         assert len(names) == 2
         assert len(ages) == 2
+
+
+class TestCollectWithComplexTypes:
+    """Tests for COLLECT with lists and maps."""
+
+    def test_collect_distinct_with_lists(self):
+        """COLLECT DISTINCT with list values."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Person {tags: ['python', 'java']}),
+                   (b:Person {tags: ['python', 'java']}),
+                   (c:Person {tags: ['javascript', 'rust']})
+        """)
+
+        results = gf.execute("""
+            MATCH (p:Person)
+            RETURN COLLECT(DISTINCT p.tags) AS unique_tags
+        """)
+
+        assert len(results) == 1
+        assert isinstance(results[0]["unique_tags"], CypherList)
+        # Should have 2 unique tag lists
+        assert len(results[0]["unique_tags"].value) == 2
+
+    def test_collect_distinct_with_nested_lists(self):
+        """COLLECT DISTINCT with nested list values."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Data {values: [[1, 2], [3, 4]]}),
+                   (b:Data {values: [[1, 2], [3, 4]]}),
+                   (c:Data {values: [[5, 6], [7, 8]]})
+        """)
+
+        results = gf.execute("""
+            MATCH (d:Data)
+            RETURN COLLECT(DISTINCT d.values) AS unique_values
+        """)
+
+        assert len(results) == 1
+        # Should have 2 unique nested lists
+        assert len(results[0]["unique_values"].value) == 2
+
+    def test_collect_distinct_with_maps(self):
+        """COLLECT DISTINCT with map values."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Person {address: {city: 'NYC', zip: '10001'}}),
+                   (b:Person {address: {city: 'NYC', zip: '10001'}}),
+                   (c:Person {address: {city: 'LA', zip: '90001'}})
+        """)
+
+        results = gf.execute("""
+            MATCH (p:Person)
+            RETURN COLLECT(DISTINCT p.address) AS unique_addresses
+        """)
+
+        assert len(results) == 1
+        assert isinstance(results[0]["unique_addresses"], CypherList)
+        # Should have 2 unique addresses
+        assert len(results[0]["unique_addresses"].value) == 2
+
+    def test_collect_distinct_mixed_complex_types(self):
+        """COLLECT DISTINCT with mixed lists and scalars."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Item {data: [1, 2, 3]}),
+                   (b:Item {data: [1, 2, 3]}),
+                   (c:Item {data: [4, 5, 6]})
+        """)
+
+        results = gf.execute("""
+            MATCH (i:Item)
+            RETURN COLLECT(DISTINCT i.data) AS unique_data
+        """)
+
+        assert len(results) == 1
+        # Should have 2 unique lists
+        assert len(results[0]["unique_data"].value) == 2
