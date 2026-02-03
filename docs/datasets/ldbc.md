@@ -154,5 +154,5 @@ graphforge dataset-info ldbc-snb-sf01
 ## Related
 
 - [Dataset Overview](overview.md)
-- [Benchmarking Guide](../guide/benchmarking.md) (Coming soon)
+<!-- - [Benchmarking Guide](../guide/benchmarking.md) (Coming soon) -->
 - [Issue #51](https://github.com/DecisionNerd/graphforge/issues/51)

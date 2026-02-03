@@ -160,7 +160,7 @@ load_dataset(gf, "neo4j-movie-graph")
 gf.execute("MATCH (n) RETURN labels(n) AS label, count(*) AS count")
 ```
 
-See the [examples/notebooks/datasets.ipynb](../../examples/notebooks/datasets.ipynb) for interactive examples.
+<!-- See the [examples/notebooks/datasets.ipynb](../../examples/notebooks/datasets.ipynb) for interactive examples (coming soon). -->
 
 ## Contributing Datasets
 

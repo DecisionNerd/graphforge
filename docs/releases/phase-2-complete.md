@@ -226,7 +226,7 @@ AST (CypherQuery)
 
 ## Next Steps (Phase 3)
 
-Based on the [project roadmap](project-status-and-roadmap.md):
+Based on the [project roadmap](roadmap.md):
 
 ### Week 5-6: Logical Plan & Execution
 **Goal:** Execute queries against in-memory graphs
@@ -425,11 +425,11 @@ All dependencies installed and working.
 - None (Phase 1 docs still current)
 
 ### Existing (Still Relevant)
-- [Requirements Document](0-requirements.md)
-- [openCypher AST Spec](open_cypher_ast_logical_plan_spec_v_1.md)
-- [Runtime Value Model](runtime_value_model_graph_execution_v_1.md)
-- [Testing Strategy](testing-strategy.md)
-- [Project Roadmap](project-status-and-roadmap.md)
+- [Requirements Document](../development/requirements.md)
+- [openCypher AST Spec](../architecture/ast-and-planning.md)
+- [Runtime Value Model](../architecture/execution-model.md)
+- [Testing Strategy](../development/testing.md)
+- [Project Roadmap](roadmap.md)
 
 ---
 
@@ -565,7 +565,7 @@ ruff format .
 ruff check .
 
 # Start Phase 3
-# See docs/project-status-and-roadmap.md section "Week 5-6"
+# See docs/roadmap.md section "Week 5-6"
 ```
 
 ---

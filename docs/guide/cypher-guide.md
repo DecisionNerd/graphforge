@@ -801,9 +801,9 @@ RETURN p.name AS person
 ## See Also
 
 - [Getting Started](overview.md) - Step-by-step guide
-- [API Reference](../api-reference.md) - Python API documentation
+- [API Reference](../reference/api.md) - Python API documentation
 - [Examples](../examples/) - Real-world use cases
-- [TCK Compliance](../tck-compliance.md) - openCypher conformance status
+- [TCK Compliance](../reference/tck-compliance.md) - openCypher conformance status
 
 ---
 
