@@ -3,8 +3,6 @@
 Tests for type comparison, coercion, and edge cases.
 """
 
-import pytest
-
 from graphforge.types.values import (
     CypherBool,
     CypherFloat,
