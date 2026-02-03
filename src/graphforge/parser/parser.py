@@ -20,6 +20,7 @@ from graphforge.ast.clause import (
     ReturnItem,
     SetClause,
     SkipClause,
+    UnwindClause,
     WhereClause,
     WithClause,
 )
@@ -80,7 +81,7 @@ class ASTTransformer(Transformer):
         return CypherQuery(clauses=all_clauses)
 
     def reading_clause(self, items):
-        """Transform reading clause (MATCH with optional WHERE).
+        """Transform reading clause (MATCH/UNWIND with optional WHERE).
 
         Returns a list of clauses for easier flattening in multi_part_query.
         """
@@ -110,6 +111,10 @@ class ASTTransformer(Transformer):
 
     def update_query(self, items):
         """Transform update query (MATCH with SET/DELETE)."""
+        return CypherQuery(clauses=list(items))
+
+    def unwind_query(self, items):
+        """Transform unwind query (UNWIND with optional clauses)."""
         return CypherQuery(clauses=list(items))
 
     # Clauses
@@ -149,6 +154,13 @@ class ASTTransformer(Transformer):
         """Transform MERGE clause."""
         patterns = [item for item in items if not isinstance(item, str)]
         return MergeClause(patterns=patterns)
+
+    def unwind_clause(self, items):
+        """Transform UNWIND clause."""
+        # items: [expression, variable]
+        expression = items[0]
+        variable = items[1]
+        return UnwindClause(expression=expression, variable=variable.name)
 
     def where_clause(self, items):
         """Transform WHERE clause."""

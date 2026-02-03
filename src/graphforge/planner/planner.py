@@ -15,6 +15,7 @@ from graphforge.ast.clause import (
     ReturnClause,
     SetClause,
     SkipClause,
+    UnwindClause,
     WhereClause,
     WithClause,
 )
@@ -34,6 +35,7 @@ from graphforge.planner.operators import (
     Set,
     Skip,
     Sort,
+    Unwind,
     With,
 )
 
@@ -78,6 +80,7 @@ class QueryPlanner:
         """
         # Collect clauses by type
         match_clauses = []
+        unwind_clauses = []
         create_clauses = []
         merge_clauses = []
         set_clause = None
@@ -91,6 +94,8 @@ class QueryPlanner:
         for clause in clauses:
             if isinstance(clause, MatchClause):
                 match_clauses.append(clause)
+            elif isinstance(clause, UnwindClause):
+                unwind_clauses.append(clause)
             elif isinstance(clause, CreateClause):
                 create_clauses.append(clause)
             elif isinstance(clause, MergeClause):
@@ -117,23 +122,27 @@ class QueryPlanner:
         for match in match_clauses:
             operators.extend(self._plan_match(match))
 
-        # 2. CREATE
+        # 2. UNWIND
+        for unwind in unwind_clauses:
+            operators.append(Unwind(expression=unwind.expression, variable=unwind.variable))
+
+        # 3. CREATE
         for create in create_clauses:
             operators.append(Create(patterns=create.patterns))
 
-        # 3. MERGE
+        # 4. MERGE
         for merge in merge_clauses:
             operators.append(Merge(patterns=merge.patterns))
 
-        # 4. WHERE
+        # 5. WHERE
         if where_clause:
             operators.append(Filter(predicate=where_clause.predicate))
 
-        # 5. SET
+        # 6. SET
         if set_clause:
             operators.append(Set(items=set_clause.items))
 
-        # 6. DELETE
+        # 7. DELETE
         if delete_clause:
             operators.append(Delete(variables=delete_clause.variables, detach=delete_clause.detach))
 

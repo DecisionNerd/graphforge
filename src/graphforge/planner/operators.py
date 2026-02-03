@@ -12,6 +12,7 @@ This module defines the operators used in logical query plans:
 - Set: Update properties
 - Delete: Delete nodes and relationships
 - Merge: Create or match patterns
+- Unwind: Expand lists into rows
 """
 
 from dataclasses import dataclass
@@ -225,3 +226,23 @@ class Merge:
     """
 
     patterns: list[Any]  # List of node and relationship patterns to merge
+
+
+@dataclass
+class Unwind:
+    """Operator for expanding lists into rows.
+
+    Takes a list expression and expands it into multiple rows, binding each
+    element to a variable. Similar to SQL UNNEST or array unnesting.
+
+    Example:
+        UNWIND [1, 2, 3] AS num
+        -> Creates 3 rows with num=1, num=2, num=3
+
+    Attributes:
+        expression: Expression that evaluates to a list
+        variable: Variable name to bind each list element to
+    """
+
+    expression: Any  # Expression that evaluates to a list
+    variable: str  # Variable name for each element

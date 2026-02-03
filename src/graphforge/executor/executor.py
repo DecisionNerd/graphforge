@@ -22,6 +22,7 @@ from graphforge.planner.operators import (
     Set,
     Skip,
     Sort,
+    Unwind,
     With,
 )
 from graphforge.storage.memory import Graph
@@ -157,6 +158,9 @@ class QueryExecutor:
 
         if isinstance(op, Merge):
             return self._execute_merge(op, input_rows)
+
+        if isinstance(op, Unwind):
+            return self._execute_unwind(op, input_rows)
 
         if isinstance(op, With):
             return self._execute_with(op, input_rows)
@@ -1174,5 +1178,50 @@ class QueryExecutor:
                             new_ctx.bindings[node_pattern.variable] = node
 
             result.append(new_ctx)
+
+        return result
+
+    def _execute_unwind(
+        self, op: Unwind, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute UNWIND operator.
+
+        Expands a list into multiple rows, binding each element to a variable.
+
+        Args:
+            op: Unwind operator with expression and variable
+            input_rows: Input execution contexts
+
+        Returns:
+            Expanded execution contexts (one per list element per input row)
+        """
+        result = []
+
+        # If no input rows, start with one empty context
+        if not input_rows:
+            input_rows = [ExecutionContext()]
+
+        for ctx in input_rows:
+            # Evaluate the list expression
+            value = evaluate_expression(op.expression, ctx)
+
+            # Handle NULL - treated as empty list (produces no rows)
+            if isinstance(value, CypherNull):
+                continue
+
+            # Handle CypherList
+            if isinstance(value, CypherList):
+                # Expand each list item into a new row
+                for item in value.value:
+                    new_ctx = ExecutionContext()
+                    new_ctx.bindings = dict(ctx.bindings)
+                    new_ctx.bind(op.variable, item)
+                    result.append(new_ctx)
+            else:
+                # If not a list or NULL, wrap in a list
+                new_ctx = ExecutionContext()
+                new_ctx.bindings = dict(ctx.bindings)
+                new_ctx.bind(op.variable, value)
+                result.append(new_ctx)
 
         return result
