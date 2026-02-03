@@ -146,6 +146,20 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
                 return CypherBool(not operand_val.value)
             raise TypeError("NOT requires boolean operand")
 
+        # Unary minus operator
+        if expr.op == "-":
+            # Handle NULL: -NULL → NULL
+            if isinstance(operand_val, CypherNull):
+                return CypherNull()
+            # Must be numeric
+            if isinstance(operand_val, CypherInt):
+                return CypherInt(-operand_val.value)
+            if isinstance(operand_val, CypherFloat):
+                return CypherFloat(-operand_val.value)
+            raise TypeError(
+                f"Unary minus requires numeric operand, got {type(operand_val).__name__}"
+            )
+
         raise ValueError(f"Unknown unary operator: {expr.op}")
 
     # Binary operations
@@ -188,6 +202,93 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
             if isinstance(result, CypherNull):
                 return result
             return CypherBool(not result.value)
+
+        # Arithmetic operators
+        if expr.op in ("+", "-", "*", "/", "%"):
+            # NULL propagation: any NULL operand returns NULL
+            if isinstance(left_val, CypherNull) or isinstance(right_val, CypherNull):
+                return CypherNull()
+
+            # Special case: string concatenation with +
+            if expr.op == "+":
+                from graphforge.types.values import CypherString, CypherValue
+
+                if isinstance(left_val, CypherString) or isinstance(right_val, CypherString):
+                    # Ensure both operands are CypherValue instances before accessing .value
+                    if not isinstance(left_val, CypherValue) or not isinstance(
+                        right_val, CypherValue
+                    ):
+                        raise TypeError(
+                            f"String concatenation requires CypherValue operands, "
+                            f"got {type(left_val).__name__} and {type(right_val).__name__}"
+                        )
+
+                    # Convert both to strings and concatenate
+                    left_str = (
+                        left_val.value
+                        if isinstance(left_val, CypherString)
+                        else str(left_val.value)
+                    )
+                    right_str = (
+                        right_val.value
+                        if isinstance(right_val, CypherString)
+                        else str(right_val.value)
+                    )
+                    return CypherString(left_str + right_str)
+
+            # Type checking: both operands must be numeric
+            if not isinstance(left_val, (CypherInt, CypherFloat)) or not isinstance(
+                right_val, (CypherInt, CypherFloat)
+            ):
+                raise TypeError(
+                    f"Arithmetic operator {expr.op} requires numeric operands, "
+                    f"got {type(left_val).__name__} and {type(right_val).__name__}"
+                )
+
+            # Type coercion: if either operand is float, result is float
+            result_type = (
+                CypherFloat
+                if isinstance(left_val, CypherFloat) or isinstance(right_val, CypherFloat)
+                else CypherInt
+            )
+
+            # Convert to Python numeric types
+            left_num = (
+                float(left_val.value) if isinstance(left_val, CypherFloat) else int(left_val.value)
+            )
+            right_num = (
+                float(right_val.value)
+                if isinstance(right_val, CypherFloat)
+                else int(right_val.value)
+            )
+
+            # Perform arithmetic operation
+            arith_result: float | int
+            if expr.op == "+":
+                arith_result = left_num + right_num
+            elif expr.op == "-":
+                arith_result = left_num - right_num
+            elif expr.op == "*":
+                arith_result = left_num * right_num
+            elif expr.op == "/":
+                # Division by zero returns NULL
+                if right_num == 0:
+                    return CypherNull()
+                # Division always returns float in Cypher
+                return CypherFloat(left_num / right_num)
+            elif expr.op == "%":
+                # Modulo by zero returns NULL
+                if right_num == 0:
+                    return CypherNull()
+                arith_result = left_num % right_num
+            else:
+                raise ValueError(f"Unknown arithmetic operator: {expr.op}")
+
+            # Return with appropriate type (except division which always returns float)
+            if result_type is CypherFloat:
+                return CypherFloat(float(arith_result))
+            else:
+                return CypherInt(int(arith_result))
 
         # String matching operators
         if expr.op in ("STARTS WITH", "ENDS WITH", "CONTAINS"):

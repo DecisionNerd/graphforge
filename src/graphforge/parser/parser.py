@@ -423,6 +423,40 @@ class ASTTransformer(Transformer):
         """Transform CONTAINS operator."""
         return "CONTAINS"
 
+    def add_expr(self, items):
+        """Transform addition/subtraction expression."""
+        if len(items) == 1:
+            return items[0]
+        # Build left-associative chain: mult_expr (("+"|"-") mult_expr)*
+        result = items[0]
+        i = 1
+        while i < len(items):
+            op = self._get_token_value(items[i])
+            result = BinaryOp(op=op, left=result, right=items[i + 1])
+            i += 2
+        return result
+
+    def mult_expr(self, items):
+        """Transform multiplication/division/modulo expression."""
+        if len(items) == 1:
+            return items[0]
+        # Build left-associative chain: unary_expr (("*"|"/"|"%") unary_expr)*
+        result = items[0]
+        i = 1
+        while i < len(items):
+            op = self._get_token_value(items[i])
+            result = BinaryOp(op=op, left=result, right=items[i + 1])
+            i += 2
+        return result
+
+    def unary_minus(self, items):
+        """Transform unary minus expression (e.g., -5, -x)."""
+        return UnaryOp(op="-", operand=items[0])
+
+    def unary_passthrough(self, items):
+        """Transform unary_expr when there's no unary minus (just passes through primary_expr)."""
+        return items[0]
+
     def property_access(self, items):
         """Transform property access."""
         var_name = (

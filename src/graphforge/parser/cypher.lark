@@ -9,7 +9,7 @@ query: single_part_query | multi_part_query
 multi_part_query: reading_clause+ with_clause+ final_query_part
 
 // Single-part queries (without WITH)
-single_part_query: read_query | write_query | update_query | unwind_query
+single_part_query: read_query | write_query | update_query | unwind_query | return_only_query
 
 // Final part of multi-part query (allows RETURN without MATCH)
 final_query_part: read_query
@@ -106,13 +106,22 @@ and_expr: not_expr ("AND"i not_expr)*
 not_expr: "NOT"i not_expr     -> not_operation
         | comparison_expr     -> not_passthrough
 
-comparison_expr: primary_expr (COMP_OP primary_expr | string_match_op primary_expr)?
+comparison_expr: add_expr (COMP_OP add_expr | string_match_op add_expr)?
 
 string_match_op: "STARTS"i "WITH"i -> starts_with
                | "ENDS"i "WITH"i   -> ends_with
                | "CONTAINS"i       -> contains
 
 COMP_OP: "=" | "<>" | "<" | ">" | "<=" | ">="
+
+// Arithmetic operators with precedence
+add_expr: mult_expr (ADD_OP mult_expr)*
+mult_expr: unary_expr (MULT_OP unary_expr)*
+unary_expr: "-" unary_expr  -> unary_minus
+          | primary_expr    -> unary_passthrough
+
+ADD_OP: "+" | "-"
+MULT_OP: "*" | "/" | "%"
 
 ?primary_expr: function_call
              | property_access
