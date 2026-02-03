@@ -3,7 +3,6 @@
 Tests for edge cases in aggregation operations.
 """
 
-import pytest
 
 from graphforge import GraphForge
 

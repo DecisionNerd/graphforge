@@ -3,8 +3,8 @@
 Tests for load_adjacency_out and load_adjacency_in methods.
 """
 
-import tempfile
 from pathlib import Path
+import tempfile
 
 from graphforge.storage.sqlite_backend import SQLiteBackend
 from graphforge.types.graph import EdgeRef, NodeRef

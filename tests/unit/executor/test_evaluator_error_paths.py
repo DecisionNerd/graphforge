@@ -7,7 +7,7 @@ import pytest
 
 from graphforge.ast.expression import BinaryOp, FunctionCall, PropertyAccess, UnaryOp, Variable
 from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
-from graphforge.types.values import CypherBool, CypherInt, CypherNull, CypherString
+from graphforge.types.values import CypherInt, CypherNull, CypherString
 
 
 class TestEvaluatorErrorPaths:

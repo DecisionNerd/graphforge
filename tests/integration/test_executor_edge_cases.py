@@ -3,7 +3,6 @@
 Tests for edge cases in query execution operators.
 """
 
-import pytest
 
 from graphforge import GraphForge
 
