@@ -3,8 +3,6 @@
 Tests for WITH DISTINCT combined with pagination modifiers.
 """
 
-import pytest
-
 from graphforge import GraphForge
 
 

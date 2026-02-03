@@ -261,8 +261,12 @@ class QueryPlanner:
                         distinct=segment.distinct,
                         predicate=segment.where.predicate if segment.where else None,
                         sort_items=segment.order_by.items if segment.order_by else None,
-                        skip_count=segment.skip.count if (segment.skip and not segment.distinct) else None,
-                        limit_count=segment.limit.count if (segment.limit and not segment.distinct) else None,
+                        skip_count=segment.skip.count
+                        if (segment.skip and not segment.distinct)
+                        else None,
+                        limit_count=segment.limit.count
+                        if (segment.limit and not segment.distinct)
+                        else None,
                     )
                     operators.append(with_op)
 
