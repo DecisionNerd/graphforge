@@ -170,8 +170,8 @@ def _download_dataset(url: str, dest_path: Path) -> None:
 
     try:
         urlretrieve(url, temp_path)  # nosec B310 - URL scheme validated above
-        # Move to final location atomically
-        temp_path.rename(dest_path)
+        # Move to final location (replace handles existing files on Windows)
+        temp_path.replace(dest_path)
     except Exception as e:
         # Clean up temporary file on error
         if temp_path.exists():
