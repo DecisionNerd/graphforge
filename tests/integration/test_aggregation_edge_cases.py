@@ -3,7 +3,6 @@
 Tests for edge cases in aggregation operations.
 """
 
-
 from graphforge import GraphForge
 from graphforge.types.values import CypherNull
 

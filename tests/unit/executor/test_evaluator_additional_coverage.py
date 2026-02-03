@@ -3,7 +3,6 @@
 Tests for specific uncovered lines in evaluator.py.
 """
 
-
 from graphforge.ast.expression import BinaryOp, FunctionCall, Variable
 from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
 from graphforge.types.values import CypherInt, CypherNull, CypherString

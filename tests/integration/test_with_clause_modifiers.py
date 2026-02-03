@@ -102,7 +102,9 @@ class TestWithClauseModifiers:
         assert len(results) == 3
         assert results[0]["age"].value == 35
 
-    @pytest.mark.skip(reason="Sort after aggregation with original variable names has bug - issue to be filed")
+    @pytest.mark.skip(
+        reason="Sort after aggregation with original variable names has bug - issue to be filed"
+    )
     def test_with_aggregation_skip_limit(self):
         """WITH clause with aggregation, SKIP and LIMIT."""
         gf = GraphForge()
