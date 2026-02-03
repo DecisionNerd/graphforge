@@ -363,3 +363,94 @@ class TestRemoveEdgeCases:
         """)
 
         assert len(results) == 0
+
+    def test_remove_multiple_variables(self):
+        """Remove properties from multiple different variables."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Person {name: 'Alice', age: 30}),
+                   (b:Person {name: 'Bob', age: 25})
+        """)
+
+        results = gf.execute("""
+            MATCH (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'})
+            REMOVE a.age, b.age
+            RETURN a.name AS name1, b.name AS name2, a.age AS age1, b.age AS age2
+        """)
+
+        assert len(results) == 1
+        assert results[0]["name1"].value == "Alice"
+        assert results[0]["name2"].value == "Bob"
+        assert isinstance(results[0]["age1"], CypherNull)
+        assert isinstance(results[0]["age2"], CypherNull)
+
+    def test_remove_same_property_twice(self):
+        """Remove same property twice in one query (idempotent)."""
+        gf = GraphForge()
+        gf.execute("CREATE (n:Person {name: 'Mike', age: 40})")
+
+        gf.execute("""
+            MATCH (n:Person {name: 'Mike'})
+            REMOVE n.age, n.age
+        """)
+
+        results = gf.execute("""
+            MATCH (n:Person {name: 'Mike'})
+            RETURN n.age AS age
+        """)
+        assert len(results) == 1
+        assert isinstance(results[0]["age"], CypherNull)
+
+    def test_remove_label_twice(self):
+        """Remove same label twice in one query (idempotent)."""
+        gf = GraphForge()
+        gf.execute("CREATE (n:Person:Temp {name: 'Nina'})")
+
+        gf.execute("""
+            MATCH (n {name: 'Nina'})
+            REMOVE n:Temp, n:Temp
+        """)
+
+        # Should only have Person label
+        results = gf.execute("MATCH (n:Person {name: 'Nina'}) RETURN n.name AS name")
+        assert len(results) == 1
+
+        results = gf.execute("MATCH (n:Temp) RETURN count(n) AS count")
+        assert results[0]["count"].value == 0
+
+    def test_remove_property_then_set_same_property(self):
+        """Remove property, then SET it in next query."""
+        gf = GraphForge()
+        gf.execute("CREATE (n:Person {name: 'Oscar', age: 50})")
+
+        gf.execute("""
+            MATCH (n:Person {name: 'Oscar'})
+            REMOVE n.age
+        """)
+
+        gf.execute("""
+            MATCH (n:Person {name: 'Oscar'})
+            SET n.age = 51
+        """)
+
+        results = gf.execute("""
+            MATCH (n:Person {name: 'Oscar'})
+            RETURN n.age AS age
+        """)
+        assert results[0]["age"].value == 51
+
+    def test_remove_on_node_without_property(self):
+        """Remove property that was never set (not just removed)."""
+        gf = GraphForge()
+        gf.execute("CREATE (n:Person {name: 'Paul'})")
+
+        # Node was created without 'age' property
+        gf.execute("""
+            MATCH (n:Person {name: 'Paul'})
+            REMOVE n.age
+        """)
+
+        # Should complete without error
+        results = gf.execute("MATCH (n:Person {name: 'Paul'}) RETURN n.name AS name")
+        assert len(results) == 1
+        assert results[0]["name"].value == "Paul"
