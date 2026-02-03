@@ -6,6 +6,7 @@ This module defines the major query clauses:
 - SetClause: SET property updates
 - DeleteClause: DELETE nodes/relationships
 - MergeClause: MERGE patterns
+- UnwindClause: UNWIND list expansion
 - WhereClause: WHERE predicates
 - ReturnClause: RETURN projections
 - WithClause: WITH query chaining
@@ -77,6 +78,20 @@ class MergeClause:
     """
 
     patterns: list[Any]  # List of NodePattern or RelationshipPattern
+
+
+@dataclass
+class UnwindClause:
+    """UNWIND clause for expanding lists into rows.
+
+    Examples:
+        UNWIND [1, 2, 3] AS num
+        UNWIND p.tags AS tag
+        UNWIND ['Alice', 'Bob'] AS name
+    """
+
+    expression: Any  # Expression that evaluates to a list
+    variable: str  # Variable name to bind each list item to
 
 
 @dataclass
