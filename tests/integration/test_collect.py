@@ -481,3 +481,164 @@ class TestCollectWithComplexTypes:
         assert len(results) == 1
         # Should have 2 unique lists
         assert len(results[0]["unique_data"].value) == 2
+
+
+class TestGroupByComplexTypes:
+    """Tests for GROUP BY with lists and maps (round-trip conversion)."""
+
+    def test_group_by_list_property(self):
+        """GROUP BY list property returns proper CypherList."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Item {tags: ['python', 'java'], value: 10}),
+                   (b:Item {tags: ['python', 'java'], value: 20}),
+                   (c:Item {tags: ['javascript'], value: 30})
+        """)
+
+        results = gf.execute("""
+            MATCH (i:Item)
+            RETURN i.tags AS tags, SUM(i.value) AS total
+        """)
+
+        assert len(results) == 2
+
+        # Find the group with ['python', 'java']
+        python_java_group = None
+        javascript_group = None
+        for row in results:
+            # Verify tags is returned as CypherList
+            assert isinstance(row["tags"], CypherList)
+            tags_list = [v.value for v in row["tags"].value]
+            if sorted(tags_list) == ["java", "python"]:
+                python_java_group = row
+            elif tags_list == ["javascript"]:
+                javascript_group = row
+
+        assert python_java_group is not None
+        assert python_java_group["total"].value == 30  # 10 + 20
+
+        assert javascript_group is not None
+        assert javascript_group["total"].value == 30
+
+    def test_group_by_nested_list_property(self):
+        """GROUP BY nested list property returns proper CypherList."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Data {matrix: [[1, 2], [3, 4]], count: 1}),
+                   (b:Data {matrix: [[1, 2], [3, 4]], count: 2}),
+                   (c:Data {matrix: [[5, 6]], count: 3})
+        """)
+
+        results = gf.execute("""
+            MATCH (d:Data)
+            RETURN d.matrix AS matrix, SUM(d.count) AS total
+        """)
+
+        assert len(results) == 2
+
+        for row in results:
+            # Verify matrix is returned as CypherList with nested CypherLists
+            assert isinstance(row["matrix"], CypherList)
+            outer_list = row["matrix"].value
+            for inner_item in outer_list:
+                assert isinstance(inner_item, CypherList)
+
+    def test_group_by_map_property(self):
+        """GROUP BY map property returns proper CypherMap."""
+        from graphforge.types.values import CypherMap
+
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Person {address: {city: 'NYC', zip: '10001'}, age: 25}),
+                   (b:Person {address: {city: 'NYC', zip: '10001'}, age: 30}),
+                   (c:Person {address: {city: 'LA', zip: '90001'}, age: 35})
+        """)
+
+        results = gf.execute("""
+            MATCH (p:Person)
+            RETURN p.address AS address, SUM(p.age) AS total_age
+        """)
+
+        assert len(results) == 2
+
+        # Find the NYC group
+        nyc_group = None
+        la_group = None
+        for row in results:
+            # Verify address is returned as CypherMap
+            assert isinstance(row["address"], CypherMap)
+            address_map = {k: v.value for k, v in row["address"].value.items()}
+            if address_map["city"] == "NYC":
+                nyc_group = row
+            elif address_map["city"] == "LA":
+                la_group = row
+
+        assert nyc_group is not None
+        assert nyc_group["total_age"].value == 55  # 25 + 30
+
+        assert la_group is not None
+        assert la_group["total_age"].value == 35
+
+    def test_group_by_multiple_complex_properties(self):
+        """GROUP BY multiple properties including lists."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Item {category: 'A', tags: ['python'], value: 10}),
+                   (b:Item {category: 'A', tags: ['python'], value: 20}),
+                   (c:Item {category: 'A', tags: ['java'], value: 30}),
+                   (d:Item {category: 'B', tags: ['python'], value: 40})
+        """)
+
+        results = gf.execute("""
+            MATCH (i:Item)
+            RETURN i.category AS category, i.tags AS tags, SUM(i.value) AS total
+        """)
+
+        assert len(results) == 3
+
+        # Verify all groups have proper types
+        for row in results:
+            assert isinstance(row["tags"], CypherList)
+
+        # Find A/python group
+        a_python = [
+            r
+            for r in results
+            if r["category"].value == "A" and [v.value for v in r["tags"].value] == ["python"]
+        ]
+        assert len(a_python) == 1
+        assert a_python[0]["total"].value == 30  # 10 + 20
+
+    def test_collect_grouped_by_complex_type(self):
+        """COLLECT with GROUP BY complex type."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Person {dept: ['Engineering', 'R&D'], name: 'Alice'}),
+                   (b:Person {dept: ['Engineering', 'R&D'], name: 'Bob'}),
+                   (c:Person {dept: ['Sales'], name: 'Charlie'})
+        """)
+
+        results = gf.execute("""
+            MATCH (p:Person)
+            RETURN p.dept AS dept, COLLECT(p.name) AS names
+        """)
+
+        assert len(results) == 2
+
+        for row in results:
+            # Verify dept is CypherList
+            assert isinstance(row["dept"], CypherList)
+            # Verify names is CypherList
+            assert isinstance(row["names"], CypherList)
+
+        # Find Engineering/R&D group
+        eng_group = None
+        for row in results:
+            dept_list = [v.value for v in row["dept"].value]
+            if sorted(dept_list) == ["Engineering", "R&D"]:
+                eng_group = row
+                break
+
+        assert eng_group is not None
+        names = sorted([v.value for v in eng_group["names"].value])
+        assert names == ["Alice", "Bob"]

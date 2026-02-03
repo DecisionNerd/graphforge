@@ -679,8 +679,12 @@ class QueryExecutor:
         return value
 
     def _hashable_to_cypher_value(self, hashable_val):
-        """Convert hashable representation back to CypherValue."""
-        from graphforge.types.values import CypherString
+        """Convert hashable representation back to CypherValue.
+
+        Recursively reconstructs CypherList and CypherMap from their
+        hashable tuple representations.
+        """
+        from graphforge.types.values import CypherList, CypherMap, CypherString
 
         if hashable_val is None:
             return CypherNull()
@@ -694,6 +698,14 @@ class QueryExecutor:
                 return CypherBool(val)
             elif type_name == "CypherString":
                 return CypherString(val)
+            elif type_name == "CypherList":
+                # Recursively reconstruct list from tuple of hashable items
+                reconstructed_items = [self._hashable_to_cypher_value(item) for item in val]
+                return CypherList(reconstructed_items)
+            elif type_name == "CypherMap":
+                # Recursively reconstruct map from tuple of (key, hashable-value) pairs
+                reconstructed_map = {k: self._hashable_to_cypher_value(v) for k, v in val}
+                return CypherMap(reconstructed_map)
 
         # NodeRef, EdgeRef, or already a CypherValue
         return hashable_val
@@ -722,25 +734,7 @@ class QueryExecutor:
                         key = return_item.alias if return_item.alias else f"col_{j}"
                         # Convert back from hashable to CypherValue
                         hashable_val = group_key[i]
-                        if hashable_val is None:
-                            row[key] = CypherNull()
-                        elif isinstance(hashable_val, tuple) and len(hashable_val) == 2:
-                            type_name, val = hashable_val
-                            if type_name == "CypherInt":
-                                row[key] = CypherInt(val)
-                            elif type_name == "CypherFloat":
-                                row[key] = CypherFloat(val)
-                            elif type_name == "CypherBool":
-                                from graphforge.types.values import CypherBool
-
-                                row[key] = CypherBool(val)
-                            else:
-                                from graphforge.types.values import CypherString
-
-                                row[key] = CypherString(val)
-                        else:
-                            # NodeRef, EdgeRef, etc.
-                            row[key] = hashable_val
+                        row[key] = self._hashable_to_cypher_value(hashable_val)
                         break
 
         # Compute aggregates
