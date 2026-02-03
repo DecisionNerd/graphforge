@@ -1,202 +1,470 @@
-# GitHub Issue Workflow for GraphForge v0.2
+# GitHub Issue Workflow for GraphForge
 
-This document describes the issue-branch-PR workflow for GraphForge v0.2 development.
+This document describes the standard issue-branch-PR workflow for GraphForge development.
 
-## Created Issues
+## Standard Workflow: Issue → Branch → PR → Merge
 
-### v0.2.0 Issues (Core Cypher Complete)
+This is the established workflow used for all feature development.
 
-The following issues target the [v0.2.0 milestone](https://github.com/DecisionNerd/graphforge/milestone/1):
-
-- [#20](https://github.com/DecisionNerd/graphforge/issues/20) - `feat: implement UNWIND clause for list iteration` (good first issue, 2-3h)
-- [#21](https://github.com/DecisionNerd/graphforge/issues/21) - `feat: implement DETACH DELETE for cascading deletion` (1-2h)
-- [#22](https://github.com/DecisionNerd/graphforge/issues/22) - `feat: implement CASE expressions for conditional logic` (complex, 4-5h)
-- [#23](https://github.com/DecisionNerd/graphforge/issues/23) - `feat: formalize and test MATCH-CREATE combinations` (testing, 3-4h)
-- [#25](https://github.com/DecisionNerd/graphforge/issues/25) - `feat: implement REMOVE clause for property/label removal` (2h)
-- [#26](https://github.com/DecisionNerd/graphforge/issues/26) - `feat: implement arithmetic operators (+, -, *, /, %)` (2-3h)
-- [#27](https://github.com/DecisionNerd/graphforge/issues/27) - `feat: implement COLLECT aggregation function` (3-4h)
-- [#28](https://github.com/DecisionNerd/graphforge/issues/28) - `feat: implement string matching operators (STARTS WITH, ENDS WITH, CONTAINS)` (2-3h)
-- [#29](https://github.com/DecisionNerd/graphforge/issues/29) - `feat: implement NOT logical operator` (1-2h)
-
-**Total Effort:** 20-28 hours
-**Target:** ~950 TCK scenarios (~25% compliance)
-
-### v0.3.0 Issues (Advanced Patterns)
-
-The following issues target the [v0.3.0 milestone](https://github.com/DecisionNerd/graphforge/milestone/2):
-
-- [#24](https://github.com/DecisionNerd/graphforge/issues/24) - `feat: implement path expressions and variable-length patterns` (complex, 10-15h)
-
-Additional v0.3 issues to be created:
-- OPTIONAL MATCH (left outer joins)
-- List comprehensions
-- Subqueries (EXISTS, COUNT)
-- UNION / UNION ALL
-
-## Recommended Implementation Order
-
-Based on complexity, dependencies, and user value:
-
-### Quick Wins (Start Here)
-1. **NOT operator (#29)** - 1-2h, simple operator, enables many queries
-2. **DETACH DELETE (#21)** - 1-2h, small change, high user value
-3. **REMOVE clause (#25)** - 2h, straightforward implementation
-4. **String matching (#28)** - 2-3h, very common in WHERE clauses
-
-### Core Features
-5. **UNWIND (#20)** - 2-3h, good first issue, validates workflow
-6. **Arithmetic operators (#26)** - 2-3h, fundamental operators
-7. **COLLECT aggregation (#27)** - 3-4h, most requested after basic aggregations
-
-### Complex Features
-8. **MATCH-CREATE (#23)** - 3-4h, already works, needs comprehensive tests
-9. **CASE expressions (#22)** - 4-5h, complex but commonly requested
-
-### v0.3 (Deferred)
-10. **Path expressions (#24)** - 10-15h, deferred to v0.3 for focus on breadth in v0.2
-
-## Workflow: Issue → Branch → PR → Merge
-
-### 1. Starting Work on an Issue
+### 1. Create Feature Branch
 
 ```bash
-# Example: Starting work on UNWIND (issue #20)
+# Start from main
 git checkout main
 git pull origin main
-git checkout -b feature/20-unwind-clause
 
-# Work on the feature following the implementation checklist in the issue...
+# Create feature branch
+git checkout -b feature/{issue-number}-{slug}
+
+# Examples:
+# feature/27-collect-aggregation
+# feature/22-case-expressions
+# docs/update-contributing-guide
 ```
 
-### 2. Branch Naming Convention
+### 2. Implement Feature with Tests
 
-```
-feature/{issue-number}-{slug}
+Follow the **comprehensive testing approach**:
 
-Examples:
-- feature/20-unwind-clause
-- feature/21-detach-delete
-- feature/22-case-expressions
-- feature/23-match-create
-- feature/24-path-expressions
-```
+1. **Unit Tests** (parser + planner/executor)
+   - Parser tests: Verify grammar and AST transformation
+   - Planner tests: Verify logical plan generation (if applicable)
+   - Executor/Evaluator tests: Verify logic and edge cases
 
-### 3. Commit Messages
+2. **Integration Tests** (end-to-end)
+   - Basic functionality tests
+   - NULL handling tests
+   - Edge case tests
+   - Combination tests (with other features)
+   - Multiple node/relationship tests
 
-Reference the issue in your commit messages:
+**Test Coverage Target:** Maintain >85% overall coverage, >80% patch coverage
+
+### 3. Run Pre-Push Checks
+
+Before committing, **always** run the full pre-push check suite:
 
 ```bash
-git commit -m "feat: add UNWIND grammar and AST
-
-Implements basic UNWIND clause structure with grammar rules
-and AST nodes for representing UNWIND operations.
-
-Part of #20"
+make pre-push
 ```
 
-For the final commit that completes the feature:
+This runs:
+- `ruff format --check .` - Code formatting
+- `ruff check .` - Linting
+- `mypy src/graphforge --strict-optional --show-error-codes` - Type checking
+- `pytest` - Full test suite with coverage
+
+**All checks must pass before creating a PR.**
+
+### 4. Commit Changes
+
+Use descriptive commit messages with the Co-Authored-By line:
 
 ```bash
-git commit -m "feat: implement UNWIND clause
+git add -A
+git commit -m "$(cat <<'EOF'
+feat: implement COLLECT aggregation function
 
-Implements list iteration with UNWIND clause, including:
-- Grammar rules for UNWIND syntax
-- AST nodes and parser transformations
-- Executor implementation
-- Comprehensive test suite
+Implement COLLECT aggregation with DISTINCT support per Cypher semantics.
 
-Fixes #20
+Features:
+- COLLECT(expression) aggregates values into a list
+- COLLECT(DISTINCT expression) deduplicates values
+- NULL values are skipped (not included in result list)
+- Empty result returns empty list
 
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+Grammar changes:
+- Add COLLECT to FUNCTION_NAME terminal
+
+Implementation:
+- Add COLLECT case in _compute_aggregation()
+- Handle DISTINCT flag for deduplication
+- Skip NULL values per Cypher spec
+
+Tests:
+- 8 parser tests for grammar
+- 12 evaluator tests for aggregation logic
+- 15 integration tests for end-to-end behavior
+- Total: 35 comprehensive tests
+
+Coverage: 95.5% overall
+
+Closes #27
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+EOF
+)"
 ```
 
-### 4. Creating a Pull Request
+**Commit Message Format:**
+- **Subject line**: `feat: {brief description}` (70 chars max)
+- **Body**: Detailed description with:
+  - Feature summary
+  - Grammar/implementation changes
+  - Test summary with counts
+  - Coverage percentage
+- **Footer**: `Closes #{issue-number}` and Co-Authored-By line
 
-Push your branch and create a PR:
+### 5. Push Branch
 
 ```bash
-# Push the branch
-git push -u origin feature/20-unwind-clause
+git push -u origin feature/{issue-number}-{slug}
+```
 
-# Create PR with automatic issue linking
+### 6. Create Pull Request
+
+Use the GitHub CLI to create a PR with proper labels:
+
+```bash
 gh pr create \
-  --title "feat: implement UNWIND clause for list iteration" \
-  --body "Closes #20
-
+  --title "feat: {descriptive title matching issue}" \
+  --label "enhancement" \
+  --body "$(cat <<'EOF'
 ## Summary
-- Implements UNWIND clause for list iteration
-- Adds grammar, AST, parser, and executor support
-- Includes comprehensive test suite (13 tests)
-- Maintains >85% code coverage
 
-## Testing
-- Unit tests: Parser validation (5 tests)
-- Integration tests: End-to-end scenarios (8 tests)
-- All existing tests pass
+{Brief description of what this PR implements}
 
-## Checklist
-- [x] Grammar updates
-- [x] AST nodes
-- [x] Parser transformer
-- [x] Executor implementation
-- [x] Unit tests
-- [x] Integration tests
-- [x] Documentation updated
-- [x] CHANGELOG updated" \
-  --label "enhancement,v0.2"
+## Features
+
+### {Feature Category}
+- {Feature detail 1}
+- {Feature detail 2}
+
+### {Special Cases}
+- {Edge case handling}
+- {NULL handling}
+
+## Grammar Changes
+
+- {Grammar modification 1}
+- {Grammar modification 2}
+
+## Implementation
+
+### Parser (`parser.py`)
+- {Parser change 1}
+- {Parser change 2}
+
+### Evaluator/Executor
+- {Evaluator change 1}
+- {Evaluator change 2}
+
+## Tests
+
+- **Parser tests**: {N} tests for {description}
+- **Evaluator tests**: {N} tests for {description}
+- **Integration tests**: {N} tests for {description}
+
+**Total**: {N} comprehensive tests
+
+### Test Coverage
+- {Key test scenario 1}
+- {Key test scenario 2}
+- {Edge case tests}
+
+## Examples
+
+```cypher
+// {Example 1 description}
+{Cypher query}
+
+// {Example 2 description}
+{Cypher query}
 ```
 
-### 5. Automatic Linking
+## Coverage
 
-Using `Fixes #20` or `Closes #20` in the PR description will:
-- Automatically link the PR to the issue
-- Close the issue when the PR is merged
-- Update the milestone progress
+- Overall: **XX.XX%**
+- All pre-push checks pass ✅
+
+Closes #{issue-number}
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
+```
+
+**PR Requirements:**
+- Title matches issue title format: `feat: {description}`
+- Label: `enhancement` (required for features)
+- Body includes: `Closes #{issue-number}` for automatic linking
+- Body includes comprehensive summary with examples
+- All pre-push checks passed before creating PR
+
+### 7. PR Review and Merge
+
+- CI/CD runs automatically on PR creation
+- Address any CI failures promptly
+- Once approved and CI passes, PR is merged to main
+- Issue is automatically closed via `Closes #N` keyword
+
+## Branch Naming Convention
+
+**Format:** `{type}/{issue-number}-{slug}`
+
+**Types:**
+- `feature/` - New features
+- `fix/` - Bug fixes
+- `docs/` - Documentation changes
+- `refactor/` - Code refactoring
+- `test/` - Test improvements
+
+**Examples:**
+- `feature/27-collect-aggregation`
+- `fix/32-null-handling-in-merge`
+- `docs/update-contributing-guide`
+- `refactor/45-simplify-evaluator`
+
+**Guidelines:**
+- Use lowercase with hyphens
+- Keep slug concise but descriptive
+- Start with issue number for traceability
+
+## Test Requirements
+
+### Comprehensive Test Coverage
+
+Every feature must include:
+
+1. **Parser Tests** (Unit)
+   - Grammar validation
+   - AST node creation
+   - Token transformation
+   - Error cases
+   - Typical count: 10-15 tests
+
+2. **Executor/Evaluator Tests** (Unit)
+   - Core logic validation
+   - Type handling
+   - NULL propagation
+   - Error handling
+   - Typical count: 15-25 tests
+
+3. **Integration Tests** (End-to-End)
+   - Basic functionality
+   - NULL handling
+   - Edge cases
+   - Combinations with other features
+   - Multiple nodes/relationships
+   - Typical count: 20-30 tests
+
+**Total test count per feature:** 45-70 comprehensive tests
+
+### Coverage Requirements
+
+- **Overall coverage:** >85% (enforced by CI)
+- **Patch coverage:** >80% (new code must be well-tested)
+- **Branch coverage:** All conditional branches tested
+
+### Test File Locations
+
+```
+tests/
+  unit/
+    parser/
+      test_{feature}_parser.py
+    executor/
+      test_{feature}_evaluator.py
+    planner/
+      test_{feature}_planner.py (if applicable)
+  integration/
+    test_{feature}.py
+```
+
+## Common Implementation Patterns
+
+### 1. Grammar Changes (`cypher.lark`)
+
+```lark
+// Add new clause
+my_clause: "KEYWORD"i expression
+
+// Add to query structure
+query: match_clause my_clause? return_clause?
+
+// Add new operator
+OPERATOR: "==" | "!="
+```
+
+### 2. Parser Transformers (`parser.py`)
+
+```python
+def my_clause(self, items):
+    """Transform MY clause."""
+    return MyClause(items=list(items))
+```
+
+### 3. AST Nodes (`ast/clause.py` or `ast/expression.py`)
+
+```python
+@dataclass
+class MyClause:
+    """MY clause AST node."""
+    items: list[Expression]
+```
+
+### 4. Planner (`planner/planner.py`)
+
+```python
+if isinstance(clause, MyClause):
+    operators.append(MyOperator(items=clause.items))
+```
+
+### 5. Executor (`executor/executor.py`)
+
+```python
+def _execute_my_operator(self, op: MyOperator, input_rows: list[ExecutionContext]):
+    """Execute MY operator."""
+    result = []
+    for ctx in input_rows:
+        # Operator logic here
+        result.append(ctx)
+    return result
+```
+
+### 6. Evaluator (`executor/evaluator.py`)
+
+```python
+# For expression evaluation
+if expr.op == "MY_OP":
+    # NULL handling
+    if isinstance(left_val, CypherNull):
+        return CypherNull()
+
+    # Type checking
+    if not isinstance(left_val, CypherString):
+        raise TypeError(f"MY_OP requires string operand")
+
+    # Operation
+    return CypherBool(left_val.value.startswith(pattern))
+```
+
+## Pre-Push Checklist
+
+Before creating a PR, verify:
+
+- [ ] All unit tests pass
+- [ ] All integration tests pass
+- [ ] Coverage >85% overall, >80% patch
+- [ ] Code formatted with ruff
+- [ ] No linting errors
+- [ ] Type checking passes (mypy)
+- [ ] `make pre-push` completes successfully
+- [ ] Commit message includes "Closes #N"
+- [ ] Commit message includes Co-Authored-By line
 
 ## Labels Reference
 
-- `enhancement` - New feature or request
-- `v0.2` - Target for v0.2 release
+- `enhancement` - New feature
+- `bug` - Bug fix
+- `documentation` - Documentation changes
+- `tests` - Test improvements
 - `good first issue` - Good for newcomers
 - `complex` - Requires deep understanding
-- `testing` - Testing and test improvements
-- `future` - Future consideration
-- `parser` - Changes to Cypher parser
-- `executor` - Changes to query executor
-- `planner` - Changes to query planner
-- `tests` - Test suite changes
+- `performance` - Performance improvements
+- `refactor` - Code refactoring
 
 ## Issue Structure
 
-Each issue includes:
+Well-structured issues include:
 
 1. **Feature Description** - Brief user-facing description
 2. **Use Case** - Why users need this feature
-3. **Cypher Syntax** - Example queries
+3. **Examples** - Example queries with expected results
 4. **Implementation Checklist** - Step-by-step tasks
-5. **Files to Modify** - Specific file paths and line numbers
-6. **Implementation Pattern** - Code examples
-7. **Testing Strategy** - Unit and integration test scenarios
+5. **Files to Modify** - Specific file paths
+6. **Implementation Pattern** - Code examples and approach
+7. **Testing Strategy** - Required test scenarios
 8. **Acceptance Criteria** - Must-have requirements
 9. **References** - Links to specs and documentation
 10. **Estimated Effort** - Time estimate
 
 ## Development Tips
 
-- Start with the simpler issues (UNWIND, DETACH DELETE) to validate the workflow
-- Follow the implementation checklist in each issue
-- Maintain test coverage >85%
-- Update both README.md and CHANGELOG.md
-- Run the full test suite before creating a PR
-- Use the CI/CD pipeline to catch issues early
+### General Guidelines
 
-## Milestone Progress
+- **Read before modifying**: Always read existing files before making changes
+- **Follow patterns**: Match existing code style and patterns
+- **Test thoroughly**: Write tests before implementation when possible
+- **NULL handling**: Always handle NULL values per Cypher semantics
+- **Type safety**: Ensure type checking passes with mypy
+- **Error messages**: Provide clear, actionable error messages
 
-Track progress at: https://github.com/DecisionNerd/graphforge/milestone/1
+### Common Pitfalls
+
+1. **Grammar issues**: Test parser with `pytest tests/unit/parser/` first
+2. **Type errors**: Run `mypy` frequently during development
+3. **Coverage gaps**: Write unit tests for all code paths
+4. **NULL handling**: Every operator must handle NULL correctly
+5. **Formatting**: Run `ruff format .` before committing
+
+### Debugging Tips
+
+- Use `pytest -v -s` to see print statements
+- Use `pytest -k test_name` to run specific tests
+- Check `htmlcov/index.html` for coverage details
+- Use `git diff` to review changes before committing
+
+## Example: Complete Feature Implementation
+
+Reference implementations following this workflow:
+
+**PR #44 (Arithmetic Operators):**
+- 68 comprehensive tests (14 parser + 24 evaluator + 30 integration)
+- Proper NULL handling throughout
+- Clear error messages with type information
+- Full documentation in PR description
+- Examples in Cypher syntax
+- 95% coverage maintained
+
+**PR #43 (String Matching Operators):**
+- 68 comprehensive tests (11 parser + 27 evaluator + 30 integration)
+- Case-sensitive string matching per Cypher spec
+- NULL propagation tested
+- 95% coverage maintained
+
+**PR #42 (REMOVE Clause):**
+- 38 comprehensive tests (12 parser + 10 planner + 16 integration)
+- Handles both properties and labels
+- Multiple REMOVE clauses supported
+- 95% coverage maintained
+
+## CI/CD Pipeline
+
+The following checks run automatically on each PR:
+
+1. **Formatting**: `ruff format --check`
+2. **Linting**: `ruff check`
+3. **Type Checking**: `mypy`
+4. **Tests**: Full test suite with coverage
+5. **Coverage Enforcement**: Fails if coverage <85%
+
+All checks must pass before merge.
 
 ## Questions?
 
 If you have questions about any issue:
 1. Comment on the issue to discuss the approach
 2. Tag @DecisionNerd for clarification
-3. Reference related issues or Neo4j documentation
+3. Reference related issues or OpenCypher documentation
+4. Check existing PRs for implementation patterns
+
+## Summary
+
+**The Standard Workflow:**
+1. Create feature branch from main
+2. Implement with comprehensive tests (unit + integration)
+3. Run `make pre-push` - **all checks must pass**
+4. Commit with descriptive message and "Closes #N"
+5. Push branch to origin
+6. Create PR with `gh pr create --label "{appropriate-label}"`
+7. Wait for CI and review
+8. Merge to main
+
+**Success Criteria:**
+- ✅ 45-70 comprehensive tests
+- ✅ >85% coverage overall
+- ✅ >80% patch coverage
+- ✅ All pre-push checks pass
+- ✅ Clear commit message with issue link
+- ✅ Well-documented PR with examples
