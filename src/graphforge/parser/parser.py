@@ -177,9 +177,27 @@ class ASTTransformer(Transformer):
         return DeleteClause(variables=variables, detach=False)
 
     def merge_clause(self, items):
-        """Transform MERGE clause."""
-        patterns = [item for item in items if not isinstance(item, str)]
-        return MergeClause(patterns=patterns)
+        """Transform MERGE clause with optional ON CREATE action."""
+        patterns = []
+        on_create = None
+
+        for item in items:
+            if isinstance(item, str):
+                continue
+            if isinstance(item, tuple) and item[0] == "on_create":
+                on_create = item[1]
+            else:
+                patterns.append(item)
+
+        return MergeClause(patterns=patterns, on_create=on_create)
+
+    def merge_action(self, items):
+        """Transform merge action."""
+        return items[0]
+
+    def on_create_clause(self, items):
+        """Transform ON CREATE SET clause."""
+        return ("on_create", items[0])
 
     def unwind_clause(self, items):
         """Transform UNWIND clause."""
