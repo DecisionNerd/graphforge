@@ -62,7 +62,23 @@ coverage-diff:  ## Show coverage for changed files only
 		grep '\.py$$' | \
 		xargs uv run coverage report --include
 
-pre-push: format-check lint type-check coverage check-coverage  ## Run all pre-push checks (mirrors CI)
+check-patch-coverage:  ## Validate patch coverage for changed files (90% threshold)
+	@echo "Checking patch coverage for changed files..."
+	@CHANGED_FILES=$$(git diff --name-only origin/main... | grep '^src/.*\.py$$' || true); \
+	if [ -z "$$CHANGED_FILES" ]; then \
+		echo "ℹ️  No source files changed - skipping patch coverage check"; \
+	else \
+		echo "Changed files:"; \
+		echo "$$CHANGED_FILES" | sed 's/^/  - /'; \
+		INCLUDE_PATTERN=$$(echo "$$CHANGED_FILES" | tr '\n' ',' | sed 's/,$$//'); \
+		uv run coverage report --include="$$INCLUDE_PATTERN" --fail-under=90 || \
+			(echo "❌ Patch coverage below 90% for changed files" && \
+			 echo "   Run 'make coverage-report' to see detailed coverage" && \
+			 exit 1); \
+		echo "✅ Patch coverage meets 90% threshold"; \
+	fi
+
+pre-push: format-check lint type-check coverage check-coverage check-patch-coverage  ## Run all pre-push checks (mirrors CI)
 	@echo "✅ All pre-push checks passed!"
 
 clean:  ## Clean up cache files
