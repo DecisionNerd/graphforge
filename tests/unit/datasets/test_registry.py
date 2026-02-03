@@ -393,6 +393,31 @@ class TestDatasetLoading:
             with pytest.raises(ValueError, match="not registered"):
                 load_dataset(gf, "bad-dataset")
 
+    def test_load_dataset_rejects_unsafe_url_schemes(self):
+        """Test that loading datasets with unsafe URL schemes is rejected."""
+        # Register dataset with file:// URL (unsafe)
+        info = DatasetInfo(
+            name="unsafe-dataset",
+            description="Dataset with unsafe URL",
+            source="test",
+            url="file:///etc/passwd",
+            nodes=10,
+            edges=20,
+            labels=["Node"],
+            relationship_types=["EDGE"],
+            size_mb=1.0,
+            license="MIT",
+            category="test",
+            loader_class="mock",
+        )
+        register_dataset(info)
+
+        with patch("graphforge.datasets.registry._CACHE_DIR", Path(self.temp_cache)):
+            gf = GraphForge()
+
+            with pytest.raises(ValueError, match="Unsupported URL scheme"):
+                load_dataset(gf, "unsafe-dataset")
+
 
 class TestGraphForgeFromDataset:
     """Test GraphForge.from_dataset() classmethod."""

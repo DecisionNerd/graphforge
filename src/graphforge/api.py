@@ -109,7 +109,7 @@ class GraphForge:
         from graphforge.datasets import load_dataset
 
         instance = cls(path)
-        load_dataset(instance, name)
+        load_dataset(instance, name)  # nosec B615 - Not Hugging Face, our own dataset loader
         return instance
 
     def execute(self, query: str) -> list[dict]:

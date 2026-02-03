@@ -146,12 +146,22 @@ def _download_dataset(url: str, dest_path: Path) -> None:
     """Download a dataset from a URL.
 
     Args:
-        url: URL to download from
+        url: URL to download from (must be HTTP or HTTPS)
         dest_path: Destination file path
 
     Raises:
+        ValueError: If URL scheme is not HTTP or HTTPS
         RuntimeError: If download fails
     """
+    # Validate URL scheme for security (only allow HTTP/HTTPS)
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(
+            f"Unsupported URL scheme '{parsed.scheme}'. Only HTTP and HTTPS are allowed."
+        )
+
     # Ensure cache directory exists
     dest_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -159,7 +169,7 @@ def _download_dataset(url: str, dest_path: Path) -> None:
     temp_path = dest_path.with_suffix(".tmp")
 
     try:
-        urlretrieve(url, temp_path)
+        urlretrieve(url, temp_path)  # nosec B310 - URL scheme validated above
         # Move to final location atomically
         temp_path.rename(dest_path)
     except Exception as e:
