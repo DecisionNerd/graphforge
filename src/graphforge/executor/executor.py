@@ -566,6 +566,52 @@ class QueryExecutor:
 
         return result_rows
 
+    def _expressions_match(self, expr1, expr2) -> bool:
+        """Check if two expressions are semantically equivalent.
+
+        Args:
+            expr1: First expression
+            expr2: Second expression
+
+        Returns:
+            True if expressions are semantically equivalent
+        """
+        from graphforge.ast.expression import Literal, PropertyAccess, Variable
+
+        # Same object
+        if expr1 is expr2:
+            return True
+
+        # Different types
+        if not isinstance(expr1, type(expr2)):
+            return False
+
+        # Variable: compare by name
+        if isinstance(expr1, Variable) and isinstance(expr2, Variable):
+            return expr1.name == expr2.name
+
+        # PropertyAccess: compare variable and property
+        if isinstance(expr1, PropertyAccess) and isinstance(expr2, PropertyAccess):
+            return (
+                self._expressions_match(expr1.variable, expr2.variable)
+                and expr1.property == expr2.property
+            )
+
+        # Literal: compare values
+        if isinstance(expr1, Literal) and isinstance(expr2, Literal):
+            return bool(expr1.value == expr2.value)
+
+        # FunctionCall: compare function name and arguments
+        if isinstance(expr1, FunctionCall) and isinstance(expr2, FunctionCall):
+            if expr1.name.lower() != expr2.name.lower():
+                return False
+            if len(expr1.args) != len(expr2.args):
+                return False
+            return all(self._expressions_match(a1, a2) for a1, a2 in zip(expr1.args, expr2.args))
+
+        # For other types, fall back to object identity
+        return False
+
     def _execute_aggregate(
         self, op: Aggregate, input_rows: list[ExecutionContext], for_with: bool = False
     ) -> list[dict] | list[ExecutionContext]:
@@ -628,8 +674,16 @@ class QueryExecutor:
                 for i, (expr, val) in enumerate(zip(op.grouping_exprs, group_key)):
                     # Find alias from return_items
                     for item in op.return_items:
-                        if item.expression == expr:
-                            var_name = item.alias if item.alias else f"col_{i}"
+                        if self._expressions_match(item.expression, expr):
+                            # Determine variable name
+                            if item.alias:
+                                var_name = item.alias
+                            elif isinstance(expr, Variable):
+                                # No alias, but expression is a variable - use variable name
+                                var_name = expr.name
+                            else:
+                                # Complex expression without alias - use column index
+                                var_name = f"col_{i}"
                             ctx.bind(var_name, self._hashable_to_cypher_value(val))
                             break
 
@@ -637,7 +691,7 @@ class QueryExecutor:
                 for agg_expr in op.agg_exprs:
                     # Find alias from return_items
                     for item in op.return_items:
-                        if item.expression == agg_expr:
+                        if self._expressions_match(item.expression, agg_expr):
                             var_name = item.alias if item.alias else "col_0"
                             result_value = self._compute_aggregation(agg_expr, group_rows)
                             ctx.bind(var_name, result_value)
