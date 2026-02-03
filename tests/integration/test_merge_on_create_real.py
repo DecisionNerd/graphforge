@@ -232,16 +232,25 @@ class TestEdgeCases:
         assert result[0]["hired"].value == 2020
 
     def test_merge_on_create_no_variable(self):
-        """Test MERGE ON CREATE SET when pattern has no variable."""
+        """Test MERGE ON CREATE SET when pattern has no variable.
+
+        When the pattern has no variable but ON CREATE SET references a variable,
+        the query should execute successfully, create the node, but the SET
+        operation should be silently skipped (no variable exists in context).
+        """
         gf = GraphForge()
 
-        # Pattern without variable - ON CREATE SET won't have anything to reference
-        # This should parse but the SET won't apply (no variable to set on)
-        # This is more of a syntax edge case
-        gf.execute("MERGE (:Node {id: 1})")
+        # Pattern without variable, but ON CREATE SET references non-existent variable 'n'
+        # This should parse and execute, create the node, but skip the SET (no 'n' in context)
+        gf.execute("MERGE (:Node {id: 1}) ON CREATE SET n.someProp = 1")
 
-        result = gf.execute("MATCH (n:Node {id: 1}) RETURN count(n) as count")
+        # Verify node was created but property was NOT set
+        result = gf.execute(
+            "MATCH (n:Node {id: 1}) RETURN count(n) as count, n.someProp as someProp"
+        )
         assert result[0]["count"].value == 1
+        # Property should not be set because variable 'n' didn't exist in MERGE pattern
+        assert "someProp" not in result[0] or result[0]["someProp"].value is None
 
 
 class TestPerformance:
