@@ -5,6 +5,7 @@ Tests for edge cases in query execution operators.
 
 
 from graphforge import GraphForge
+from graphforge.types.values import CypherNull
 
 
 class TestExecutorEdgeCases:
@@ -97,7 +98,7 @@ class TestExecutorEdgeCases:
         """)
 
         assert len(results) == 1
-        assert isinstance(results[0]["value"], type(results[0]["value"]))  # Check it's a value
+        assert isinstance(results[0]["value"], CypherNull)
 
     def test_where_with_null_property(self):
         """WHERE clause with NULL property comparison."""
@@ -131,6 +132,14 @@ class TestExecutorEdgeCases:
 
         # NULLs typically sort to end
         assert len(results) == 3
+        # Verify ordering: non-NULL values first (ascending), then NULL
+        assert results[0]["name"].value == "C"
+        assert results[0]["value"].value == 1
+        assert results[1]["name"].value == "A"
+        assert results[1]["value"].value == 3
+        assert results[2]["name"].value == "B"
+        # B has NULL value, should be at the end
+        assert isinstance(results[2]["value"], CypherNull)
 
     def test_with_clause_filters_rows(self):
         """WITH clause filters and passes rows."""

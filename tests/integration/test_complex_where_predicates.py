@@ -59,7 +59,7 @@ class TestComplexWherePredicates:
         assert len(results) == 1
         assert results[0]["name"].value == "Alice"
 
-    def test_five_and_conditions(self, graph_with_people):
+    def test_five_and_conditions(self):
         """WHERE with five AND conditions to thoroughly exercise predicate combining."""
         gf = GraphForge()
         gf.execute("""

@@ -83,7 +83,7 @@ class TestWithClauseModifiers:
         values = [r["val"].value for r in results]
         assert values == [2, 3, 4]
 
-    def test_with_aggregation_and_order_by(self, graph_with_numbers):
+    def test_with_aggregation_and_order_by(self):
         """WITH clause with aggregation and ORDER BY."""
         gf = GraphForge()
         gf.execute("""
@@ -163,3 +163,10 @@ class TestWithClauseModifiers:
         # First two should be category A, sorted by value DESC
         assert results[0]["category"].value == "A"
         assert results[0]["value"].value == 2
+        assert results[1]["category"].value == "A"
+        assert results[1]["value"].value == 1
+        # Next two should be category B, sorted by value DESC
+        assert results[2]["category"].value == "B"
+        assert results[2]["value"].value == 2
+        assert results[3]["category"].value == "B"
+        assert results[3]["value"].value == 1

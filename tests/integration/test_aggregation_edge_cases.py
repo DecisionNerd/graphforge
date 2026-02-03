@@ -5,6 +5,7 @@ Tests for edge cases in aggregation operations.
 
 
 from graphforge import GraphForge
+from graphforge.types.values import CypherNull
 
 
 class TestAggregationEdgeCases:
@@ -40,7 +41,7 @@ class TestAggregationEdgeCases:
 
         # SUM of empty set is NULL
         assert len(results) == 1
-        # Result should be NULL/0 depending on Cypher semantics
+        assert isinstance(results[0]["total"], CypherNull)
 
     def test_multiple_aggregations_with_empty_result_in_with(self):
         """WITH clause with multiple aggregations over empty result."""
@@ -57,6 +58,8 @@ class TestAggregationEdgeCases:
 
         assert len(results) == 1
         assert results[0]["count"].value == 0
+        assert isinstance(results[0]["sum"], CypherNull)
+        assert isinstance(results[0]["avg"], CypherNull)
 
     def test_aggregation_after_filter_produces_empty_in_with(self):
         """WITH aggregation when filter produces empty set."""
@@ -119,6 +122,8 @@ class TestAggregationEdgeCases:
 
         assert len(results) == 1
         # MIN/MAX of empty set should be NULL
+        assert isinstance(results[0]["min_val"], CypherNull)
+        assert isinstance(results[0]["max_val"], CypherNull)
 
     def test_avg_with_empty_result(self):
         """AVG aggregation over empty result set."""
@@ -132,6 +137,7 @@ class TestAggregationEdgeCases:
 
         assert len(results) == 1
         # AVG of empty set should be NULL
+        assert isinstance(results[0]["avg_val"], CypherNull)
 
     def test_aggregation_with_all_null_values(self):
         """Aggregation when all values are NULL."""
@@ -154,6 +160,10 @@ class TestAggregationEdgeCases:
         # COUNT should be 0 (doesn't count NULLs)
         # Others should be NULL
         assert results[0]["count_val"].value == 0
+        assert isinstance(results[0]["sum_val"], CypherNull)
+        assert isinstance(results[0]["avg_val"], CypherNull)
+        assert isinstance(results[0]["min_val"], CypherNull)
+        assert isinstance(results[0]["max_val"], CypherNull)
 
     def test_mixed_null_and_values_in_aggregation(self):
         """Aggregation with mix of NULL and real values."""

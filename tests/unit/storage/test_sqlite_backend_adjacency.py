@@ -19,12 +19,14 @@ class TestSQLiteBackendAdjacency:
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
             db_path = Path(tmp.name)
 
+        backend = None
         try:
             backend = SQLiteBackend(db_path)
             adjacency = backend.load_adjacency_out()
             assert adjacency == {}
-            backend.close()
         finally:
+            if backend is not None:
+                backend.close()
             if db_path.exists():
                 db_path.unlink()
 
@@ -33,12 +35,14 @@ class TestSQLiteBackendAdjacency:
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
             db_path = Path(tmp.name)
 
+        backend = None
         try:
             backend = SQLiteBackend(db_path)
             adjacency = backend.load_adjacency_in()
             assert adjacency == {}
-            backend.close()
         finally:
+            if backend is not None:
+                backend.close()
             if db_path.exists():
                 db_path.unlink()
 
@@ -47,6 +51,7 @@ class TestSQLiteBackendAdjacency:
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
             db_path = Path(tmp.name)
 
+        backend = None
         try:
             backend = SQLiteBackend(db_path)
 
@@ -82,9 +87,9 @@ class TestSQLiteBackendAdjacency:
             # Nodes 2 and 3 have no outgoing edges
             assert 2 not in adjacency or adjacency[2] == []
             assert 3 not in adjacency or adjacency[3] == []
-
-            backend.close()
         finally:
+            if backend is not None:
+                backend.close()
             if db_path.exists():
                 db_path.unlink()
 
@@ -93,6 +98,7 @@ class TestSQLiteBackendAdjacency:
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
             db_path = Path(tmp.name)
 
+        backend = None
         try:
             backend = SQLiteBackend(db_path)
 
@@ -128,9 +134,9 @@ class TestSQLiteBackendAdjacency:
             # Nodes 1 and 3 have no incoming edges
             assert 1 not in adjacency or adjacency[1] == []
             assert 3 not in adjacency or adjacency[3] == []
-
-            backend.close()
         finally:
+            if backend is not None:
+                backend.close()
             if db_path.exists():
                 db_path.unlink()
 
@@ -139,6 +145,7 @@ class TestSQLiteBackendAdjacency:
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
             db_path = Path(tmp.name)
 
+        backend = None
         try:
             backend = SQLiteBackend(db_path)
 
@@ -165,8 +172,8 @@ class TestSQLiteBackendAdjacency:
             adj_in = backend.load_adjacency_in()
             assert len(adj_in[2]) == 5
             assert set(adj_in[2]) == {10, 11, 12, 13, 14}
-
-            backend.close()
         finally:
+            if backend is not None:
+                backend.close()
             if db_path.exists():
                 db_path.unlink()
