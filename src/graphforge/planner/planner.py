@@ -235,40 +235,56 @@ class QueryPlanner:
                         )
                     )
 
-                    # Add optional WHERE, ORDER BY, SKIP, LIMIT after aggregation
+                    # Add optional WHERE, ORDER BY, DISTINCT, SKIP, LIMIT after aggregation
+                    # Order matters: DISTINCT before SKIP/LIMIT
                     if segment.where:
                         operators.append(Filter(predicate=segment.where.predicate))
                     if segment.order_by:
                         operators.append(
                             Sort(items=segment.order_by.items, return_items=segment.items)
                         )
+                    # Add DISTINCT operator before SKIP/LIMIT (after ORDER BY)
+                    if segment.distinct:
+                        from graphforge.planner.operators import Distinct
+
+                        operators.append(Distinct())
                     if segment.skip:
                         operators.append(Skip(count=segment.skip.count))
                     if segment.limit:
                         operators.append(Limit(count=segment.limit.count))
-
-                    # Add DISTINCT operator if needed (after aggregation)
-                    if segment.distinct:
-                        from graphforge.planner.operators import Distinct
-
-                        operators.append(Distinct())
                 else:
                     # No aggregations - use simple With operator
+                    # When DISTINCT is used, SKIP/LIMIT must be applied after the
+                    # separate Distinct operator, not in the With operator itself
+                    pred = segment.where.predicate if segment.where else None
+                    sort_items = segment.order_by.items if segment.order_by else None
+                    skip_count = (
+                        segment.skip.count if (segment.skip and not segment.distinct) else None
+                    )
+                    limit_count = (
+                        segment.limit.count if (segment.limit and not segment.distinct) else None
+                    )
+
                     with_op = With(
                         items=segment.items,
                         distinct=segment.distinct,
-                        predicate=segment.where.predicate if segment.where else None,
-                        sort_items=segment.order_by.items if segment.order_by else None,
-                        skip_count=segment.skip.count if segment.skip else None,
-                        limit_count=segment.limit.count if segment.limit else None,
+                        predicate=pred,
+                        sort_items=sort_items,
+                        skip_count=skip_count,
+                        limit_count=limit_count,
                     )
                     operators.append(with_op)
 
-                    # Add DISTINCT operator if needed (and no aggregation)
+                    # Add DISTINCT operator if needed (before SKIP/LIMIT)
                     if segment.distinct:
                         from graphforge.planner.operators import Distinct
 
                         operators.append(Distinct())
+                        # Add SKIP/LIMIT after DISTINCT
+                        if segment.skip:
+                            operators.append(Skip(count=segment.skip.count))
+                        if segment.limit:
+                            operators.append(Limit(count=segment.limit.count))
             elif isinstance(segment, list):
                 # Plan the segment as a simple query
                 operators.extend(self._plan_simple_query(segment))

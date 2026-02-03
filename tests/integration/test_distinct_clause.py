@@ -24,7 +24,6 @@ def graph_with_duplicates():
 class TestDistinctClause:
     """Tests for DISTINCT clause."""
 
-    @pytest.mark.skip(reason="RETURN DISTINCT after projection has bug - issue for future fix")
     def test_distinct_single_column(self, graph_with_duplicates):
         """DISTINCT removes duplicate values in single column."""
         results = graph_with_duplicates.execute("""
@@ -37,7 +36,6 @@ class TestDistinctClause:
         assert results[0]["city"].value == "LA"
         assert results[1]["city"].value == "NYC"
 
-    @pytest.mark.skip(reason="RETURN DISTINCT after projection has bug - issue for future fix")
     def test_distinct_multiple_columns(self, graph_with_duplicates):
         """DISTINCT with multiple columns."""
         results = graph_with_duplicates.execute("""
@@ -80,7 +78,6 @@ class TestDistinctClause:
         nyc_count = sum(1 for r in results if r["city"].value == "NYC")
         assert nyc_count == 3
 
-    @pytest.mark.skip(reason="RETURN DISTINCT after projection has bug - issue for future fix")
     def test_distinct_with_limit(self, graph_with_duplicates):
         """DISTINCT with LIMIT clause."""
         results = graph_with_duplicates.execute("""
@@ -93,7 +90,6 @@ class TestDistinctClause:
         assert len(results) == 1
         assert results[0]["city"].value == "LA"
 
-    @pytest.mark.skip(reason="RETURN DISTINCT after projection has bug - issue for future fix")
     def test_distinct_with_skip_and_limit(self, graph_with_duplicates):
         """DISTINCT with both SKIP and LIMIT."""
         results = graph_with_duplicates.execute("""
@@ -107,7 +103,6 @@ class TestDistinctClause:
         assert len(results) == 1
         assert results[0]["city"].value == "NYC"
 
-    @pytest.mark.skip(reason="RETURN DISTINCT after projection has bug - issue for future fix")
     def test_distinct_all_same_values(self):
         """DISTINCT when all values are the same."""
         gf = GraphForge()
@@ -125,7 +120,6 @@ class TestDistinctClause:
         assert len(results) == 1
         assert results[0]["value"].value == "X"
 
-    @pytest.mark.skip(reason="RETURN DISTINCT after projection has bug - issue for future fix")
     def test_distinct_with_null_values(self):
         """DISTINCT with NULL values."""
         gf = GraphForge()
