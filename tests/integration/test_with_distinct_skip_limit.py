@@ -227,3 +227,116 @@ class TestWithDistinctSkipLimit:
         assert len(results) == 2
         values = [r["value"].value for r in results]
         assert values == [4, 5]
+
+    def test_with_aggregation_distinct(self):
+        """WITH with aggregation and DISTINCT."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Item {category: 'A', val: 1}),
+                   (b:Item {category: 'A', val: 2}),
+                   (c:Item {category: 'B', val: 1}),
+                   (d:Item {category: 'B', val: 2})
+        """)
+
+        results = gf.execute("""
+            MATCH (i:Item)
+            WITH DISTINCT i.category AS cat, COUNT(i) AS count
+            RETURN cat, count
+            ORDER BY cat
+        """)
+
+        # Should get distinct categories with counts
+        assert len(results) == 2
+        assert results[0]["cat"].value == "A"
+        assert results[0]["count"].value == 2
+        assert results[1]["cat"].value == "B"
+        assert results[1]["count"].value == 2
+
+    def test_with_aggregation_distinct_order_by(self):
+        """WITH DISTINCT with aggregation and ORDER BY."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Sale {product: 'Widget', amount: 100}),
+                   (b:Sale {product: 'Widget', amount: 150}),
+                   (c:Sale {product: 'Gadget', amount: 200}),
+                   (d:Sale {product: 'Gadget', amount: 50}),
+                   (e:Sale {product: 'Thingamajig', amount: 300})
+        """)
+
+        results = gf.execute("""
+            MATCH (s:Sale)
+            WITH DISTINCT s.product AS product, SUM(s.amount) AS total
+            RETURN product, total
+            ORDER BY total DESC
+        """)
+
+        # Should order by aggregated total
+        assert len(results) == 3
+        assert results[0]["product"].value == "Thingamajig"
+        assert results[0]["total"].value == 300
+
+    def test_with_aggregation_distinct_skip(self):
+        """WITH DISTINCT with aggregation and SKIP."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Item {type: 'A'}),
+                   (b:Item {type: 'A'}),
+                   (c:Item {type: 'B'}),
+                   (d:Item {type: 'C'})
+        """)
+
+        results = gf.execute("""
+            MATCH (i:Item)
+            WITH DISTINCT i.type AS type, COUNT(i) AS count
+            SKIP 1
+            RETURN type, count
+            ORDER BY type
+        """)
+
+        # Should skip first group after distinct
+        assert len(results) == 2
+
+    def test_with_aggregation_distinct_limit(self):
+        """WITH DISTINCT with aggregation and LIMIT."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Item {type: 'A'}),
+                   (b:Item {type: 'A'}),
+                   (c:Item {type: 'B'}),
+                   (d:Item {type: 'C'})
+        """)
+
+        results = gf.execute("""
+            MATCH (i:Item)
+            WITH DISTINCT i.type AS type, COUNT(i) AS count
+            LIMIT 2
+            RETURN type, count
+            ORDER BY type
+        """)
+
+        # Should limit to 2 groups after distinct
+        assert len(results) == 2
+
+    def test_with_aggregation_distinct_skip_limit(self):
+        """WITH DISTINCT with aggregation, SKIP, and LIMIT."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Item {type: 'A'}),
+                   (b:Item {type: 'A'}),
+                   (c:Item {type: 'B'}),
+                   (d:Item {type: 'B'}),
+                   (e:Item {type: 'C'}),
+                   (f:Item {type: 'D'})
+        """)
+
+        results = gf.execute("""
+            MATCH (i:Item)
+            WITH DISTINCT i.type AS type, COUNT(i) AS count
+            SKIP 1
+            LIMIT 2
+            RETURN type, count
+            ORDER BY type
+        """)
+
+        # Should skip 1, take 2 after distinct
+        assert len(results) == 2
