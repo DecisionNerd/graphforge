@@ -8,6 +8,7 @@ from typing import Any
 
 from graphforge.ast.expression import (
     BinaryOp,
+    CaseExpression,
     FunctionCall,
     Literal,
     PropertyAccess,
@@ -98,7 +99,10 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
             # Evaluate each item in the list
             evaluated_items = [
                 evaluate_expression(item, ctx)
-                if isinstance(item, (Literal, Variable, PropertyAccess, BinaryOp, FunctionCall))
+                if isinstance(
+                    item,
+                    (Literal, Variable, PropertyAccess, BinaryOp, FunctionCall, CaseExpression),
+                )
                 else from_python(item)
                 for item in value
             ]
@@ -107,7 +111,9 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
             # Evaluate each value in the dict
             evaluated_dict = {}
             for key, val in value.items():
-                if isinstance(val, (Literal, Variable, PropertyAccess, BinaryOp, FunctionCall)):
+                if isinstance(
+                    val, (Literal, Variable, PropertyAccess, BinaryOp, FunctionCall, CaseExpression)
+                ):
                     evaluated_dict[key] = evaluate_expression(val, ctx)
                 else:
                     evaluated_dict[key] = from_python(val)
@@ -333,6 +339,22 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
             raise TypeError("OR requires boolean operands")
 
         raise ValueError(f"Unknown binary operator: {expr.op}")
+
+    # CASE expressions
+    if isinstance(expr, CaseExpression):
+        # Evaluate WHEN clauses in order until one matches
+        for condition_expr, result_expr in expr.when_clauses:
+            condition_val = evaluate_expression(condition_expr, ctx)
+
+            # NULL is treated as false, not propagated
+            if isinstance(condition_val, CypherBool) and condition_val.value:
+                return evaluate_expression(result_expr, ctx)
+
+        # No WHEN matched - return ELSE or NULL
+        if expr.else_expr is not None:
+            return evaluate_expression(expr.else_expr, ctx)
+
+        return CypherNull()
 
     # Function calls
     if isinstance(expr, FunctionCall):
