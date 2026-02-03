@@ -441,7 +441,7 @@ class QueryPlanner:
             True if expression is or contains an aggregation FunctionCall
         """
         # Define aggregation functions
-        aggregation_functions = {"COUNT", "SUM", "AVG", "MIN", "MAX", "COLLECT"}
+        aggregation_functions = {"COUNT", "SUM", "AVG", "MIN", "MAX"}
 
         if isinstance(expr, FunctionCall):
             # Only return True if it's an aggregation function
