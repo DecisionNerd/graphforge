@@ -137,7 +137,7 @@ class QueryPlanner:
 
         # 4. MERGE
         for merge in merge_clauses:
-            operators.append(Merge(patterns=merge.patterns))
+            operators.append(Merge(patterns=merge.patterns, on_create=merge.on_create))
 
         # 5. WHERE
         if where_clause:

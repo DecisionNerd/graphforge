@@ -231,15 +231,18 @@ class Delete:
 
 @dataclass
 class Merge:
-    """Operator for merging patterns.
+    """Operator for merging patterns with conditional SET support.
 
     Creates patterns if they don't exist, or matches them if they do.
+    Optionally executes SET operations only when creating (ON CREATE SET).
 
     Attributes:
         patterns: List of patterns to merge
+        on_create: Optional SetClause to execute when creating new elements
     """
 
     patterns: list[Any]  # List of node and relationship patterns to merge
+    on_create: Any = None  # Optional SetClause for ON CREATE SET
 
 
 @dataclass

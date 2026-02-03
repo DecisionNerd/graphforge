@@ -1009,28 +1009,7 @@ class QueryExecutor:
         result = []
 
         for ctx in input_rows:
-            # Process each SET item
-            for property_access, value_expr in op.items:
-                # Evaluate the target (should be a PropertyAccess node)
-                if hasattr(property_access, "variable") and hasattr(property_access, "property"):
-                    var_name = (
-                        property_access.variable.name
-                        if hasattr(property_access.variable, "name")
-                        else property_access.variable
-                    )
-                    prop_name = property_access.property
-
-                    # Get the node or edge from context
-                    if var_name in ctx.bindings:
-                        element = ctx.bindings[var_name]
-
-                        # Evaluate the new value
-                        new_value = evaluate_expression(value_expr, ctx)
-
-                        # Update the property on the element
-                        # Note: This modifies the element in place in the graph
-                        element.properties[prop_name] = new_value
-
+            self._execute_set_items(op.items, ctx)
             result.append(ctx)
 
         return result
@@ -1187,12 +1166,13 @@ class QueryExecutor:
     def _execute_merge(
         self, op: Merge, input_rows: list[ExecutionContext]
     ) -> list[ExecutionContext]:
-        """Execute MERGE operator.
+        """Execute MERGE operator with ON CREATE SET support.
 
         Creates patterns if they don't exist, or matches them if they do.
+        Conditionally executes SET operations based on whether elements were created.
 
         Args:
-            op: Merge operator with patterns
+            op: Merge operator with patterns and optional on_create clause
             input_rows: Input execution contexts
 
         Returns:
@@ -1209,6 +1189,9 @@ class QueryExecutor:
         for ctx in input_rows:
             new_ctx = ExecutionContext()
             new_ctx.bindings = ctx.bindings.copy()
+
+            # Track whether we created anything (for ON CREATE SET)
+            was_created = False
 
             # Process each pattern
             for pattern in op.patterns:
@@ -1261,16 +1244,49 @@ class QueryExecutor:
 
                     # Bind found node or create new one
                     if found_node:
+                        was_created = False
                         if node_pattern.variable:
                             new_ctx.bindings[node_pattern.variable] = found_node
                     else:
+                        was_created = True
                         node = self._create_node_from_pattern(node_pattern, new_ctx)
                         if node_pattern.variable:
                             new_ctx.bindings[node_pattern.variable] = node
 
+            # Execute conditional SET if we created something
+            if was_created and op.on_create:
+                self._execute_set_items(op.on_create.items, new_ctx)
+
             result.append(new_ctx)
 
         return result
+
+    def _execute_set_items(self, items: list, ctx: ExecutionContext) -> None:
+        """Execute SET items on a context (helper for conditional SET).
+
+        Args:
+            items: List of (property_access, expression) tuples
+            ctx: Execution context to update
+        """
+        for property_access, value_expr in items:
+            # Evaluate the target (should be a PropertyAccess node)
+            if hasattr(property_access, "variable") and hasattr(property_access, "property"):
+                var_name = (
+                    property_access.variable.name
+                    if hasattr(property_access.variable, "name")
+                    else property_access.variable
+                )
+                prop_name = property_access.property
+
+                # Get the node or edge from context
+                if var_name in ctx.bindings:
+                    element = ctx.bindings[var_name]
+
+                    # Evaluate the new value
+                    new_value = evaluate_expression(value_expr, ctx)
+
+                    # Update the property on the element
+                    element.properties[prop_name] = new_value
 
     def _execute_unwind(
         self, op: Unwind, input_rows: list[ExecutionContext]

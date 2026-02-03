@@ -104,10 +104,12 @@ class MergeClause:
 
     Examples:
         MERGE (n:Person {name: 'Alice'})
+        MERGE (n:Person {id: 1}) ON CREATE SET n.created = timestamp()
         MERGE (a)-[r:KNOWS]->(b)
     """
 
     patterns: list[Any]  # List of NodePattern or RelationshipPattern
+    on_create: "SetClause | None" = None  # Optional ON CREATE SET clause
 
 
 @dataclass
