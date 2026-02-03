@@ -189,6 +189,29 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
                 return result
             return CypherBool(not result.value)
 
+        # String matching operators
+        if expr.op in ("STARTS WITH", "ENDS WITH", "CONTAINS"):
+            # NULL handling: any NULL operand returns NULL
+            if isinstance(left_val, CypherNull) or isinstance(right_val, CypherNull):
+                return CypherNull()
+
+            # Type checking: both operands must be strings
+            from graphforge.types.values import CypherString
+
+            if not isinstance(left_val, CypherString) or not isinstance(right_val, CypherString):
+                raise TypeError(
+                    f"{expr.op} requires string operands, "
+                    f"got {type(left_val).__name__} and {type(right_val).__name__}"
+                )
+
+            # Perform string matching
+            if expr.op == "STARTS WITH":
+                return CypherBool(left_val.value.startswith(right_val.value))
+            elif expr.op == "ENDS WITH":
+                return CypherBool(left_val.value.endswith(right_val.value))
+            elif expr.op == "CONTAINS":
+                return CypherBool(right_val.value in left_val.value)
+
         # Logical operators
         if expr.op == "AND":
             # Handle NULL propagation

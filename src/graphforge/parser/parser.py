@@ -381,9 +381,22 @@ class ASTTransformer(Transformer):
         """Transform comparison expression."""
         if len(items) == 1:
             return items[0]
-        # Items: [left, Token(COMP_OP), right]
-        op = self._get_token_value(items[1])
+        # Items: [left, op, right]
+        # op can be either a Token (COMP_OP) or a string from string_match_op
+        op = items[1] if isinstance(items[1], str) else self._get_token_value(items[1])
         return BinaryOp(op=op, left=items[0], right=items[2])
+
+    def starts_with(self, items):
+        """Transform STARTS WITH operator."""
+        return "STARTS WITH"
+
+    def ends_with(self, items):
+        """Transform ENDS WITH operator."""
+        return "ENDS WITH"
+
+    def contains(self, items):
+        """Transform CONTAINS operator."""
+        return "CONTAINS"
 
     def property_access(self, items):
         """Transform property access."""
