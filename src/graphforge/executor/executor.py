@@ -778,6 +778,27 @@ class QueryExecutor:
 
             return CypherInt(count)
 
+        # COLLECT - always return a list (even if empty, unlike other aggregations)
+        if func_name == "COLLECT":
+            from graphforge.types.values import CypherList
+
+            collected_values: list[CypherValue] = []
+            seen_hashes: set[Any] = set()
+
+            for ctx in group_rows:
+                value = evaluate_expression(func_call.args[0], ctx)
+                # Skip NULL values
+                if not isinstance(value, CypherNull):
+                    if func_call.distinct:
+                        hashable = self._value_to_hashable(value)
+                        if hashable not in seen_hashes:
+                            seen_hashes.add(hashable)
+                            collected_values.append(value)
+                    else:
+                        collected_values.append(value)
+
+            return CypherList(collected_values)
+
         # SUM, AVG, MIN, MAX require evaluating the expression
         values: list[Any] = []
         for ctx in group_rows:
