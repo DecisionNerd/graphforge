@@ -7,33 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-02-03
+
 ### Added
+- **CASE expressions for conditional logic** (#49)
+  - Full openCypher CASE expression support with WHEN/THEN/ELSE/END syntax
+  - Simple CASE (`CASE expr WHEN value`) and searched CASE (`CASE WHEN condition`)
+  - NULL-safe semantics following openCypher specification
+  - Example: `RETURN CASE WHEN n.age < 18 THEN 'minor' ELSE 'adult' END`
+- **COLLECT aggregation function** (#46, #48)
+  - Aggregate values into lists with `COLLECT()` function
+  - DISTINCT support: `COLLECT(DISTINCT n.name)` removes duplicates
+  - Handles complex types (CypherList, CypherMap) correctly in DISTINCT mode
+  - NULL filtering: NULL values excluded from collected lists
+  - Example: `MATCH (n) RETURN COLLECT(n.name)`
+- **Arithmetic operators** (#44)
+  - Binary operators: `+`, `-`, `*`, `/`, `%` (modulo)
+  - Unary minus: `-n.value`
+  - NULL propagation: operations with NULL return NULL
+  - Type coercion for mixed integer/float operations
+  - Division by zero returns NULL (openCypher-compliant)
+  - Example: `RETURN n.price * 1.1 AS price_with_tax`
+- **String matching operators** (#43)
+  - `STARTS WITH`: Prefix matching
+  - `ENDS WITH`: Suffix matching
+  - `CONTAINS`: Substring matching
+  - Case-sensitive matching following openCypher specification
+  - NULL handling: returns NULL if either operand is NULL
+  - Example: `MATCH (n) WHERE n.email ENDS WITH '@example.com'`
+- **REMOVE clause** (#42)
+  - Remove properties: `REMOVE n.property`
+  - Remove labels: `REMOVE n:Label`
+  - Multi-target support: `REMOVE n.prop1, n.prop2, n:Label`
+  - Idempotent: removing non-existent properties/labels is a no-op
+  - Example: `MATCH (n:Person) REMOVE n.age, n:Temporary`
+- **UNWIND clause** (#40)
+  - Unwind lists into rows: `UNWIND [1, 2, 3] AS x RETURN x`
+  - Supports nested lists, empty lists, NULL values
+  - Can be used with MATCH, WHERE, and other clauses
+  - Example: `UNWIND $ids AS id MATCH (n) WHERE n.id = id RETURN n`
 - **NOT logical operator** (#30)
   - Unary negation operator for boolean expressions
-  - Grammar support with `not_expr` rule using Lark aliased alternatives
-  - `UnaryOp` AST node for unary operations (NOT, future: unary minus)
-  - Proper NULL semantics: `NOT true → false`, `NOT false → true`, `NOT NULL → NULL`
-  - 10 comprehensive integration tests covering basic negation, NULL propagation, complex expressions
-  - Usage in WHERE clauses and RETURN expressions
+  - NULL-safe semantics: `NOT NULL` returns NULL
   - Example: `MATCH (n) WHERE NOT n.active RETURN n`
 - **DETACH DELETE clause** (#33)
   - OpenCypher-compliant DELETE semantics
-  - `DELETE` - Raises error if node has relationships
-  - `DETACH DELETE` - Deletes all connected edges first, then node
-  - Grammar support with aliased rules (`detach_delete`, `regular_delete`)
-  - Added `detach` flag to `DeleteClause` AST node and `Delete` operator
-  - 17 comprehensive tests (6 unit parser tests + 11 integration tests)
-  - Covers outgoing, incoming, bidirectional edges, self-loops, multiple nodes
+  - `DELETE` raises error if node has relationships
+  - `DETACH DELETE` removes all connected edges first, then the node
   - Example: `MATCH (n:Person) DETACH DELETE n`
+- **Comprehensive MATCH-CREATE combination tests** (#41)
+  - 12 integration tests for MATCH followed by CREATE patterns
+  - Validates correctness of mixed read-write operations
+- **Complete documentation reorganization** (#56)
+  - Restructured docs into logical sections (getting-started, user-guide, reference, development)
+  - New datasets documentation section with examples
+  - Improved navigation and discoverability
+- **Code of Conduct** - Added Contributor Covenant Code of Conduct
+
+### Fixed
+- **ORDER BY after aggregation** (#39)
+  - ORDER BY now correctly finds aliased variables after aggregation
+  - Example: `MATCH (n) RETURN COUNT(n) AS cnt ORDER BY cnt` now works
+- **RETURN DISTINCT after projection** (#38)
+  - RETURN DISTINCT now works correctly after projection expressions
+  - Fixes issue where DISTINCT was applied to wrong columns
 
 ### Changed
+- **Test coverage improved** (#37)
+  - Coverage increased from 88.69% to 93.76% (+4.94%)
+  - Added 50+ new tests across parser, planner, and executor
 - **GitHub Pages deployment modernization** (#32)
   - Migrated from legacy `mkdocs gh-deploy` to GitHub Actions native deployment
   - Uses `actions/upload-pages-artifact@v3` and `actions/deploy-pages@v4`
-  - Removed dependency on `gh-pages` branch (deleted)
   - Simpler, faster, more secure deployment with `id-token` authentication
-  - Added proper pages permissions and concurrency control
-  - Documentation served from: https://decisionnerd.github.io/graphforge/
+- **Issue workflow documentation** (#45)
+  - Updated ISSUE_WORKFLOW.md to reflect current development process
 
 ## [0.1.4] - 2026-02-02
 
@@ -173,7 +221,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 81% code coverage
 - Multi-OS, multi-Python CI/CD (3 OS × 4 Python versions)
 
-[Unreleased]: https://github.com/DecisionNerd/graphforge/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/DecisionNerd/graphforge/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/DecisionNerd/graphforge/compare/v0.1.4...v0.2.0
 [0.1.4]: https://github.com/DecisionNerd/graphforge/compare/v0.1.3...v0.1.4
 [0.1.2]: https://github.com/DecisionNerd/graphforge/compare/v0.1.1...v0.1.2
 [0.1.0]: https://github.com/DecisionNerd/graphforge/releases/tag/v0.1.0
