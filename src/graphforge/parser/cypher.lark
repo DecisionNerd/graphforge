@@ -66,9 +66,10 @@ delete_clause: "DETACH"i "DELETE"i variable ("," variable)*  -> detach_delete
 // MERGE clause
 merge_clause: "MERGE"i pattern ("," pattern)* merge_action*
 
-merge_action: on_create_clause
+merge_action: on_create_clause | on_match_clause
 
 on_create_clause: "ON"i "CREATE"i set_clause
+on_match_clause: "ON"i "MATCH"i set_clause
 
 pattern: node_pattern (relationship_pattern node_pattern)*
 
