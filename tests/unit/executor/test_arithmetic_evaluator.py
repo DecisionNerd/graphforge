@@ -177,6 +177,21 @@ class TestArithmeticEvaluation:
         with pytest.raises(TypeError, match="requires numeric operand"):
             evaluate_expression(expr, ctx)
 
+    def test_type_error_string_concat_with_noderef(self):
+        """Raise TypeError when trying to concatenate NodeRef with string."""
+        from graphforge.types.graph import NodeRef
+
+        # Create a NodeRef
+        node = NodeRef(id=1, labels=frozenset(["Person"]), properties={"name": "Alice"})
+        ctx = ExecutionContext()
+        ctx.bind("n", node)
+
+        # Try to concatenate node with string: n + "text"
+        expr = BinaryOp(op="+", left=Variable(name="n"), right=Literal(value="text"))
+
+        with pytest.raises(TypeError, match="String concatenation requires CypherValue operands"):
+            evaluate_expression(expr, ctx)
+
     def test_negative_number_multiplication(self):
         """Evaluate unary minus with multiplication."""
         # -2 * 3 = -6

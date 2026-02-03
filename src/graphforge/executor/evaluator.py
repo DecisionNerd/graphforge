@@ -211,9 +211,18 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
 
             # Special case: string concatenation with +
             if expr.op == "+":
-                from graphforge.types.values import CypherString
+                from graphforge.types.values import CypherString, CypherValue
 
                 if isinstance(left_val, CypherString) or isinstance(right_val, CypherString):
+                    # Ensure both operands are CypherValue instances before accessing .value
+                    if not isinstance(left_val, CypherValue) or not isinstance(
+                        right_val, CypherValue
+                    ):
+                        raise TypeError(
+                            f"String concatenation requires CypherValue operands, "
+                            f"got {type(left_val).__name__} and {type(right_val).__name__}"
+                        )
+
                     # Convert both to strings and concatenate
                     left_str = (
                         left_val.value
