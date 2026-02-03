@@ -28,6 +28,7 @@ from graphforge.ast.clause import (
 )
 from graphforge.ast.expression import (
     BinaryOp,
+    CaseExpression,
     FunctionCall,
     Literal,
     PropertyAccess,
@@ -492,6 +493,34 @@ class ASTTransformer(Transformer):
     def regular_args(self, items):
         """Transform regular function arguments."""
         return (list(items), False)  # (args_list, distinct=False)
+
+    def case_expr(self, items):
+        """Transform CASE expression.
+
+        Structure: when_clause+ [else_expr]?
+        """
+        when_clauses = []
+        else_expr = None
+
+        for item in items:
+            if isinstance(item, tuple):
+                # when_clause returns (condition, result)
+                when_clauses.append(item)
+            else:
+                # ELSE expression
+                else_expr = item
+
+        return CaseExpression(when_clauses=when_clauses, else_expr=else_expr)
+
+    def when_clause(self, items):
+        """Transform WHEN clause.
+
+        Structure: WHEN condition THEN result
+        Returns: (condition_expr, result_expr)
+        """
+        condition = items[0]
+        result = items[1]
+        return (condition, result)
 
     def variable(self, items):
         """Transform variable reference."""

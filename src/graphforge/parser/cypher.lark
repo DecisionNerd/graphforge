@@ -125,6 +125,7 @@ MULT_OP: "*" | "/" | "%"
 
 ?primary_expr: function_call
              | property_access
+             | case_expr
              | literal
              | variable
              | "(" expression ")"
@@ -136,6 +137,10 @@ function_args: "*"                              -> count_star
              | expression ("," expression)*     -> regular_args
 
 FUNCTION_NAME: /COUNT|SUM|AVG|MIN|MAX|COLLECT|LENGTH|SUBSTRING|UPPER|LOWER|TRIM|COALESCE|toInteger|toFloat|toString|type/i
+
+case_expr: "CASE"i when_clause+ ("ELSE"i expression)? "END"i
+
+when_clause: "WHEN"i expression "THEN"i expression
 
 property_access: variable "." IDENTIFIER
 

@@ -85,3 +85,16 @@ class FunctionCall:
     name: str  # Function name (COUNT, SUM, AVG, MIN, MAX)
     args: list[Any]  # List of argument expressions (empty for COUNT(*))
     distinct: bool = False  # True for COUNT(DISTINCT n)
+
+
+@dataclass
+class CaseExpression:
+    """CASE expression for conditional logic.
+
+    Examples:
+        CASE WHEN n.age < 18 THEN 'minor' ELSE 'adult' END
+        CASE WHEN n.status = 'active' THEN 1 WHEN n.status = 'pending' THEN 2 ELSE 0 END
+    """
+
+    when_clauses: list[tuple[Any, Any]]  # List of (condition_expr, result_expr) tuples
+    else_expr: Any | None = None  # Optional ELSE expression, returns NULL if None
