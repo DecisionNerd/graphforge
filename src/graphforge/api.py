@@ -86,6 +86,32 @@ class GraphForge:
         self.planner = QueryPlanner()
         self.executor = QueryExecutor(self.graph, graphforge=self)
 
+    @classmethod
+    def from_dataset(cls, name: str, path: str | Path | None = None) -> "GraphForge":
+        """Create a new GraphForge instance and load a dataset into it.
+
+        This is a convenience method that combines instance creation with dataset loading.
+
+        Args:
+            name: Dataset name (e.g., "snap-ego-facebook", "neo4j-movie-graph")
+            path: Optional path for persistent storage
+
+        Returns:
+            GraphForge instance with dataset loaded
+
+        Examples:
+            >>> # Load dataset into in-memory graph
+            >>> gf = GraphForge.from_dataset("snap-ego-facebook")
+            >>>
+            >>> # Load dataset into persistent storage
+            >>> gf = GraphForge.from_dataset("neo4j-movie-graph", "movies.db")
+        """
+        from graphforge.datasets import load_dataset
+
+        instance = cls(path)
+        load_dataset(instance, name)  # nosec B615 - Not Hugging Face, our own dataset loader
+        return instance
+
     def execute(self, query: str) -> list[dict]:
         """Execute an openCypher query.
 
