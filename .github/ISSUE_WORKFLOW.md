@@ -260,15 +260,15 @@ Every feature must include:
 
 ```
 tests/
-├── unit/
-│   ├── parser/
-│   │   └── test_{feature}_parser.py
-│   ├── executor/
-│   │   └── test_{feature}_evaluator.py
-│   └── planner/
-│       └── test_{feature}_planner.py (if applicable)
-└── integration/
-    └── test_{feature}.py
+  unit/
+    parser/
+      test_{feature}_parser.py
+    executor/
+      test_{feature}_evaluator.py
+    planner/
+      test_{feature}_planner.py (if applicable)
+  integration/
+    test_{feature}.py
 ```
 
 ## Common Implementation Patterns
