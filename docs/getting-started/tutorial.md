@@ -730,9 +730,9 @@ Congratulations! You've learned the fundamentals of GraphForge.
 
 ### Learn More
 
-- **[API Reference](api-reference.md)** — Complete Python API documentation
-- **[Cypher Guide](cypher-guide.md)** — Full openCypher subset reference
-- **[Architecture Overview](architecture-overview.md)** — System design and internals
+- **[API Reference](../reference/api.md)** — Complete Python API documentation
+- **[Cypher Guide](../guide/cypher-guide.md)** — Full openCypher subset reference
+- **[Architecture Overview](../architecture/overview.md)** — System design and internals
 - **README.md** (repository root) — Full feature list and examples
 
 ### Try These Exercises
@@ -750,7 +750,7 @@ Congratulations! You've learned the fundamentals of GraphForge.
 ### Join the Community
 
 - Report issues on [GitHub](https://github.com/DecisionNerd/graphforge/issues)
-- Read the [Requirements Document](0-requirements.md) for design rationale
+- Read the [Requirements Document](../development/requirements.md) for design rationale
 - Explore example notebooks (coming soon!)
 
 ---

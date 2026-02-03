@@ -39,9 +39,36 @@ for row in result:
 
 ## Getting Started
 
-- [Installation](getting-started/installation.md) - Install GraphForge
-- [Quick Start](getting-started/quickstart.md) - Your first graph queries
-- [Cypher Guide](guide/cypher-guide.md) - Learn the query language
+- **[Installation](getting-started/installation.md)** - Install GraphForge
+- **[Quick Start](getting-started/quickstart.md)** - Your first graph queries
+- **[Tutorial](getting-started/tutorial.md)** - Step-by-step learning path
+- **[Cypher Guide](guide/cypher-guide.md)** - Learn the query language
+
+## Documentation
+
+### User Guide
+- [Overview](guide/overview.md) - Understand GraphForge capabilities
+- [Cypher Query Language](guide/cypher-guide.md) - Complete Cypher reference
+- [Graph Construction](guide/graph-construction.md) - Build and manipulate graphs
+
+### Datasets
+- **[Dataset Overview](datasets/overview.md)** - Work with real-world datasets
+- [LDBC](datasets/ldbc.md) - Benchmark datasets
+- [Neo4j Examples](datasets/neo4j-examples.md) - Learning datasets
+- [NetworkRepository](datasets/networkrepository.md) - Research networks
+- [SNAP](datasets/snap.md) - Stanford network datasets
+
+### Architecture
+- [Architecture Overview](architecture/overview.md) - System design
+- [Storage](architecture/storage.md) - Data persistence
+- [AST & Planning](architecture/ast-and-planning.md) - Query compilation
+- [Execution Model](architecture/execution-model.md) - Query execution
+
+### Reference
+- [API Documentation](reference/api.md) - Complete API reference
+- [OpenCypher Compatibility](reference/opencypher-compatibility.md) - Supported features
+- [TCK Compliance](reference/tck-compliance.md) - Test suite status
+- [Changelog](reference/changelog.md) - Version history
 
 ## Design Principles
 

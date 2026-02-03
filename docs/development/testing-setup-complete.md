@@ -15,7 +15,7 @@ The pytest testing infrastructure is now fully configured and operational. Graph
 
 ### Documentation
 
-1. **[docs/testing-strategy.md](testing-strategy.md)** - Comprehensive testing strategy (450+ lines)
+1. **[docs/testing.md](testing.md)** - Comprehensive testing strategy (450+ lines)
    - Test categories and organization
    - Pytest configuration details
    - Fixtures and utilities
@@ -269,8 +269,8 @@ The openCypher TCK compliance approach:
 ## Resources
 
 ### Internal Documentation
-- [Testing Strategy](testing-strategy.md) - Complete testing documentation
-- [Requirements](0-requirements.md) - Project requirements
+- [Testing Strategy](testing.md) - Complete testing documentation
+- [Requirements](requirements.md) - Project requirements
 - Contributing Guide (CONTRIBUTING.md in repository root) - Development workflow
 
 ### External Resources

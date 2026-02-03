@@ -108,19 +108,39 @@ nav:
   - Getting Started:
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
+    - Tutorial: getting-started/tutorial.md
   - User Guide:
     - Overview: guide/overview.md
     - Cypher Query Language: guide/cypher-guide.md
     - Graph Construction: guide/graph-construction.md
+  - Datasets:
+    - Overview: datasets/overview.md
+    - LDBC: datasets/ldbc.md
+    - Neo4j Examples: datasets/neo4j-examples.md
+    - NetworkRepository: datasets/networkrepository.md
+    - SNAP: datasets/snap.md
+  - Architecture:
+    - Overview: architecture/overview.md
+    - Storage: architecture/storage.md
+    - AST & Planning: architecture/ast-and-planning.md
+    - Execution Model: architecture/execution-model.md
+  - Reference:
+    - API Documentation: reference/api.md
+    - OpenCypher Compatibility: reference/opencypher-compatibility.md
+    - TCK Compliance: reference/tck-compliance.md
+    - Column Naming: reference/column-naming-behavior.md
+    - Changelog: reference/changelog.md
   - Development:
     - Contributing: development/contributing.md
+    - Workflow: development/workflow.md
+    - Testing Strategy: development/testing.md
     - Release Process: development/release-process.md
     - Release Strategy: development/release-strategy.md
-    - Testing Strategy: development/testing-strategy.md
-  - Reference:
-    - Requirements: reference/requirements.md
-    - API Documentation: reference/api.md
-    - Changelog: reference/changelog.md
+  - Releases:
+    - Roadmap: releases/roadmap.md
+    - Phase 1: releases/phase-1-complete.md
+    - Phase 2: releases/phase-2-complete.md
+    - Phase 3: releases/phase-3-complete.md
   - Community:
     - Security: community/security.md
     - Code of Conduct: community/code-of-conduct.md

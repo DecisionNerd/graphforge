@@ -168,13 +168,13 @@ See **`examples/basic_usage.py`** for a complete working example.
 
 ## Next Steps (Phase 2)
 
-Based on the [project roadmap](project-status-and-roadmap.md):
+Based on the [project roadmap](roadmap.md):
 
 ### Week 3-4: Parser & AST
 **Goal:** Parse openCypher queries into validated AST
 
 1. **Choose parser library** (lark-parser recommended)
-2. **Define AST data structures** based on `docs/open_cypher_ast_logical_plan_spec_v_1.md`
+2. **Define AST data structures** based on `docs/../architecture/ast-and-planning.md`
 3. **Implement parser** for v1 subset (MATCH, WHERE, RETURN, LIMIT, SKIP)
 4. **Validate AST** - reject unsupported features with clear errors
 5. **Write tests** - parse valid queries, reject invalid ones
@@ -248,15 +248,15 @@ All dependencies installed and working.
 ## Documentation
 
 ### Created
-- [Testing Strategy](testing-strategy.md) - Comprehensive testing approach
-- [Project Status & Roadmap](project-status-and-roadmap.md) - 12-week plan
-- [Testing Setup Complete](testing-setup-complete.md) - Infrastructure summary
+- [Testing Strategy](../development/testing.md) - Comprehensive testing approach
+- [Project Status & Roadmap](roadmap.md) - 12-week plan
+- [Testing Setup Complete](../development/testing-setup-complete.md) - Infrastructure summary
 - [This document] - Phase 1 completion summary
 
 ### Existing
-- [Requirements Document](0-requirements.md) - Project scope and goals
-- [openCypher AST Spec](open_cypher_ast_logical_plan_spec_v_1.md)
-- [Runtime Value Model](runtime_value_model_graph_execution_v_1.md)
+- [Requirements Document](../development/requirements.md) - Project scope and goals
+- [openCypher AST Spec](../architecture/ast-and-planning.md)
+- [Runtime Value Model](../architecture/execution-model.md)
 
 ---
 
@@ -356,7 +356,7 @@ ruff format .
 ruff check .
 
 # Start Phase 2
-# See docs/project-status-and-roadmap.md section "Week 3-4"
+# See docs/roadmap.md section "Week 3-4"
 ```
 
 ---
