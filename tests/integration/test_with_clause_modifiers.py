@@ -102,11 +102,8 @@ class TestWithClauseModifiers:
         assert len(results) == 3
         assert results[0]["age"].value == 35
 
-    @pytest.mark.skip(
-        reason="Sort after aggregation with original variable names has bug - issue to be filed"
-    )
     def test_with_aggregation_skip_limit(self):
-        """WITH clause with aggregation, SKIP and LIMIT."""
+        """WITH clause with aggregation, ORDER BY, SKIP and LIMIT."""
         gf = GraphForge()
         gf.execute("""
             CREATE (a:Item {cat: 'A', val: 10}),
@@ -125,8 +122,12 @@ class TestWithClauseModifiers:
             RETURN category, total
         """)
 
+        # Order by total DESC: B(70), C(50), A(30)
+        # Skip 1: C(50), A(30)
+        # Limit 1: C(50)
         assert len(results) == 1
-        # Should get the middle value after skipping highest
+        assert results[0]["category"].value == "C"
+        assert results[0]["total"].value == 50
 
     def test_multiple_with_clauses(self, graph_with_numbers):
         """Multiple WITH clauses in a row."""

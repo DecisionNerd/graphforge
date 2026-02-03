@@ -475,6 +475,21 @@ class QueryExecutor:
         # This allows ORDER BY to reference aliases defined in RETURN
         # Keep mapping from extended context to original context
         # Note: Skip aggregate functions - they can't be evaluated until after Aggregate operator
+
+        # Check if ORDER BY expressions can already be evaluated from input context
+        # This happens after aggregation where aliases are already bound
+        skip_return_items_eval = False
+        if input_rows and op.items:
+            try:
+                # Try to evaluate all ORDER BY expressions from first context
+                for order_item in op.items:
+                    evaluate_expression(order_item.expression, input_rows[0])
+                # If we got here, all ORDER BY expressions are available - skip return_items eval
+                skip_return_items_eval = True
+            except (KeyError, AttributeError):
+                # ORDER BY references something not in context - need return_items eval
+                skip_return_items_eval = False
+
         extended_rows = []
         context_mapping = {}  # Maps id(extended_ctx) -> original_ctx
 
@@ -482,8 +497,8 @@ class QueryExecutor:
             extended_ctx = ExecutionContext()
             extended_ctx.bindings = dict(ctx.bindings)
 
-            # Add RETURN aliases to context
-            if op.return_items:
+            # Add RETURN aliases to context (only if not after aggregation)
+            if op.return_items and not skip_return_items_eval:
                 for return_item in op.return_items:
                     if return_item.alias:
                         # Skip aggregate functions (COUNT, SUM, AVG, etc.)
