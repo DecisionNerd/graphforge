@@ -1,5 +1,5 @@
 // openCypher Grammar (v1 Subset)
-// Supports: MATCH, CREATE, SET, DELETE, MERGE, UNWIND, WHERE, RETURN, ORDER BY, LIMIT, SKIP, WITH
+// Supports: MATCH, CREATE, SET, REMOVE, DELETE, MERGE, UNWIND, WHERE, RETURN, ORDER BY, LIMIT, SKIP, WITH
 
 ?start: query
 
@@ -26,7 +26,7 @@ write_query: create_clause return_clause?
            | merge_clause return_clause?
            | match_clause where_clause? create_clause+ set_clause? return_clause? order_by_clause? skip_clause? limit_clause?
 
-update_query: match_clause where_clause? set_clause? delete_clause? return_clause?
+update_query: match_clause where_clause? (set_clause | remove_clause)* delete_clause? return_clause? order_by_clause? skip_clause? limit_clause?
 
 unwind_query: unwind_clause+ where_clause? return_clause? order_by_clause? skip_clause? limit_clause?
             | unwind_clause+ where_clause? create_clause return_clause?
@@ -52,6 +52,12 @@ unwind_clause: "UNWIND"i expression "AS"i variable
 set_clause: "SET"i set_item ("," set_item)*
 
 set_item: property_access "=" expression
+
+// REMOVE clause
+remove_clause: "REMOVE"i remove_item ("," remove_item)*
+
+remove_item: property_access          -> remove_property
+           | variable label           -> remove_label
 
 // DELETE clause
 delete_clause: "DETACH"i "DELETE"i variable ("," variable)*  -> detach_delete

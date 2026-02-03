@@ -18,6 +18,7 @@ from graphforge.planner.operators import (
     Limit,
     Merge,
     Project,
+    Remove,
     ScanNodes,
     Set,
     Skip,
@@ -152,6 +153,9 @@ class QueryExecutor:
 
         if isinstance(op, Set):
             return self._execute_set(op, input_rows)
+
+        if isinstance(op, Remove):
+            return self._execute_remove(op, input_rows)
 
         if isinstance(op, Delete):
             return self._execute_delete(op, input_rows)
@@ -996,6 +1000,63 @@ class QueryExecutor:
                         # Update the property on the element
                         # Note: This modifies the element in place in the graph
                         element.properties[prop_name] = new_value
+
+            result.append(ctx)
+
+        return result
+
+    def _execute_remove(
+        self, op: Remove, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute REMOVE operator.
+
+        Removes properties from nodes/relationships or labels from nodes.
+
+        Args:
+            op: Remove operator with items to remove
+            input_rows: Input execution contexts
+
+        Returns:
+            Updated execution contexts
+        """
+        from graphforge.types.graph import NodeRef
+
+        result = []
+
+        for ctx in input_rows:
+            # Process each REMOVE item
+            for item in op.items:
+                var_name = item.variable
+                name = item.name
+
+                # Get the element from context
+                if var_name in ctx.bindings:
+                    element = ctx.bindings[var_name]
+
+                    if item.item_type == "property":
+                        # Remove property if it exists
+                        if hasattr(element, "properties") and name in element.properties:
+                            del element.properties[name]
+                    elif item.item_type == "label":
+                        # Remove label if it exists
+                        # NodeRef is immutable, so we need to create a new one with updated labels
+                        if hasattr(element, "labels") and name in element.labels:
+                            # Create new labels set without the removed label
+                            new_labels = set(element.labels)
+                            new_labels.discard(name)
+
+                            # Create new NodeRef with updated labels
+                            new_node = NodeRef(
+                                id=element.id,
+                                labels=frozenset(new_labels),
+                                properties=element.properties,
+                            )
+
+                            # Update the node in the graph
+                            self.graph.add_node(new_node)
+
+                            # Update the binding to reference the new node
+                            ctx.bindings[var_name] = new_node
 
             result.append(ctx)
 

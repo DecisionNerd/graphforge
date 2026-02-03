@@ -12,6 +12,7 @@ from graphforge.ast.clause import (
     MatchClause,
     MergeClause,
     OrderByClause,
+    RemoveClause,
     ReturnClause,
     SetClause,
     SkipClause,
@@ -31,6 +32,7 @@ from graphforge.planner.operators import (
     Limit,
     Merge,
     Project,
+    Remove,
     ScanNodes,
     Set,
     Skip,
@@ -84,6 +86,7 @@ class QueryPlanner:
         create_clauses = []
         merge_clauses = []
         set_clause = None
+        remove_clause = None
         delete_clause = None
         where_clause = None
         return_clause = None
@@ -102,6 +105,8 @@ class QueryPlanner:
                 merge_clauses.append(clause)
             elif isinstance(clause, SetClause):
                 set_clause = clause
+            elif isinstance(clause, RemoveClause):
+                remove_clause = clause
             elif isinstance(clause, DeleteClause):
                 delete_clause = clause
             elif isinstance(clause, WhereClause):
@@ -142,17 +147,21 @@ class QueryPlanner:
         if set_clause:
             operators.append(Set(items=set_clause.items))
 
-        # 7. DELETE
+        # 7. REMOVE
+        if remove_clause:
+            operators.append(Remove(items=remove_clause.items))
+
+        # 8. DELETE
         if delete_clause:
             operators.append(Delete(variables=delete_clause.variables, detach=delete_clause.detach))
 
-        # 7. ORDER BY (before projection!)
+        # 9. ORDER BY (before projection!)
         if order_by_clause:
             # Pass return_items to Sort so it can resolve RETURN aliases
             return_items = return_clause.items if return_clause else None
             operators.append(Sort(items=order_by_clause.items, return_items=return_items))
 
-        # 8. RETURN
+        # 10. RETURN
         if return_clause:
             # Check if RETURN contains aggregations
             has_aggregates = self._has_aggregations(return_clause)
@@ -176,7 +185,7 @@ class QueryPlanner:
 
                 operators.append(Distinct())
 
-        # 9. SKIP/LIMIT
+        # 11. SKIP/LIMIT
         if skip_clause:
             operators.append(Skip(count=skip_clause.count))
         if limit_clause:
