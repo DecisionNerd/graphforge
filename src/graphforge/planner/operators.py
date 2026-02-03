@@ -10,6 +10,7 @@ This module defines the operators used in logical query plans:
 - Skip: Skip result rows
 - Create: Create nodes and relationships
 - Set: Update properties
+- Remove: Remove properties and labels
 - Delete: Delete nodes and relationships
 - Merge: Create or match patterns
 - Unwind: Expand lists into rows
@@ -198,6 +199,19 @@ class Set:
     """
 
     items: list[tuple[Any, Any]]  # List of (property_access, expression) tuples
+
+
+@dataclass
+class Remove:
+    """Operator for removing properties and labels.
+
+    Removes properties from nodes/relationships or labels from nodes.
+
+    Attributes:
+        items: List of RemoveItem objects (from AST)
+    """
+
+    items: list[Any]  # List of RemoveItem objects
 
 
 @dataclass

@@ -4,6 +4,7 @@ This module defines the major query clauses:
 - MatchClause: MATCH patterns
 - CreateClause: CREATE patterns
 - SetClause: SET property updates
+- RemoveClause: REMOVE properties and labels
 - DeleteClause: DELETE nodes/relationships
 - MergeClause: MERGE patterns
 - UnwindClause: UNWIND list expansion
@@ -52,6 +53,35 @@ class SetClause:
     """
 
     items: list[tuple[Any, Any]]  # List of (property_access, expression) tuples
+
+
+@dataclass
+class RemoveItem:
+    """A single REMOVE item (property or label).
+
+    Attributes:
+        item_type: 'property' or 'label'
+        variable: Variable name
+        name: Property name or label name
+    """
+
+    item_type: str  # 'property' or 'label'
+    variable: str  # Variable name
+    name: str  # Property or label name
+
+
+@dataclass
+class RemoveClause:
+    """REMOVE clause for removing properties and labels.
+
+    Examples:
+        REMOVE n.age
+        REMOVE n:Person
+        REMOVE n.age, n.name
+        REMOVE n:Person:Employee
+    """
+
+    items: list[RemoveItem]  # List of RemoveItems
 
 
 @dataclass

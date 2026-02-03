@@ -16,6 +16,8 @@ from graphforge.ast.clause import (
     MergeClause,
     OrderByClause,
     OrderByItem,
+    RemoveClause,
+    RemoveItem,
     ReturnClause,
     ReturnItem,
     SetClause,
@@ -137,6 +139,29 @@ class ASTTransformer(Transformer):
         property_access = items[0]
         expression = items[1]
         return (property_access, expression)
+
+    def remove_clause(self, items):
+        """Transform REMOVE clause."""
+        return RemoveClause(items=list(items))
+
+    def remove_property(self, items):
+        """Transform REMOVE property item (e.g., n.age)."""
+        property_access = items[0]
+        return RemoveItem(
+            item_type="property",
+            variable=property_access.variable,
+            name=property_access.property,
+        )
+
+    def remove_label(self, items):
+        """Transform REMOVE label item (e.g., n:Person)."""
+        variable = items[0]
+        label = items[1]
+        return RemoveItem(
+            item_type="label",
+            variable=variable.name,
+            name=label,
+        )
 
     def detach_delete(self, items):
         """Transform DETACH DELETE clause."""
