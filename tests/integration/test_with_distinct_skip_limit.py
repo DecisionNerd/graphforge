@@ -11,7 +11,6 @@ from graphforge import GraphForge
 class TestWithDistinctSkipLimit:
     """Tests for WITH DISTINCT with SKIP/LIMIT."""
 
-    @pytest.mark.skip(reason="WITH DISTINCT has bug #35 - DISTINCT after projection")
     def test_with_distinct_basic(self):
         """Basic WITH DISTINCT functionality."""
         gf = GraphForge()
@@ -35,7 +34,6 @@ class TestWithDistinctSkipLimit:
         cities = [r["city"].value for r in results]
         assert cities == ["LA", "NYC", "SF"]
 
-    @pytest.mark.skip(reason="WITH DISTINCT has bug #35 - DISTINCT after projection")
     def test_with_distinct_and_skip(self):
         """WITH DISTINCT with SKIP."""
         gf = GraphForge()
@@ -60,7 +58,6 @@ class TestWithDistinctSkipLimit:
         values = [r["value"].value for r in results]
         assert values == [2, 3]
 
-    @pytest.mark.skip(reason="WITH DISTINCT has bug #35 - DISTINCT after projection")
     def test_with_distinct_and_limit(self):
         """WITH DISTINCT with LIMIT."""
         gf = GraphForge()
@@ -85,7 +82,6 @@ class TestWithDistinctSkipLimit:
         values = [r["value"].value for r in results]
         assert values == [1, 2]
 
-    @pytest.mark.skip(reason="WITH DISTINCT has bug #35 - DISTINCT after projection")
     def test_with_distinct_skip_and_limit(self):
         """WITH DISTINCT with both SKIP and LIMIT."""
         gf = GraphForge()
@@ -113,7 +109,6 @@ class TestWithDistinctSkipLimit:
         values = [r["value"].value for r in results]
         assert values == [2, 3]
 
-    @pytest.mark.skip(reason="WITH DISTINCT has bug #35 - DISTINCT after projection")
     def test_with_distinct_where_skip_limit(self):
         """WITH DISTINCT with WHERE, SKIP, and LIMIT."""
         gf = GraphForge()

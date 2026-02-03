@@ -419,12 +419,12 @@ class QueryExecutor:
         """Execute Skip operator."""
         return input_rows[op.count :]
 
-    def _execute_distinct(
-        self, op: Distinct, input_rows: list[ExecutionContext]
-    ) -> list[ExecutionContext]:
+    def _execute_distinct(self, op: Distinct, input_rows: list) -> list:
         """Execute DISTINCT operator.
 
         Removes duplicate rows by comparing all bound variables.
+        Handles both ExecutionContext objects (before projection) and
+        dict objects (after projection).
         """
         if not input_rows:
             return input_rows
@@ -434,11 +434,22 @@ class QueryExecutor:
 
         for ctx in input_rows:
             # Create hashable key from all bindings
-            key_items = []
-            for var_name in sorted(ctx.bindings.keys()):
-                value = ctx.bindings[var_name]
-                hashable = self._value_to_hashable(value)
-                key_items.append((var_name, hashable))
+            # Handle both ExecutionContext and dict types
+            if isinstance(ctx, dict):
+                # After projection - ctx is a dict
+                keys = sorted(ctx.keys())
+                key_items = []
+                for var_name in keys:
+                    value = ctx[var_name]
+                    hashable = self._value_to_hashable(value)
+                    key_items.append((var_name, hashable))
+            else:
+                # Before projection - ctx is ExecutionContext
+                key_items = []
+                for var_name in sorted(ctx.bindings.keys()):
+                    value = ctx.bindings[var_name]
+                    hashable = self._value_to_hashable(value)
+                    key_items.append((var_name, hashable))
 
             key = tuple(key_items)
             if key not in seen:
