@@ -24,6 +24,7 @@ read_query: match_clause where_clause? return_clause order_by_clause? skip_claus
 
 write_query: create_clause return_clause?
            | merge_clause return_clause?
+           | match_clause where_clause? create_clause+ set_clause? return_clause? order_by_clause? skip_clause? limit_clause?
 
 update_query: match_clause where_clause? set_clause? delete_clause? return_clause?
 
