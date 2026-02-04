@@ -7,4 +7,6 @@ Each loader knows how to parse and load datasets in a specific format:
 - LDBCLoader: Handles LDBC multi-file CSV format
 """
 
-__all__ = []
+from graphforge.datasets.loaders.cypher import CypherLoader
+
+__all__ = ["CypherLoader"]
