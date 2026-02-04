@@ -211,6 +211,7 @@ If dataset import fails:
 
 ## Related Documentation
 
+- [Cypher Script Loading](cypher-script-loading.md) - Load .cypher and .cql script files
 - [LDBC Datasets](ldbc.md)
 - [NetworkRepository Datasets](networkrepository.md)
 - [Neo4j Examples](neo4j-examples.md)
