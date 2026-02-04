@@ -13,27 +13,40 @@ The dataset system allows you to:
 
 ## Supported Sources
 
-GraphForge supports datasets from four major sources:
+### ✅ Available Now (v0.2.1)
 
-### 1. [LDBC (Linked Data Benchmark Council)](ldbc.md)
-Standard benchmark datasets for graph databases, including the Social Network Benchmark (SNB) at various scale factors.
+#### [SNAP (Stanford Network Analysis Project)](snap.md)
+Real-world network datasets from Stanford, covering social networks, web graphs, citation networks, collaboration networks, and communication networks.
 
-**Use cases:** Performance benchmarking, complex query testing, social network analysis
+**Status:** 5 datasets available
+**Use cases:** Research, network analysis, graph algorithm development, academic projects
 
-### 2. [NetworkRepository](networkrepository.md)
-Large collection of network datasets including social networks, citations, collaborations, and infrastructure graphs.
+**Available datasets:**
+- `snap-ego-facebook` - Facebook social circles (4K nodes, 88K edges)
+- `snap-email-enron` - Enron email network (37K nodes, 184K edges)
+- `snap-ca-astroph` - Astrophysics collaboration (19K nodes, 198K edges)
+- `snap-web-google` - Google web graph (876K nodes, 5.1M edges)
+- `snap-twitter-combined` - Twitter social circles (81K nodes, 1.8M edges)
 
-**Use cases:** Network analysis, algorithm testing, research
+### 📅 Coming Soon
 
-### 3. [Neo4j Graph Examples](neo4j-examples.md)
-Curated collection of example datasets from Neo4j, including movie graphs, Northwind database, Game of Thrones, and more.
+#### [Neo4j Graph Examples](neo4j-examples.md)
+Curated example datasets from Neo4j for learning and demonstrations.
 
+**Status:** Planned for v0.3.0
 **Use cases:** Learning Cypher, demonstrations, tutorials
 
-### 4. [SNAP (Stanford Network Analysis Project)](snap.md)
-Comprehensive collection of real-world network datasets from Stanford, covering social networks, web graphs, citation networks, and more.
+#### [LDBC (Linked Data Benchmark Council)](ldbc.md)
+Standard benchmark datasets for graph database performance testing.
 
-**Use cases:** Research, graph algorithm development, academic projects
+**Status:** Planned for v0.3.0
+**Use cases:** Performance benchmarking, complex query testing
+
+#### [NetworkRepository](networkrepository.md)
+Large collection of diverse network datasets.
+
+**Status:** Planned for future release
+**Use cases:** Network analysis, algorithm testing, research
 
 ## Quick Start
 

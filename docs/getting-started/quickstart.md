@@ -68,8 +68,45 @@ result = graph.execute("""
 """)
 ```
 
+## Load a Dataset
+
+Start analyzing real-world networks instantly:
+
+```python
+from graphforge import GraphForge
+
+# Load a dataset (automatically downloads and caches)
+graph = GraphForge.from_dataset("snap-ego-facebook")
+
+# Analyze the network
+result = graph.execute("""
+    MATCH (n)-[r]->()
+    RETURN n.id AS user, count(r) AS connections
+    ORDER BY connections DESC
+    LIMIT 5
+""")
+
+for row in result:
+    print(f"User {row['user']}: {row['connections']} connections")
+```
+
+### Available Datasets
+
+```python
+from graphforge.datasets import list_datasets
+
+# Browse available datasets
+datasets = list_datasets(source="snap")
+
+for ds in datasets:
+    print(f"{ds.name}: {ds.nodes:,} nodes, {ds.edges:,} edges")
+```
+
+See the [Dataset Documentation](../datasets/overview.md) for more datasets and examples.
+
 ## Next Steps
 
+- [Tutorial](tutorial.md) - Complete step-by-step guide
+- [Dataset Overview](../datasets/overview.md) - Work with real-world data
 - [Cypher Guide](../guide/cypher-guide.md) - Complete query language reference
-- [Graph Construction](../guide/graph-construction.md) - Advanced graph building
 - [API Documentation](../reference/api.md) - Full API reference

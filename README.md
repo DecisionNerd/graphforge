@@ -143,6 +143,41 @@ results = db.execute("MATCH (p:Paper) RETURN p.title AS title")
 print(results[0]['title'].value)  # Graph Neural Networks
 ```
 
+### Load Real-World Datasets
+
+Analyze real networks instantly with built-in datasets:
+
+```python
+from graphforge import GraphForge
+
+# Load a dataset (automatically downloads and caches)
+db = GraphForge.from_dataset("snap-ego-facebook")
+
+# Analyze the social network
+results = db.execute("""
+    MATCH (n)-[r]->()
+    RETURN n.id AS user, count(r) AS connections
+    ORDER BY connections DESC
+    LIMIT 5
+""")
+
+for row in results:
+    print(f"User {row['user'].value}: {row['connections'].value} connections")
+```
+
+**Available datasets:**
+- **SNAP** (Stanford): 5 real-world networks (social, web, email, collaboration)
+- More sources coming soon: Neo4j examples, LDBC benchmarks, NetworkRepository
+
+Browse datasets:
+```python
+from graphforge.datasets import list_datasets
+
+datasets = list_datasets(source="snap")
+for ds in datasets:
+    print(f"{ds.name}: {ds.nodes:,} nodes, {ds.edges:,} edges")
+```
+
 ---
 
 ## Core Concepts
