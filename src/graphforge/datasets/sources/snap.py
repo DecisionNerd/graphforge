@@ -7,7 +7,7 @@ Source: https://snap.stanford.edu/data/
 """
 
 from graphforge.datasets.base import DatasetInfo
-from graphforge.datasets.registry import register_dataset, register_loader
+from graphforge.datasets.registry import _DATASET_REGISTRY, register_dataset, register_loader
 
 
 def register_snap_datasets() -> None:
@@ -97,12 +97,7 @@ def register_snap_datasets() -> None:
         ),
     ]
 
+    # Register all datasets, skipping duplicates
     for dataset in datasets:
-        try:
+        if dataset.name not in _DATASET_REGISTRY:
             register_dataset(dataset)
-        except ValueError as e:  # noqa: PERF203
-            # Dataset already registered - skip it
-            # Note: try-except in loop is intentional to allow partial registration
-            if "already registered" not in str(e):
-                # Re-raise if it's a different ValueError
-                raise
