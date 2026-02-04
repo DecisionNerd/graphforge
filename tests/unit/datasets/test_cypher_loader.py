@@ -253,6 +253,25 @@ class TestCommentHandling:
         result = gf.execute("MATCH (n:Website) RETURN n.url AS url")
         assert result[0]["url"].value == "https://example.com"
 
+    def test_url_with_trailing_comment(self, tmp_path: Path):
+        """Test URL with // followed by a comment."""
+        script = tmp_path / "test.cypher"
+        script.write_text(
+            """
+            CREATE (n:Website {url: 'http://example.com'}); // This is a comment
+            CREATE (m:Website {url: 'https://test.org'}) // Another comment;
+        """
+        )
+
+        gf = GraphForge()
+        loader = CypherLoader()
+        loader.load(gf, script)
+
+        result = gf.execute("MATCH (n:Website) RETURN n.url AS url ORDER BY url")
+        assert len(result) == 2
+        assert result[0]["url"].value == "http://example.com"
+        assert result[1]["url"].value == "https://test.org"
+
 
 class TestStatementSplitting:
     """Tests for statement splitting logic."""

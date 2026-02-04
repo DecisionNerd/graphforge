@@ -133,12 +133,26 @@ class CypherLoader(DatasetLoader):
         lines = []
         for line in script.split("\n"):
             # Remove comment portion (but preserve // in URLs, etc.)
-            # Simple heuristic: // followed by space is likely a comment
+            # Find rightmost // that is actually a comment marker
+            # (at start of line or preceded by whitespace)
             cleaned_line = line
             if "//" in line:
-                comment_idx = line.find("//")
-                # Check if it's likely a comment (preceded by space or at start)
-                if comment_idx == 0 or line[comment_idx - 1].isspace():
+                # Search from right to left for a valid comment marker
+                comment_idx = -1
+                search_start = len(line)
+                while True:
+                    # Find next // occurrence from right
+                    idx = line.rfind("//", 0, search_start)
+                    if idx == -1:
+                        break
+                    # Check if it's a valid comment (at start or preceded by whitespace)
+                    if idx == 0 or line[idx - 1].isspace():
+                        comment_idx = idx
+                        break
+                    # Continue searching to the left
+                    search_start = idx
+
+                if comment_idx != -1:
                     cleaned_line = line[:comment_idx]
             lines.append(cleaned_line)
 
