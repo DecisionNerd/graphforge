@@ -134,7 +134,6 @@ class TestNullComparisons:
 class TestNullPropagation:
     """Tests for NULL propagation in expressions."""
 
-    @pytest.mark.skip(reason="Arithmetic operators (+, -, *, /) not yet implemented in parser")
     def test_null_in_arithmetic_propagates(self, simple_graph):
         """NULL in arithmetic expression propagates."""
         results = simple_graph.execute("""
@@ -143,7 +142,6 @@ class TestNullPropagation:
         """)
 
         # Charlie has NULL age, arithmetic should propagate NULL
-        # Note: Arithmetic operators not yet implemented
         assert len(results) == 1
         from graphforge.types.values import CypherNull
 
