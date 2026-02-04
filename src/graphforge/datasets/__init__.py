@@ -41,3 +41,8 @@ __all__ = [
     "load_dataset",
     "register_dataset",
 ]
+
+# Auto-register datasets on module import
+from graphforge.datasets.sources.snap import register_snap_datasets
+
+register_snap_datasets()
