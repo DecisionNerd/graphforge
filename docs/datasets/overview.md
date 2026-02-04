@@ -13,7 +13,7 @@ The dataset system allows you to:
 
 ## Supported Sources
 
-### ✅ Available Now (v0.2.1)
+### ✅ Available Now (v0.2.2)
 
 #### [SNAP (Stanford Network Analysis Project)](snap.md)
 Real-world network datasets from Stanford, covering social networks, web graphs, citation networks, collaboration networks, and communication networks.
@@ -28,13 +28,27 @@ Real-world network datasets from Stanford, covering social networks, web graphs,
 - `snap-web-google` - Google web graph (876K nodes, 5.1M edges)
 - `snap-twitter-combined` - Twitter social circles (81K nodes, 1.8M edges)
 
-### 📅 Coming Soon
-
 #### [Neo4j Graph Examples](neo4j-examples.md)
 Curated example datasets from Neo4j for learning and demonstrations.
 
-**Status:** Planned for v0.3.0
-**Use cases:** Learning Cypher, demonstrations, tutorials
+**Status:** 12 datasets available
+**Use cases:** Learning Cypher, demonstrations, tutorials, realistic data models
+
+**Available datasets:**
+- `neo4j-movie-graph` - Movie and actor data (171 nodes, 253 edges)
+- `neo4j-northwind` - Classic Northwind database (1K nodes, 3K edges)
+- `neo4j-recommendations` - Product recommendations (400 nodes, 1.2K edges)
+- `neo4j-network-management` - Network topology (250 nodes, 800 edges)
+- `neo4j-fraud-detection` - Fraud detection patterns (500 nodes, 1.5K edges)
+- `neo4j-game-of-thrones` - Game of Thrones characters and houses (800 nodes, 3K edges)
+- `neo4j-stackoverflow` - Stack Overflow Q&A (2K nodes, 5K edges)
+- `neo4j-twitter` - Twitter social network (1.5K nodes, 4K edges)
+- `neo4j-fincen-files` - Financial crime data (600 nodes, 1.8K edges)
+- `neo4j-pole` - Police data analysis (350 nodes, 900 edges)
+- `neo4j-knowledge-graph` - General knowledge graph (1K nodes, 2.5K edges)
+- `neo4j-football-transfers` - Football player transfers (700 nodes, 2K edges)
+
+### 📅 Coming Soon
 
 #### [LDBC (Linked Data Benchmark Council)](ldbc.md)
 Standard benchmark datasets for graph database performance testing.
