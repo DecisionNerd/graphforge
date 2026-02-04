@@ -14,12 +14,8 @@ class TestSNAPDatasetRegistrations:
         """Ensure SNAP datasets are registered before each test."""
         from graphforge.datasets.sources.snap import register_snap_datasets
 
-        # Re-register SNAP datasets (handles case where registry was cleared by other tests)
-        try:
-            register_snap_datasets()
-        except ValueError:
-            # Loader already registered, which is fine
-            pass
+        # Re-register SNAP datasets (idempotent - safe to call multiple times)
+        register_snap_datasets()
 
     def test_snap_datasets_registered(self):
         """Test that SNAP datasets are registered on module import."""

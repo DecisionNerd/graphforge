@@ -72,6 +72,37 @@ class TestCSVLoader:
         finally:
             temp_path.unlink()
 
+    def test_load_multiple_consecutive_spaces(self):
+        """Test loading space-delimited values with consecutive spaces."""
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
+            f.write("0  1\n")  # Two spaces
+            f.write("1   2  0.5\n")  # Three spaces, then two spaces before weight
+            f.write("2    3\n")  # Four spaces
+            temp_path = Path(f.name)
+
+        try:
+            gf = GraphForge()
+            loader = CSVLoader()
+            loader.load(gf, temp_path)
+
+            # Check nodes created (should be 0, 1, 2, 3)
+            nodes = gf.execute("MATCH (n) RETURN count(n) as count")
+            assert nodes[0]["count"].value == 4
+
+            # Check edges created
+            edges = gf.execute("MATCH ()-[r]->() RETURN count(r) as count")
+            assert edges[0]["count"].value == 3
+
+            # Check that weighted edge was parsed correctly
+            weighted = gf.execute("MATCH ()-[r]->() WHERE r.weight = 0.5 RETURN count(r) as count")
+            assert weighted[0]["count"].value == 1
+
+            # Verify no empty node IDs were created
+            result = gf.execute('MATCH (n) WHERE n.id = "" RETURN count(n) as count')
+            assert result[0]["count"].value == 0
+        finally:
+            temp_path.unlink()
+
     def test_load_weighted_edges(self):
         """Test loading edges with weights."""
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:

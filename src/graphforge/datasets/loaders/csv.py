@@ -80,8 +80,12 @@ class CSVLoader(DatasetLoader):
             if delimiter is None:
                 delimiter = self._detect_delimiter(stripped_line)
 
-            # Parse line
-            parts = stripped_line.split(delimiter)
+            # Parse line (handle consecutive spaces by using split() without argument)
+            if delimiter == " ":
+                parts = stripped_line.split()  # Collapses consecutive whitespace
+            else:
+                parts = stripped_line.split(delimiter)
+
             if len(parts) < 2:
                 raise ValueError(
                     f"Invalid edge format at line {line_num}: "

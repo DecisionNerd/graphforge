@@ -12,10 +12,16 @@ from graphforge.datasets.registry import register_dataset, register_loader
 
 def register_snap_datasets() -> None:
     """Register all SNAP datasets in the global registry."""
-    # Register the CSV loader
+    # Register the CSV loader (idempotent - ignore if already registered)
     from graphforge.datasets.loaders.csv import CSVLoader
 
-    register_loader("csv", CSVLoader)
+    try:
+        register_loader("csv", CSVLoader)
+    except ValueError as e:
+        # Loader already registered - this is fine, continue with dataset registration
+        if "already registered" not in str(e):
+            # Re-raise if it's a different ValueError
+            raise
 
     # Register SNAP datasets
     datasets = [
@@ -92,4 +98,11 @@ def register_snap_datasets() -> None:
     ]
 
     for dataset in datasets:
-        register_dataset(dataset)
+        try:
+            register_dataset(dataset)
+        except ValueError as e:  # noqa: PERF203
+            # Dataset already registered - skip it
+            # Note: try-except in loop is intentional to allow partial registration
+            if "already registered" not in str(e):
+                # Re-raise if it's a different ValueError
+                raise
