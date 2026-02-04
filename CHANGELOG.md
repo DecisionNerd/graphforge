@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-02-03
+
+### Added
+- **Dataset loading infrastructure** (#68)
+  - Automatic dataset download and caching system
+  - Dataset registry with metadata (nodes, edges, size, category, license)
+  - Built-in support for HTTP downloads with retry logic and timeout
+  - Local cache directory (`~/.graphforge/datasets/`) with TTL-based expiration
+  - Public API: `load_dataset()`, `list_datasets()`, `get_dataset_info()`, `clear_cache()`
+  - `GraphForge.from_dataset()` convenience method for loading datasets
+  - Example: `gf = GraphForge.from_dataset("snap-ego-facebook")`
+- **CSV edge-list loader** (#69)
+  - Load edge-list datasets in CSV/TSV/space-delimited formats
+  - Auto-delimiter detection (tab, comma, space)
+  - Gzip compression support for `.gz` files
+  - Comment line handling (lines starting with `#`)
+  - Weighted and unweighted edge support
+  - Node deduplication via caching
+  - Consecutive whitespace handling
+  - Example: Load SNAP datasets with simple edge-list format
+- **5 SNAP datasets available** (#69)
+  - `snap-ego-facebook` - Facebook social circles (4K nodes, 88K edges, 0.5 MB)
+  - `snap-email-enron` - Enron email network (37K nodes, 184K edges, 2.5 MB)
+  - `snap-ca-astroph` - Astrophysics collaboration (19K nodes, 198K edges, 1.8 MB)
+  - `snap-web-google` - Google web graph (876K nodes, 5.1M edges, 75 MB)
+  - `snap-twitter-combined` - Twitter social circles (81K nodes, 1.8M edges, 25 MB)
+  - Auto-registered on module import
+  - Filterable by source, category, and size
+- **MERGE ON CREATE SET syntax** (#65)
+  - Conditional property setting when creating nodes: `MERGE (n:Person {id: 1}) ON CREATE SET n.created = timestamp()`
+  - Parser support in Lark grammar
+  - Executor tracks whether MERGE created or matched nodes
+  - Comprehensive test coverage (parser, executor, integration)
+- **MERGE ON MATCH SET syntax** (#66)
+  - Conditional property setting when matching existing nodes: `MERGE (n:Person {id: 1}) ON MATCH SET n.updated = timestamp()`
+  - Supports both ON CREATE and ON MATCH in same statement
+  - OpenCypher-compliant semantics
+
+### Fixed
+- **WITH clause variable passing in aggregation** (#67)
+  - Fixed variable scoping issues when using WITH after aggregation
+  - Correctly passes aggregated values to subsequent clauses
+  - Example: `MATCH (n) WITH count(n) AS cnt RETURN cnt` now works correctly
+
+### Documentation
+- **Complete dataset documentation** (#69)
+  - New dataset overview guide with usage examples
+  - SNAP dataset documentation with 5 available datasets
+  - Updated quick start with dataset loading examples
+  - Added dataset examples to main README
+  - Performance tips for large datasets
+
+### Known Limitations
+- Only SNAP datasets available in this release (5 datasets)
+- Neo4j example datasets, LDBC, and NetworkRepository planned for v0.3.0
+- See [Issue #70](https://github.com/DecisionNerd/graphforge/issues/70) for roadmap to 100+ SNAP datasets
+
 ## [0.2.0] - 2026-02-03
 
 ### Added

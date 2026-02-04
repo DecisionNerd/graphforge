@@ -14,6 +14,7 @@ GraphForge is a Python library that provides composable graph tooling for analys
 ## Key Features
 
 - **openCypher Query Language** - Industry-standard graph query language
+- **Real-World Datasets** - Built-in support for SNAP, Neo4j, and benchmark datasets
 - **Type-Safe** - Built with Pydantic for data validation
 - **Pure Python** - No external database dependencies
 - **TCK Compliant** - Implements openCypher specification
@@ -35,6 +36,21 @@ result = graph.execute("""
 
 for row in result:
     print(row['friend.name'])
+```
+
+### Or Load a Real Dataset
+
+```python
+# Load a SNAP dataset (auto-downloads and caches)
+graph = GraphForge.from_dataset("snap-ego-facebook")
+
+# Analyze immediately
+result = graph.execute("""
+    MATCH (n)-[r]->()
+    RETURN n.id, count(r) AS connections
+    ORDER BY connections DESC
+    LIMIT 5
+""")
 ```
 
 ## Getting Started
