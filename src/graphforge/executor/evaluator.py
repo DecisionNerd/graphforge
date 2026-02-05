@@ -627,33 +627,45 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
 
     # Temporal component extraction functions
     elif func_name == "YEAR":
+        if len(args) != 1:
+            raise TypeError(f"YEAR expects 1 argument, got {len(args)}")
         if not isinstance(args[0], (CypherDate, CypherDateTime)):
             raise TypeError(f"YEAR expects date or datetime, got {type(args[0]).__name__}")
         return CypherInt(args[0].value.year)
 
     elif func_name == "MONTH":
+        if len(args) != 1:
+            raise TypeError(f"MONTH expects 1 argument, got {len(args)}")
         if not isinstance(args[0], (CypherDate, CypherDateTime)):
             raise TypeError(f"MONTH expects date or datetime, got {type(args[0]).__name__}")
         return CypherInt(args[0].value.month)
 
     elif func_name == "DAY":
+        if len(args) != 1:
+            raise TypeError(f"DAY expects 1 argument, got {len(args)}")
         if not isinstance(args[0], (CypherDate, CypherDateTime)):
             raise TypeError(f"DAY expects date or datetime, got {type(args[0]).__name__}")
         return CypherInt(args[0].value.day)
 
     elif func_name == "HOUR":
+        if len(args) != 1:
+            raise TypeError(f"HOUR expects 1 argument, got {len(args)}")
         if isinstance(args[0], (CypherDateTime, CypherTime)):
             return CypherInt(args[0].value.hour)
         else:
             raise TypeError(f"HOUR expects datetime or time, got {type(args[0]).__name__}")
 
     elif func_name == "MINUTE":
+        if len(args) != 1:
+            raise TypeError(f"MINUTE expects 1 argument, got {len(args)}")
         if isinstance(args[0], (CypherDateTime, CypherTime)):
             return CypherInt(args[0].value.minute)
         else:
             raise TypeError(f"MINUTE expects datetime or time, got {type(args[0]).__name__}")
 
     elif func_name == "SECOND":
+        if len(args) != 1:
+            raise TypeError(f"SECOND expects 1 argument, got {len(args)}")
         if isinstance(args[0], (CypherDateTime, CypherTime)):
             return CypherInt(args[0].value.second)
         else:

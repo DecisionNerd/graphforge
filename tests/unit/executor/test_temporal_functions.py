@@ -20,6 +20,8 @@ from graphforge.types.values import (
     CypherTime,
 )
 
+pytestmark = pytest.mark.unit
+
 
 class TestTemporalConstructors:
     """Tests for temporal constructor functions."""
@@ -331,4 +333,30 @@ class TestTemporalFunctionErrors:
         func = FunctionCall(name="hour", args=[Variable(name="x")])
 
         with pytest.raises(TypeError, match="HOUR expects datetime or time"):
+            evaluate_expression(func, ctx)
+
+    def test_year_wrong_arg_count(self):
+        """Test year() with wrong number of arguments."""
+        func = FunctionCall(name="year", args=[])
+        ctx = ExecutionContext()
+
+        with pytest.raises(TypeError, match="YEAR expects 1 argument, got 0"):
+            evaluate_expression(func, ctx)
+
+    def test_month_wrong_arg_count(self):
+        """Test month() with wrong number of arguments."""
+        func = FunctionCall(
+            name="month", args=[Literal(value="2023-01-15"), Literal(value="extra")]
+        )
+        ctx = ExecutionContext()
+
+        with pytest.raises(TypeError, match="MONTH expects 1 argument, got 2"):
+            evaluate_expression(func, ctx)
+
+    def test_hour_wrong_arg_count(self):
+        """Test hour() with wrong number of arguments."""
+        func = FunctionCall(name="hour", args=[])
+        ctx = ExecutionContext()
+
+        with pytest.raises(TypeError, match="HOUR expects 1 argument, got 0"):
             evaluate_expression(func, ctx)

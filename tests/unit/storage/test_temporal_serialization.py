@@ -8,6 +8,8 @@ Tests MessagePack serialization/deserialization of temporal types:
 
 import datetime
 
+import pytest
+
 from graphforge.storage.serialization import (
     deserialize_cypher_value,
     deserialize_properties,
@@ -20,6 +22,8 @@ from graphforge.types.values import (
     CypherDuration,
     CypherTime,
 )
+
+pytestmark = pytest.mark.unit
 
 
 class TestTemporalSerialization:

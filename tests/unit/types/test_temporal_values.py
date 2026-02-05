@@ -9,6 +9,8 @@ Tests DATE, DATETIME, TIME, and DURATION types including:
 
 import datetime
 
+import pytest
+
 from graphforge.types.values import (
     CypherBool,
     CypherDate,
@@ -19,6 +21,8 @@ from graphforge.types.values import (
     CypherType,
     from_python,
 )
+
+pytestmark = pytest.mark.unit
 
 
 class TestCypherDate:

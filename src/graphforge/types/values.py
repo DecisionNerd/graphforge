@@ -246,12 +246,16 @@ class CypherTime(CypherValue):
 class CypherDuration(CypherValue):
     """Represents a duration value in openCypher.
 
-    Stores a Python datetime.timedelta object. Supports ISO 8601 duration strings.
+    Stores a Python datetime.timedelta or isodate.Duration object.
+    Supports ISO 8601 duration strings. When parsing ISO 8601 strings with
+    years/months (e.g., "P1Y2M"), stores an isodate.Duration; otherwise stores
+    a datetime.timedelta.
     """
 
-    def __init__(self, value: datetime.timedelta | str):
+    def __init__(self, value: datetime.timedelta | isodate.Duration | str):
         if isinstance(value, str):
             # Parse ISO 8601 duration string (e.g., "P1Y2M10DT2H30M")
+            # Returns timedelta for simple durations, isodate.Duration for year/month
             value = isodate.parse_duration(value)
         super().__init__(value, CypherType.DURATION)
 

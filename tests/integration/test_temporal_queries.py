@@ -11,9 +11,12 @@ import datetime
 from pathlib import Path
 import tempfile
 
+import pytest
+
 from graphforge import GraphForge
 
 
+@pytest.mark.integration
 class TestTemporalProperties:
     """Tests for storing and retrieving temporal properties."""
 
@@ -88,6 +91,7 @@ class TestTemporalProperties:
         assert duration.value == expected
 
 
+@pytest.mark.integration
 class TestTemporalComparisons:
     """Tests for temporal comparisons in WHERE clauses."""
 
@@ -147,6 +151,7 @@ class TestTemporalComparisons:
         assert results[0]["name"].value == "Meeting"
 
 
+@pytest.mark.integration
 class TestTemporalFunctionsInQueries:
     """Tests for temporal functions in query context."""
 
@@ -221,6 +226,7 @@ class TestTemporalFunctionsInQueries:
         assert diff < 1.0
 
 
+@pytest.mark.integration
 class TestTemporalPersistence:
     """Tests for temporal values persisting to disk."""
 
@@ -264,6 +270,7 @@ class TestTemporalPersistence:
             gf.close()
 
 
+@pytest.mark.integration
 class TestTemporalEdgeProperties:
     """Tests for temporal properties on relationships."""
 
@@ -308,6 +315,7 @@ class TestTemporalEdgeProperties:
         assert results[0]["friend"].value == "Bob"
 
 
+@pytest.mark.integration
 class TestTemporalMixedTypes:
     """Tests for queries mixing temporal and non-temporal types."""
 
