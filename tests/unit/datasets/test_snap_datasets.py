@@ -19,9 +19,9 @@ class TestSNAPDatasetRegistrations:
 
     def test_snap_datasets_registered(self):
         """Test that SNAP datasets are registered on module import."""
-        # Should have 5 SNAP datasets
+        # Should have 68 SNAP datasets
         snap_datasets = [d for d in list_datasets() if d.source == "snap"]
-        assert len(snap_datasets) == 5
+        assert len(snap_datasets) == 68
 
     def test_csv_loader_registered(self):
         """Test that CSV loader is registered."""
@@ -89,7 +89,10 @@ class TestSNAPDatasetRegistrations:
 
         for dataset in snap_datasets:
             assert dataset.url.startswith("https://snap.stanford.edu")
-            assert dataset.url.endswith(".txt.gz")
+            # URLs can end with various extensions: .txt.gz, .csv.gz, .tsv
+            assert any(
+                dataset.url.endswith(ext) for ext in [".txt.gz", ".csv.gz", ".tsv", ".tar.gz"]
+            )
 
     def test_all_snap_datasets_use_csv_loader(self):
         """Test that all SNAP datasets use CSV loader."""
@@ -102,10 +105,12 @@ class TestSNAPDatasetRegistrations:
         """Test filtering SNAP datasets by social category."""
         social = list_datasets(source="snap", category="social")
 
-        assert len(social) == 2  # ego-facebook and twitter-combined
+        # Should have 15 social datasets in the expanded collection
+        assert len(social) == 15
         names = {d.name for d in social}
         assert "snap-ego-facebook" in names
         assert "snap-twitter-combined" in names
+        assert "snap-soc-epinions1" in names
 
     def test_filter_by_size(self):
         """Test filtering SNAP datasets by size."""

@@ -56,6 +56,12 @@ Issues = "https://github.com/DecisionNerd/graphforge/issues"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatchling.build.targets.wheel]
+packages = ["src/graphforge"]
+
+[tool.hatchling.build.targets.wheel.shared-data]
+"src/graphforge/datasets/data" = "graphforge/datasets/data"
+
 [tool.uv]
 package = true
 
