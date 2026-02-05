@@ -11,6 +11,7 @@ Use pytest markers to control which tests run.
 """
 
 import pytest
+from urllib.parse import urlparse
 
 from graphforge import GraphForge
 from graphforge.datasets import get_dataset_info, list_datasets
@@ -143,7 +144,9 @@ class TestSNAPDatasetLoading:
 
         # Verify all datasets in category have valid URLs
         for dataset in datasets:
-            assert dataset.url.startswith("https://snap.stanford.edu")
+            parsed = urlparse(dataset.url)
+            assert parsed.scheme == "https"
+            assert parsed.hostname == "snap.stanford.edu"
             assert dataset.category == category
 
     def test_small_dataset_sample_from_each_category(self):
@@ -171,8 +174,11 @@ class TestSNAPDatasetLoading:
         snap_datasets = list_datasets(source="snap")
 
         for dataset in snap_datasets:
-            # All URLs should be from snap.stanford.edu
-            assert dataset.url.startswith("https://snap.stanford.edu/data/")
+            # All URLs should be from snap.stanford.edu under /data/
+            parsed = urlparse(dataset.url)
+            assert parsed.scheme == "https"
+            assert parsed.hostname == "snap.stanford.edu"
+            assert parsed.path.startswith("/data/")
 
             # URLs should have valid extensions
             valid_extensions = [".txt.gz", ".csv.gz", ".tsv", ".tar.gz", ".zip"]
