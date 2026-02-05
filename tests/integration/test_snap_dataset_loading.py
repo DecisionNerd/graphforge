@@ -220,6 +220,11 @@ class TestSNAPDatasetLoading:
         result2 = gf2.execute("MATCH (n) RETURN count(n) as count")
         assert result2[0]["count"].value > 0
 
+        # Test .zip format (MUSAE and social feature datasets)
+        gf3 = GraphForge.from_dataset("snap-lastfm-asia")
+        result3 = gf3.execute("MATCH (n) RETURN count(n) as count")
+        assert result3[0]["count"].value > 0
+
 
 class TestSNAPDatasetMetadataAccuracy:
     """Test that dataset metadata matches actual data."""
