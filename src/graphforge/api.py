@@ -3,6 +3,7 @@
 This module provides the main public interface for GraphForge.
 """
 
+import datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,12 +17,16 @@ from graphforge.storage.sqlite_backend import SQLiteBackend
 from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,
+    CypherDate,
+    CypherDateTime,
+    CypherDuration,
     CypherFloat,
     CypherInt,
     CypherList,
     CypherMap,
     CypherNull,
     CypherString,
+    CypherTime,
 )
 
 # Pydantic models for API validation
@@ -344,7 +349,8 @@ class GraphForge:
         """Convert Python value to CypherValue type.
 
         Args:
-            value: Python value (str, int, float, bool, None, list, dict)
+            value: Python value (str, int, float, bool, None, list, dict,
+                   date, datetime, time, timedelta)
 
         Returns:
             Corresponding CypherValue instance
@@ -372,6 +378,16 @@ class GraphForge:
         if isinstance(value, str):
             return CypherString(value)
 
+        # Handle temporal types (check datetime before date since datetime is subclass of date)
+        if isinstance(value, datetime.datetime):
+            return CypherDateTime(value)
+        if isinstance(value, datetime.date):
+            return CypherDate(value)
+        if isinstance(value, datetime.time):
+            return CypherTime(value)
+        if isinstance(value, datetime.timedelta):
+            return CypherDuration(value)
+
         # Handle list (recursively convert elements)
         if isinstance(value, list):
             return CypherList([self._to_cypher_value(item) for item in value])
@@ -383,7 +399,8 @@ class GraphForge:
         # Unsupported type
         raise TypeError(
             f"Unsupported property value type: {type(value).__name__}. "
-            f"Supported types: str, int, float, bool, None, list, dict"
+            "Supported types: str, int, float, bool, None, list, dict, "
+            "date, datetime, time, timedelta"
         )
 
     def begin(self):

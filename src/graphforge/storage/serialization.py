@@ -25,16 +25,21 @@ See: src/graphforge/storage/pydantic_serialization.py for System 2 (metadata)
 See: CLAUDE.md "Two Serialization Systems" for detailed explanation
 """
 
+import isodate  # type: ignore[import-untyped]
 import msgpack
 
 from graphforge.types.values import (
     CypherBool,
+    CypherDate,
+    CypherDateTime,
+    CypherDuration,
     CypherFloat,
     CypherInt,
     CypherList,
     CypherMap,
     CypherNull,
     CypherString,
+    CypherTime,
     CypherValue,
 )
 
@@ -62,6 +67,18 @@ def serialize_cypher_value(value: CypherValue) -> dict:
 
     if isinstance(value, CypherString):
         return {"type": "string", "value": value.value}
+
+    if isinstance(value, CypherDate):
+        return {"type": "date", "value": value.value.isoformat()}
+
+    if isinstance(value, CypherDateTime):
+        return {"type": "datetime", "value": value.value.isoformat()}
+
+    if isinstance(value, CypherTime):
+        return {"type": "time", "value": value.value.isoformat()}
+
+    if isinstance(value, CypherDuration):
+        return {"type": "duration", "value": isodate.duration_isoformat(value.value)}
 
     if isinstance(value, CypherList):
         return {
@@ -103,6 +120,18 @@ def deserialize_cypher_value(data: dict) -> CypherValue:
 
     if value_type == "string":
         return CypherString(data["value"])
+
+    if value_type == "date":
+        return CypherDate(data["value"])
+
+    if value_type == "datetime":
+        return CypherDateTime(data["value"])
+
+    if value_type == "time":
+        return CypherTime(data["value"])
+
+    if value_type == "duration":
+        return CypherDuration(data["value"])
 
     if value_type == "list":
         return CypherList([deserialize_cypher_value(item) for item in data["value"]])
