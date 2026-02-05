@@ -31,6 +31,8 @@ class CypherType(Enum):
     DATETIME = "DATETIME"
     TIME = "TIME"
     DURATION = "DURATION"
+    POINT = "POINT"
+    DISTANCE = "DISTANCE"
     LIST = "LIST"
     MAP = "MAP"
 
@@ -261,6 +263,84 @@ class CypherDuration(CypherValue):
 
     def __repr__(self) -> str:
         return f"CypherDuration({isodate.duration_isoformat(self.value)!r})"
+
+
+class CypherPoint(CypherValue):
+    """Represents a point value in openCypher.
+
+    Stores a dictionary with coordinate information. Supports:
+    - 2D Cartesian: {"x": float, "y": float, "crs": "cartesian"}
+    - 3D Cartesian: {"x": float, "y": float, "z": float, "crs": "cartesian-3d"}
+    - WGS84 Geographic: {"latitude": float, "longitude": float, "crs": "wgs-84"}
+
+    The coordinate reference system (crs) is optional and inferred from keys.
+    """
+
+    def __init__(self, coordinates: dict[str, float]):
+        """Initialize a point from coordinate dictionary.
+
+        Args:
+            coordinates: Dict with coordinate keys (x/y or latitude/longitude)
+
+        Raises:
+            ValueError: If coordinates are invalid or incomplete
+        """
+        # Validate and normalize coordinates
+        if "x" in coordinates and "y" in coordinates:
+            # Cartesian coordinates
+            x = float(coordinates["x"])
+            y = float(coordinates["y"])
+            if "z" in coordinates:
+                # 3D Cartesian
+                z = float(coordinates["z"])
+                value = {"x": x, "y": y, "z": z, "crs": "cartesian-3d"}
+            else:
+                # 2D Cartesian
+                value = {"x": x, "y": y, "crs": "cartesian"}
+        elif "latitude" in coordinates and "longitude" in coordinates:
+            # Geographic coordinates (WGS-84)
+            lat = float(coordinates["latitude"])
+            lon = float(coordinates["longitude"])
+            # Validate latitude/longitude ranges
+            if not -90 <= lat <= 90:
+                raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
+            if not -180 <= lon <= 180:
+                raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
+            value = {"latitude": lat, "longitude": lon, "crs": "wgs-84"}
+        else:
+            raise ValueError(
+                "Point requires either (x, y) or (latitude, longitude) coordinates, "
+                f"got: {list(coordinates.keys())}"
+            )
+
+        super().__init__(value, CypherType.POINT)
+
+    def __repr__(self) -> str:
+        return f"CypherPoint({self.value!r})"
+
+
+class CypherDistance(CypherValue):
+    """Represents a distance value in openCypher.
+
+    Stores a float representing the Euclidean distance between two points.
+    For WGS-84 points, uses the Haversine formula to compute great-circle distance.
+    """
+
+    def __init__(self, value: float):
+        """Initialize a distance value.
+
+        Args:
+            value: Distance as a float (must be non-negative)
+
+        Raises:
+            ValueError: If distance is negative
+        """
+        if value < 0:
+            raise ValueError(f"Distance must be non-negative, got {value}")
+        super().__init__(float(value), CypherType.DISTANCE)
+
+    def __repr__(self) -> str:
+        return f"CypherDistance({self.value})"
 
 
 class CypherList(CypherValue):

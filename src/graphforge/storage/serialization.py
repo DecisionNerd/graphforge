@@ -32,12 +32,14 @@ from graphforge.types.values import (
     CypherBool,
     CypherDate,
     CypherDateTime,
+    CypherDistance,
     CypherDuration,
     CypherFloat,
     CypherInt,
     CypherList,
     CypherMap,
     CypherNull,
+    CypherPoint,
     CypherString,
     CypherTime,
     CypherValue,
@@ -79,6 +81,12 @@ def serialize_cypher_value(value: CypherValue) -> dict:
 
     if isinstance(value, CypherDuration):
         return {"type": "duration", "value": isodate.duration_isoformat(value.value)}
+
+    if isinstance(value, CypherPoint):
+        return {"type": "point", "value": value.value}
+
+    if isinstance(value, CypherDistance):
+        return {"type": "distance", "value": value.value}
 
     if isinstance(value, CypherList):
         return {
@@ -132,6 +140,12 @@ def deserialize_cypher_value(data: dict) -> CypherValue:
 
     if value_type == "duration":
         return CypherDuration(data["value"])
+
+    if value_type == "point":
+        return CypherPoint(data["value"])
+
+    if value_type == "distance":
+        return CypherDistance(data["value"])
 
     if value_type == "list":
         return CypherList([deserialize_cypher_value(item) for item in data["value"]])

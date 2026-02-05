@@ -20,12 +20,14 @@ from graphforge.types.values import (
     CypherBool,
     CypherDate,
     CypherDateTime,
+    CypherDistance,
     CypherDuration,
     CypherFloat,
     CypherInt,
     CypherList,
     CypherMap,
     CypherNull,
+    CypherPoint,
     CypherString,
     CypherTime,
     CypherValue,
@@ -382,6 +384,7 @@ TEMPORAL_FUNCTIONS = {
     "MINUTE",
     "SECOND",
 }
+SPATIAL_FUNCTIONS = {"POINT", "DISTANCE"}
 
 
 def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> CypherValue:
@@ -422,6 +425,8 @@ def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> Cypher
         return _evaluate_type_function(func_name, args)
     elif func_name in TEMPORAL_FUNCTIONS:
         return _evaluate_temporal_function(func_name, args)
+    elif func_name in SPATIAL_FUNCTIONS:
+        return _evaluate_spatial_function(func_name, args)
     else:
         raise ValueError(f"Unknown function: {func_name}")
 
@@ -672,3 +677,109 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
             raise TypeError(f"SECOND expects datetime or time, got {type(args[0]).__name__}")
 
     raise ValueError(f"Unknown temporal function: {func_name}")
+
+
+def _evaluate_spatial_function(func_name: str, args: list[CypherValue]) -> CypherValue:
+    """Evaluate spatial functions.
+
+    Args:
+        func_name: Name of the spatial function (uppercase)
+        args: List of evaluated arguments (non-NULL)
+
+    Returns:
+        CypherValue result of the spatial function
+
+    Raises:
+        ValueError: If function is unknown
+        TypeError: If arguments have invalid types
+    """
+    if func_name == "POINT":
+        # point({x: 1.0, y: 2.0}) or point({latitude: 51.5, longitude: -0.1})
+        if len(args) != 1:
+            raise TypeError(f"POINT expects 1 argument, got {len(args)}")
+        if not isinstance(args[0], CypherMap):
+            raise TypeError(f"POINT expects map argument, got {type(args[0]).__name__}")
+
+        # Convert CypherMap to dict of Python floats
+        coordinates = {}
+        for key, val in args[0].value.items():
+            if isinstance(val, (CypherInt, CypherFloat)):
+                coordinates[key] = float(val.value)
+            else:
+                raise TypeError(
+                    f"POINT coordinate '{key}' must be numeric, got {type(val).__name__}"
+                )
+
+        return CypherPoint(coordinates)
+
+    elif func_name == "DISTANCE":
+        # distance(point1, point2)
+        if len(args) != 2:
+            raise TypeError(f"DISTANCE expects 2 arguments, got {len(args)}")
+        if not isinstance(args[0], CypherPoint):
+            raise TypeError(f"DISTANCE first argument must be point, got {type(args[0]).__name__}")
+        if not isinstance(args[1], CypherPoint):
+            raise TypeError(f"DISTANCE second argument must be point, got {type(args[1]).__name__}")
+
+        p1 = args[0].value
+        p2 = args[1].value
+
+        # Check if both points use the same coordinate reference system
+        if p1["crs"] != p2["crs"]:
+            raise ValueError(
+                f"Cannot calculate distance between points with different CRS: "
+                f"{p1['crs']} and {p2['crs']}"
+            )
+
+        if p1["crs"] == "wgs-84":
+            # Use Haversine formula for geographic coordinates
+            distance = _haversine_distance(
+                p1["latitude"], p1["longitude"], p2["latitude"], p2["longitude"]
+            )
+        elif p1["crs"] == "cartesian":
+            # 2D Euclidean distance
+            dx = p2["x"] - p1["x"]
+            dy = p2["y"] - p1["y"]
+            distance = (dx**2 + dy**2) ** 0.5
+        elif p1["crs"] == "cartesian-3d":
+            # 3D Euclidean distance
+            dx = p2["x"] - p1["x"]
+            dy = p2["y"] - p1["y"]
+            dz = p2["z"] - p1["z"]
+            distance = (dx**2 + dy**2 + dz**2) ** 0.5
+        else:
+            raise ValueError(f"Unknown coordinate reference system: {p1['crs']}")
+
+        return CypherDistance(distance)
+
+    raise ValueError(f"Unknown spatial function: {func_name}")
+
+
+def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate great-circle distance between two WGS-84 points using Haversine formula.
+
+    Args:
+        lat1: Latitude of first point in degrees
+        lon1: Longitude of first point in degrees
+        lat2: Latitude of second point in degrees
+        lon2: Longitude of second point in degrees
+
+    Returns:
+        Distance in meters
+    """
+    import math
+
+    # Earth radius in meters
+    earth_radius = 6371000
+
+    # Convert to radians
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+
+    # Haversine formula
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    return earth_radius * c
