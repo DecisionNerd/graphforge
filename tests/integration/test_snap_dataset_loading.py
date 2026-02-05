@@ -10,8 +10,9 @@ Note: These tests require network access and may download large files.
 Use pytest markers to control which tests run.
 """
 
-import pytest
 from urllib.parse import urlparse
+
+import pytest
 
 from graphforge import GraphForge
 from graphforge.datasets import get_dataset_info, list_datasets
