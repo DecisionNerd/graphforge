@@ -111,17 +111,43 @@ def get_dataset_info(name: str) -> DatasetInfo:
     return _DATASET_REGISTRY[name]
 
 
-def _get_cache_path(name: str) -> Path:
+def _get_cache_path(name: str, url: str | None = None) -> Path:
     """Get the cache file path for a dataset.
 
     Args:
         name: Dataset name
+        url: Dataset URL (used to preserve file extension)
 
     Returns:
-        Path to cached dataset file
+        Path to cached dataset file with appropriate extension
     """
     # Create a filesystem-safe filename from dataset name
     safe_name = name.replace("/", "_").replace("\\", "_")
+
+    # Preserve file extension from URL if provided
+    if url:
+        # Extract extension from URL (handles .txt.gz, .tar.gz, etc.)
+        from urllib.parse import urlparse
+
+        parsed_url = urlparse(url)
+        url_path = parsed_url.path
+
+        # Handle compound extensions like .txt.gz, .tar.gz
+        if url_path.endswith(".txt.gz"):
+            extension = ".txt.gz"
+        elif url_path.endswith(".csv.gz"):
+            extension = ".csv.gz"
+        elif url_path.endswith(".tar.gz"):
+            extension = ".tar.gz"
+        elif "." in url_path:
+            # Single extension
+            extension = url_path[url_path.rfind(".") :]
+        else:
+            extension = ""
+
+        if extension:
+            safe_name = f"{safe_name}{extension}"
+
     return _CACHE_DIR / safe_name
 
 
@@ -207,8 +233,8 @@ def load_dataset(gf: "GraphForge", name: str, force_download: bool = False) -> D
     # Get dataset metadata
     info = get_dataset_info(name)
 
-    # Get cache path
-    cache_path = _get_cache_path(name)
+    # Get cache path (preserve file extension from URL)
+    cache_path = _get_cache_path(name, info.url)
 
     # Download if needed
     if force_download or not _is_cache_valid(cache_path):
@@ -242,7 +268,14 @@ def clear_cache(name: str | None = None) -> None:
         >>> clear_cache()
     """
     if name:
-        cache_path = _get_cache_path(name)
+        # Get dataset info to construct correct cache path with extension
+        try:
+            info = get_dataset_info(name)
+            cache_path = _get_cache_path(name, info.url)
+        except ValueError:
+            # If dataset not found, try without URL (for backward compatibility)
+            cache_path = _get_cache_path(name)
+
         if cache_path.exists():
             if cache_path.is_dir():
                 shutil.rmtree(cache_path)

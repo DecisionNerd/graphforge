@@ -59,8 +59,11 @@ build-backend = "hatchling.build"
 [tool.hatchling.build.targets.wheel]
 packages = ["src/graphforge"]
 
-[tool.hatchling.build.targets.wheel.shared-data]
-"src/graphforge/datasets/data" = "graphforge/datasets/data"
+[tool.hatchling.build.targets.wheel.force-include]
+"src/graphforge/datasets/data/snap.json" = "graphforge/datasets/data/snap.json"
+
+[tool.hatchling.build.targets.sdist.force-include]
+"src/graphforge/datasets/data/snap.json" = "graphforge/datasets/data/snap.json"
 
 [tool.uv]
 package = true

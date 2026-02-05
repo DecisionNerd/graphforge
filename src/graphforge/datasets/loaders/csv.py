@@ -3,6 +3,7 @@
 import gzip
 from pathlib import Path
 from typing import TYPE_CHECKING
+import zipfile
 
 from graphforge.datasets.base import DatasetLoader
 
@@ -18,6 +19,7 @@ class CSVLoader(DatasetLoader):
     - Comma-separated values (CSV)
     - Space-delimited files
     - Gzip-compressed files (.gz)
+    - Zip-compressed files (.zip)
     - Comment lines (starting with #)
     - Weighted and unweighted edges
     - Auto-delimiter detection
@@ -42,7 +44,7 @@ class CSVLoader(DatasetLoader):
 
         Args:
             gf: GraphForge instance to load data into
-            path: Path to CSV file (may be gzipped)
+            path: Path to CSV file (may be gzipped or zipped)
 
         Raises:
             ValueError: If file format is invalid
@@ -51,10 +53,29 @@ class CSVLoader(DatasetLoader):
         if not path.exists():
             raise FileNotFoundError(f"Dataset file not found: {path}")
 
-        # Open file (handle gzip if needed)
+        # Open file (handle compression if needed)
         if path.suffix == ".gz":
             with gzip.open(path, "rt", encoding="utf-8") as f:
                 self._load_edges(gf, f)
+        elif path.suffix == ".zip":
+            # Extract and load first CSV/TXT file from zip
+            with zipfile.ZipFile(path) as zf:
+                # Find first CSV or TXT file in the archive
+                csv_files = [
+                    name
+                    for name in zf.namelist()
+                    if name.endswith((".csv", ".txt", ".tsv")) and not name.startswith("__")
+                ]
+                if not csv_files:
+                    raise ValueError(f"No CSV/TXT files found in zip archive: {path}")
+
+                # Load the first CSV file found
+                with zf.open(csv_files[0], "r") as raw_f:
+                    # Wrap in TextIOWrapper for text mode
+                    import io
+
+                    with io.TextIOWrapper(raw_f, encoding="utf-8") as f:
+                        self._load_edges(gf, f)
         else:
             with path.open(encoding="utf-8") as f:
                 self._load_edges(gf, f)
