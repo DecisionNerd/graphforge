@@ -386,7 +386,7 @@ TEMPORAL_FUNCTIONS = {
     "SECOND",
 }
 SPATIAL_FUNCTIONS = {"POINT", "DISTANCE"}
-GRAPH_FUNCTIONS = {"ID"}
+GRAPH_FUNCTIONS = {"ID", "LABELS"}
 
 
 def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> CypherValue:
@@ -559,9 +559,21 @@ def _evaluate_type_function(func_name: str, args: list[CypherValue]) -> CypherVa
             return CypherNull()
 
     elif func_name == "TYPE":
-        # TYPE function returns the type name as a string
-        # Return the CypherValue type name
-        type_name = type(args[0]).__name__
+        # TYPE function - dual purpose:
+        # 1. For relationships: returns relationship type string
+        # 2. For values: returns the CypherValue type name
+
+        arg = args[0]
+
+        # Handle EdgeRef (relationship) by checking if it has both 'type' and 'src' attributes
+        # EdgeRef is not a CypherValue subclass, it's a separate runtime reference type
+        if hasattr(arg, "src") and hasattr(arg, "type"):
+            # This is an EdgeRef - return its relationship type
+            edge_ref: EdgeRef = arg  # type: ignore[assignment]
+            return CypherString(edge_ref.type)
+
+        # Handle CypherValue type introspection
+        type_name = type(arg).__name__
         # Strip "Cypher" prefix for cleaner output
         if type_name.startswith("Cypher"):
             type_name = type_name[6:]  # Remove "Cypher" prefix
@@ -836,5 +848,24 @@ def _evaluate_graph_function(
             return CypherInt(id_value)
 
         raise TypeError(f"ID expects node or relationship argument, got {type(arg).__name__}")
+
+    if func_name == "LABELS":
+        # labels(node) - returns list of label strings for a node
+        if len(args) != 1:
+            raise TypeError(f"LABELS expects 1 argument, got {len(args)}")
+
+        arg = args[0]
+
+        # Handle NULL
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+
+        # Check if argument is a node
+        if isinstance(arg, NodeRef):
+            # Return labels as a sorted list of CypherStrings
+            labels_list: list[CypherValue] = [CypherString(label) for label in sorted(arg.labels)]
+            return CypherList(labels_list)
+
+        raise TypeError(f"LABELS expects node argument, got {type(arg).__name__}")
 
     raise ValueError(f"Unknown graph function: {func_name}")
