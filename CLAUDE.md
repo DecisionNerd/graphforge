@@ -31,7 +31,9 @@ gh issue create --title "feat: add UNWIND clause support" --body "Description of
 
 ### 2. Create a Branch Associated with the Issue
 
-Branch naming convention: `<type>/<issue-number>-<short-description>`
+**REQUIRED:** Branch name MUST include issue number.
+
+**Format:** `<type>/<issue-number>-<short-description>`
 
 ```bash
 # For issue #42: Add UNWIND clause
@@ -39,8 +41,20 @@ git checkout main
 git pull origin main
 git checkout -b feature/42-unwind-clause
 
-# Types: feature/, fix/, docs/, refactor/, test/
+# Branch types:
+# feature/  - New features
+# fix/      - Bug fixes
+# docs/     - Documentation only
+# refactor/ - Code refactoring
+# test/     - Test additions/fixes
 ```
+
+**Examples:**
+- `feature/42-unwind-clause` ✅
+- `fix/89-null-handling-bug` ✅
+- `docs/80-add-claude-md` ✅
+- `feature/add-unwind` ❌ (missing issue number)
+- `42-unwind` ❌ (missing type prefix)
 
 ### 3. Do the Work with Comprehensive Tests
 
@@ -65,20 +79,70 @@ This catches issues before CI:
 - All tests
 - Coverage validation (85% total, 90% patch)
 
-### 5. Create PR Referencing the Issue
+### 5. Commit and Push
+
+**Commit message format:**
+
+```
+<type>: <subject> (#<issue-number>)
+
+<body>
+
+<footer>
+```
+
+**Types:** feat, fix, docs, refactor, test, chore
+
+**Examples:**
 
 ```bash
-git add .
+# Good commit messages
 git commit -m "feat: implement UNWIND clause (#42)
 
-Description of changes...
+- Add UNWIND grammar rule to cypher.lark
+- Implement UnwindClause AST node
+- Add planner support for Unwind operator
+- Implement executor logic for list iteration
+- Add 15 unit tests + 8 integration tests
 
-Closes #42"
+All tests passing, coverage at 100% for new code."
 
+git commit -m "fix: handle NULL in AND operator (#89)
+
+Fixes ternary logic for NULL AND expressions.
+Previously returned NULL for any NULL operand.
+Now correctly handles: NULL AND false → false
+
+Closes #89"
+
+# Bad commit messages
+git commit -m "fix bug" ❌ (no issue number, vague)
+git commit -m "changes" ❌ (not descriptive)
+git commit -m "WIP" ❌ (not final commit message)
+```
+
+### 6. Create PR Referencing the Issue
+
+```bash
 git push origin feature/42-unwind-clause
 
 gh pr create --title "feat: implement UNWIND clause" \
-  --body "Description...
+  --body "## Summary
+
+Implements UNWIND clause for list iteration...
+
+## Changes
+- Grammar updates
+- AST changes
+- Planner logic
+- Executor implementation
+- Comprehensive tests
+
+## Testing
+- 15 unit tests
+- 8 integration tests
+- 100% coverage on new code
+- All pre-push checks passing
 
 Closes #42" \
   --label "enhancement"
@@ -86,7 +150,7 @@ Closes #42" \
 
 **CRITICAL:** Use "Closes #XX" or "Fixes #XX" in PR body so GitHub automatically closes the issue when PR merges.
 
-### 6. Handling Discovered Issues
+### 7. Handling Discovered Issues
 
 If you discover problems while working:
 
