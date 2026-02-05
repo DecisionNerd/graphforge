@@ -28,26 +28,6 @@ Real-world network datasets from Stanford, covering social networks, web graphs,
 - `snap-web-google` - Google web graph (876K nodes, 5.1M edges)
 - `snap-twitter-combined` - Twitter social circles (81K nodes, 1.8M edges)
 
-#### [Neo4j Graph Examples](neo4j-examples.md)
-Curated example datasets from Neo4j for learning and demonstrations.
-
-**Status:** 12 datasets available
-**Use cases:** Learning Cypher, demonstrations, tutorials, realistic data models
-
-**Available datasets:**
-- `neo4j-movie-graph` - Movie and actor data (171 nodes, 253 edges)
-- `neo4j-northwind` - Classic Northwind database (1K nodes, 3K edges)
-- `neo4j-recommendations` - Product recommendations (400 nodes, 1.2K edges)
-- `neo4j-network-management` - Network topology (250 nodes, 800 edges)
-- `neo4j-fraud-detection` - Fraud detection patterns (500 nodes, 1.5K edges)
-- `neo4j-game-of-thrones` - Game of Thrones characters and houses (800 nodes, 3K edges)
-- `neo4j-stackoverflow` - Stack Overflow Q&A (2K nodes, 5K edges)
-- `neo4j-twitter` - Twitter social network (1.5K nodes, 4K edges)
-- `neo4j-fincen-files` - Financial crime data (600 nodes, 1.8K edges)
-- `neo4j-pole` - Police data analysis (350 nodes, 900 edges)
-- `neo4j-knowledge-graph` - General knowledge graph (1K nodes, 2.5K edges)
-- `neo4j-football-transfers` - Football player transfers (700 nodes, 2K edges)
-
 ### 📅 Coming Soon
 
 #### [LDBC (Linked Data Benchmark Council)](ldbc.md)
@@ -74,10 +54,10 @@ from graphforge.datasets import load_dataset
 gf = GraphForge()
 
 # Load a dataset by name
-load_dataset(gf, "neo4j-movie-graph")
+load_dataset(gf, "snap-ego-facebook")
 
 # Query the loaded data
-results = gf.execute("MATCH (p:Person)-[:ACTED_IN]->(m:Movie) RETURN p.name, m.title LIMIT 10")
+results = gf.execute("MATCH (n)-[r]->(m) RETURN n, r, m LIMIT 10")
 ```
 
 ### Using the Convenience Method
@@ -86,10 +66,10 @@ results = gf.execute("MATCH (p:Person)-[:ACTED_IN]->(m:Movie) RETURN p.name, m.t
 from graphforge import GraphForge
 
 # Load dataset during initialization
-gf = GraphForge.from_dataset("neo4j-movie-graph")
+gf = GraphForge.from_dataset("snap-ego-facebook")
 
 # Start querying immediately
-results = gf.execute("MATCH (m:Movie) RETURN m.title ORDER BY m.title")
+results = gf.execute("MATCH (n) RETURN count(n) as node_count")
 ```
 
 ### Listing Available Datasets
@@ -113,8 +93,8 @@ for ds in datasets:
 ```python
 from graphforge.datasets import list_datasets
 
-# Get only Neo4j example datasets
-neo4j_datasets = list_datasets(source="neo4j-examples")
+# Get only SNAP datasets
+snap_datasets = list_datasets(source="snap")
 
 # Get only small datasets (< 10 MB)
 small_datasets = [ds for ds in list_datasets() if ds.size_mb < 10]
@@ -129,13 +109,13 @@ GraphForge provides command-line tools for working with datasets:
 graphforge list-datasets
 
 # Show detailed information about a dataset
-graphforge dataset-info neo4j-movie-graph
+graphforge dataset-info snap-ego-facebook
 
 # Load a dataset
-graphforge load-dataset neo4j-movie-graph
+graphforge load-dataset snap-ego-facebook
 
 # List datasets by source
-graphforge list-datasets --source neo4j-examples
+graphforge list-datasets --source snap
 
 # Clear dataset cache
 graphforge clear-cache
@@ -156,7 +136,7 @@ Each dataset includes comprehensive metadata:
 ```python
 from graphforge.datasets import get_dataset_info
 
-info = get_dataset_info("neo4j-movie-graph")
+info = get_dataset_info("snap-ego-facebook")
 
 print(f"Name: {info.name}")
 print(f"Description: {info.description}")
@@ -181,10 +161,10 @@ from graphforge import GraphForge
 from graphforge.datasets import load_dataset
 
 gf = GraphForge()
-load_dataset(gf, "neo4j-movie-graph")
+load_dataset(gf, "snap-ego-facebook")
 
 # Explore the data
-gf.execute("MATCH (n) RETURN labels(n) AS label, count(*) AS count")
+gf.execute("MATCH (n) RETURN count(n) AS node_count")
 ```
 
 <!-- See the [examples/notebooks/datasets.ipynb](../../examples/notebooks/datasets.ipynb) for interactive examples (coming soon). -->
@@ -226,10 +206,9 @@ If dataset import fails:
 ## Related Documentation
 
 - [Cypher Script Loading](cypher-script-loading.md) - Load .cypher and .cql script files
-- [LDBC Datasets](ldbc.md)
-- [NetworkRepository Datasets](networkrepository.md)
-- [Neo4j Examples](neo4j-examples.md)
-- [SNAP Datasets](snap.md)
+- [SNAP Datasets](snap.md) - Available now
+- [LDBC Datasets](ldbc.md) - Planned
+- [NetworkRepository Datasets](networkrepository.md) - Planned
 - [API Reference](../reference/api.md)
 
 ## License Information
@@ -238,7 +217,6 @@ Each dataset has its own license. Always check the dataset metadata for licensin
 
 ## Next Steps
 
-- Explore [Neo4j Examples](neo4j-examples.md) for learning datasets
-- Try [LDBC](ldbc.md) for benchmarking
-- Use [SNAP](snap.md) for research datasets
-- Check [NetworkRepository](networkrepository.md) for diverse networks
+- Explore [SNAP](snap.md) for research and network analysis datasets
+- Try [LDBC](ldbc.md) for benchmarking (coming soon)
+- Check [NetworkRepository](networkrepository.md) for diverse networks (coming soon)
