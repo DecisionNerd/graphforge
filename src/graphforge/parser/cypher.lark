@@ -141,8 +141,6 @@ function_args: "*"                              -> count_star
              | "DISTINCT"i expression           -> distinct_arg
              | expression ("," expression)*     -> regular_args
 
-FUNCTION_NAME: /COUNT|SUM|AVG|MIN|MAX|COLLECT|LENGTH|SUBSTRING|UPPER|LOWER|TRIM|COALESCE|toInteger|toFloat|toString|type/i
-
 case_expr: "CASE"i when_clause+ ("ELSE"i expression)? "END"i
 
 when_clause: "WHEN"i expression "THEN"i expression
@@ -177,10 +175,11 @@ map_pair: (IDENTIFIER | STRING) ":" expression
 // Variables and identifiers
 variable: IDENTIFIER
 
-// Terminals - Keywords must come before IDENTIFIER
+// Terminals - Keywords and functions must come before IDENTIFIER
 TRUE: /true/i
 FALSE: /false/i
 NULL: /null/i
+FUNCTION_NAME: /substring|tointeger|tofloat|tostring|datetime|duration|coalesce|collect|length|minute|second|count|month|lower|upper|trim|year|type|date|time|hour|day|sum|avg|min|max/i
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
 
 INT: /[0-9]+/

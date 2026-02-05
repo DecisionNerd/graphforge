@@ -18,12 +18,16 @@ from graphforge.ast.expression import (
 from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,
+    CypherDate,
+    CypherDateTime,
+    CypherDuration,
     CypherFloat,
     CypherInt,
     CypherList,
     CypherMap,
     CypherNull,
     CypherString,
+    CypherTime,
     CypherValue,
     from_python,
 )
@@ -366,6 +370,18 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
 # Function categories
 STRING_FUNCTIONS = {"LENGTH", "SUBSTRING", "UPPER", "LOWER", "TRIM"}
 TYPE_FUNCTIONS = {"TOINTEGER", "TOFLOAT", "TOSTRING", "TYPE"}
+TEMPORAL_FUNCTIONS = {
+    "DATE",
+    "DATETIME",
+    "TIME",
+    "DURATION",
+    "YEAR",
+    "MONTH",
+    "DAY",
+    "HOUR",
+    "MINUTE",
+    "SECOND",
+}
 
 
 def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> CypherValue:
@@ -404,6 +420,8 @@ def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> Cypher
         return _evaluate_string_function(func_name, args)
     elif func_name in TYPE_FUNCTIONS:
         return _evaluate_type_function(func_name, args)
+    elif func_name in TEMPORAL_FUNCTIONS:
+        return _evaluate_temporal_function(func_name, args)
     else:
         raise ValueError(f"Unknown function: {func_name}")
 
@@ -538,3 +556,119 @@ def _evaluate_type_function(func_name: str, args: list[CypherValue]) -> CypherVa
         return CypherString(type_name)
 
     raise ValueError(f"Unknown type function: {func_name}")
+
+
+def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> CypherValue:
+    """Evaluate temporal functions.
+
+    Args:
+        func_name: Name of the temporal function (uppercase)
+        args: List of evaluated arguments (non-NULL)
+
+    Returns:
+        CypherValue result of the temporal function
+
+    Raises:
+        ValueError: If function is unknown
+        TypeError: If arguments have invalid types
+    """
+    if func_name == "DATE":
+        # date() or date(string)
+        if len(args) == 0:
+            # date() returns current date
+            import datetime
+
+            return CypherDate(datetime.date.today())
+        elif len(args) == 1:
+            # date(string) parses ISO 8601 date
+            if not isinstance(args[0], CypherString):
+                raise TypeError(f"DATE expects string, got {type(args[0]).__name__}")
+            return CypherDate(args[0].value)
+        else:
+            raise TypeError(f"DATE expects 0 or 1 argument, got {len(args)}")
+
+    elif func_name == "DATETIME":
+        # datetime() or datetime(string)
+        if len(args) == 0:
+            # datetime() returns current datetime
+            import datetime
+
+            return CypherDateTime(datetime.datetime.now())
+        elif len(args) == 1:
+            # datetime(string) parses ISO 8601 datetime
+            if not isinstance(args[0], CypherString):
+                raise TypeError(f"DATETIME expects string, got {type(args[0]).__name__}")
+            return CypherDateTime(args[0].value)
+        else:
+            raise TypeError(f"DATETIME expects 0 or 1 argument, got {len(args)}")
+
+    elif func_name == "TIME":
+        # time() or time(string)
+        if len(args) == 0:
+            # time() returns current time
+            import datetime
+
+            return CypherTime(datetime.datetime.now().time())
+        elif len(args) == 1:
+            # time(string) parses ISO 8601 time
+            if not isinstance(args[0], CypherString):
+                raise TypeError(f"TIME expects string, got {type(args[0]).__name__}")
+            return CypherTime(args[0].value)
+        else:
+            raise TypeError(f"TIME expects 0 or 1 argument, got {len(args)}")
+
+    elif func_name == "DURATION":
+        # duration(string)
+        if len(args) != 1:
+            raise TypeError(f"DURATION expects 1 argument, got {len(args)}")
+        if not isinstance(args[0], CypherString):
+            raise TypeError(f"DURATION expects string, got {type(args[0]).__name__}")
+        return CypherDuration(args[0].value)
+
+    # Temporal component extraction functions
+    elif func_name == "YEAR":
+        if len(args) != 1:
+            raise TypeError(f"YEAR expects 1 argument, got {len(args)}")
+        if not isinstance(args[0], (CypherDate, CypherDateTime)):
+            raise TypeError(f"YEAR expects date or datetime, got {type(args[0]).__name__}")
+        return CypherInt(args[0].value.year)
+
+    elif func_name == "MONTH":
+        if len(args) != 1:
+            raise TypeError(f"MONTH expects 1 argument, got {len(args)}")
+        if not isinstance(args[0], (CypherDate, CypherDateTime)):
+            raise TypeError(f"MONTH expects date or datetime, got {type(args[0]).__name__}")
+        return CypherInt(args[0].value.month)
+
+    elif func_name == "DAY":
+        if len(args) != 1:
+            raise TypeError(f"DAY expects 1 argument, got {len(args)}")
+        if not isinstance(args[0], (CypherDate, CypherDateTime)):
+            raise TypeError(f"DAY expects date or datetime, got {type(args[0]).__name__}")
+        return CypherInt(args[0].value.day)
+
+    elif func_name == "HOUR":
+        if len(args) != 1:
+            raise TypeError(f"HOUR expects 1 argument, got {len(args)}")
+        if isinstance(args[0], (CypherDateTime, CypherTime)):
+            return CypherInt(args[0].value.hour)
+        else:
+            raise TypeError(f"HOUR expects datetime or time, got {type(args[0]).__name__}")
+
+    elif func_name == "MINUTE":
+        if len(args) != 1:
+            raise TypeError(f"MINUTE expects 1 argument, got {len(args)}")
+        if isinstance(args[0], (CypherDateTime, CypherTime)):
+            return CypherInt(args[0].value.minute)
+        else:
+            raise TypeError(f"MINUTE expects datetime or time, got {type(args[0]).__name__}")
+
+    elif func_name == "SECOND":
+        if len(args) != 1:
+            raise TypeError(f"SECOND expects 1 argument, got {len(args)}")
+        if isinstance(args[0], (CypherDateTime, CypherTime)):
+            return CypherInt(args[0].value.second)
+        else:
+            raise TypeError(f"SECOND expects datetime or time, got {type(args[0]).__name__}")
+
+    raise ValueError(f"Unknown temporal function: {func_name}")
