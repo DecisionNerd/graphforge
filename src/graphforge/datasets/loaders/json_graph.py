@@ -78,31 +78,31 @@ def property_value_to_cypher(prop_value: PropertyValue) -> CypherValue:
     # Collection types
     if t == "list":
         # Recursively convert list items
-        items = []
+        list_items: list[CypherValue] = []
         for item in v:
             if isinstance(item, dict) and "t" in item and "v" in item:
                 # Item is already a PropertyValue dict
-                items.append(property_value_to_cypher(PropertyValue(**item)))
+                list_items.append(property_value_to_cypher(PropertyValue(**item)))
             else:
                 # Item is a raw value (shouldn't happen with validation, but handle gracefully)
                 raise ValueError(
                     f"List items must be PropertyValue objects, got {type(item).__name__}"
                 )
-        return CypherList(items)
+        return CypherList(list_items)
 
     if t == "map":
         # Recursively convert map values
-        items = {}
+        map_items: dict[str, CypherValue] = {}
         for key, val in v.items():
             if isinstance(val, dict) and "t" in val and "v" in val:
                 # Value is a PropertyValue dict
-                items[key] = property_value_to_cypher(PropertyValue(**val))
+                map_items[key] = property_value_to_cypher(PropertyValue(**val))
             else:
                 # Value is a raw value (shouldn't happen with validation, but handle gracefully)
                 raise ValueError(
                     f"Map values must be PropertyValue objects, got {type(val).__name__}"
                 )
-        return CypherMap(items)
+        return CypherMap(map_items)
 
     raise ValueError(f"Unsupported type tag: {t!r}")
 
@@ -193,7 +193,6 @@ class JSONGraphLoader(DatasetLoader):
             node_map[node.id] = node_ref
 
         # Create edges
-        edge_count = 0
         for edge in graph.edges:
             # Get source and target node references
             source_ref = node_map[edge.source]
@@ -204,7 +203,6 @@ class JSONGraphLoader(DatasetLoader):
 
             # Create relationship
             gf.create_relationship(source_ref, target_ref, edge.type, **props)
-            edge_count += 1
 
     def get_format(self) -> str:
         """Return the format name this loader handles.

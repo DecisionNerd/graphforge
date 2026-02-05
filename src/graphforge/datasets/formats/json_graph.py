@@ -174,8 +174,9 @@ class PropertyValue(BaseModel):
             has_cartesian = "x" in v and "y" in v
             has_geographic = "latitude" in v and "longitude" in v
             if not (has_cartesian or has_geographic):
+                keys_list = list(v.keys())
                 raise ValueError(
-                    f"Type 'point' requires (x, y) or (latitude, longitude), got keys: {list(v.keys())}"
+                    f"Type 'point' requires (x, y) or (latitude, longitude), got keys: {keys_list}"
                 )
 
         # distance: value must be non-negative number

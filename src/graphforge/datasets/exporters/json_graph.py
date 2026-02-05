@@ -4,7 +4,6 @@ Exports GraphForge graphs to JSON Graph format with typed properties.
 Converts CypherValue objects to PropertyValue format while preserving type information.
 """
 
-import datetime
 import json
 from pathlib import Path
 from typing import Any
@@ -85,19 +84,19 @@ def cypher_value_to_property_value(cypher_val: CypherValue) -> PropertyValue:
     # Collection types
     if isinstance(cypher_val, CypherList):
         # Recursively convert list items to PropertyValue dicts
-        items = []
+        list_items: list[dict[str, Any]] = []
         for item in cypher_val.value:
             prop_val = cypher_value_to_property_value(item)
-            items.append({"t": prop_val.t, "v": prop_val.v})
-        return PropertyValue(t="list", v=items)
+            list_items.append({"t": prop_val.t, "v": prop_val.v})
+        return PropertyValue(t="list", v=list_items)
 
     if isinstance(cypher_val, CypherMap):
         # Recursively convert map values to PropertyValue dicts
-        items = {}
+        map_items: dict[str, dict[str, Any]] = {}
         for key, val in cypher_val.value.items():
             prop_val = cypher_value_to_property_value(val)
-            items[key] = {"t": prop_val.t, "v": prop_val.v}
-        return PropertyValue(t="map", v=items)
+            map_items[key] = {"t": prop_val.t, "v": prop_val.v}
+        return PropertyValue(t="map", v=map_items)
 
     raise ValueError(f"Unsupported CypherValue type: {type(cypher_val).__name__}")
 
@@ -138,22 +137,22 @@ class JSONGraphExporter:
             node_id = f"n{i}"
             node_ref = row["node"]
 
-            # Get labels from result
+            # Get labels from result (CypherList of CypherString)
             labels_val = row["labels"]
-            labels = labels_val.value if hasattr(labels_val, "value") else []
+            if hasattr(labels_val, "value"):
+                # Extract string values from CypherString objects
+                labels = [label.value for label in labels_val.value]
+            else:
+                labels = []
 
-            # Get properties from the node
-            # The node is returned as a CypherMap with properties
-            if hasattr(node_ref, "value") and isinstance(node_ref.value, dict):
-                properties = {}
-                for key, val in node_ref.value.items():
+            # Get properties from the NodeRef
+            properties = {}
+            if hasattr(node_ref, "properties") and node_ref.properties:
+                for key, val in node_ref.properties.items():
                     if not key.startswith("_"):  # Skip internal properties
                         properties[key] = cypher_value_to_property_value(val)
 
-                nodes.append(JSONGraphNode(id=node_id, labels=labels, properties=properties))
-            else:
-                # Node has no properties
-                nodes.append(JSONGraphNode(id=node_id, labels=labels, properties={}))
+            nodes.append(JSONGraphNode(id=node_id, labels=labels, properties=properties))
 
             # Store mapping from internal ID to JSON ID
             internal_id = row["id"].value if hasattr(row["id"], "value") else row["id"]
@@ -185,11 +184,11 @@ class JSONGraphExporter:
             rel_type_val = row["rel_type"]
             rel_type = rel_type_val.value if hasattr(rel_type_val, "value") else str(rel_type_val)
 
-            # Get properties from the relationship
+            # Get properties from the EdgeRef
             relationship = row["relationship"]
             properties = {}
-            if hasattr(relationship, "value") and isinstance(relationship.value, dict):
-                for key, val in relationship.value.items():
+            if hasattr(relationship, "properties") and relationship.properties:
+                for key, val in relationship.properties.items():
                     if not key.startswith("_"):  # Skip internal properties
                         properties[key] = cypher_value_to_property_value(val)
 

@@ -388,6 +388,15 @@ class GraphForge:
         if isinstance(value, datetime.timedelta):
             return CypherDuration(value)
 
+        # Handle isodate.Duration (used for ISO 8601 durations with years/months)
+        try:
+            import isodate  # type: ignore[import-untyped]
+
+            if isinstance(value, isodate.Duration):
+                return CypherDuration(value)
+        except ImportError:
+            pass
+
         # Handle list (recursively convert elements)
         if isinstance(value, list):
             return CypherList([self._to_cypher_value(item) for item in value])

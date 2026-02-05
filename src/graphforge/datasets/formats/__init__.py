@@ -8,8 +8,8 @@ from graphforge.datasets.formats.json_graph import (
 )
 
 __all__ = [
-    "PropertyValue",
-    "JSONGraphNode",
-    "JSONGraphEdge",
     "JSONGraph",
+    "JSONGraphEdge",
+    "JSONGraphNode",
+    "PropertyValue",
 ]
