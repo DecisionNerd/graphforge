@@ -6,6 +6,8 @@ This module provides the main public interface for GraphForge.
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel, Field, field_validator
+
 from graphforge.executor.executor import QueryExecutor
 from graphforge.parser.parser import CypherParser
 from graphforge.planner.planner import QueryPlanner
@@ -21,6 +23,81 @@ from graphforge.types.values import (
     CypherNull,
     CypherString,
 )
+
+# Pydantic models for API validation
+
+
+class QueryInput(BaseModel):
+    """Validates openCypher query input."""
+
+    query: str = Field(..., min_length=1, description="openCypher query string")
+
+    @field_validator("query")
+    @classmethod
+    def validate_query(cls, v: str) -> str:
+        """Validate query is not just whitespace."""
+        if not v.strip():
+            raise ValueError("Query cannot be empty or whitespace only")
+        return v
+
+    model_config = {"frozen": True}
+
+
+class NodeInput(BaseModel):
+    """Validates node creation input."""
+
+    labels: list[str] = Field(default_factory=list, description="Node labels")
+
+    @field_validator("labels")
+    @classmethod
+    def validate_labels(cls, v: list[str]) -> list[str]:
+        """Validate label names."""
+        for label in v:
+            if not label:
+                raise ValueError("Label cannot be empty string")
+            if not label[0].isalpha():
+                raise ValueError(f"Label must start with a letter: {label}")
+            if not label.replace("_", "").isalnum():
+                raise ValueError(f"Label must contain only alphanumeric and underscore: {label}")
+        return v
+
+    model_config = {"frozen": True}
+
+
+class RelationshipInput(BaseModel):
+    """Validates relationship creation input."""
+
+    rel_type: str = Field(..., min_length=1, description="Relationship type")
+
+    @field_validator("rel_type")
+    @classmethod
+    def validate_rel_type(cls, v: str) -> str:
+        """Validate relationship type name."""
+        if not v[0].isalpha() and v[0] != "_":
+            raise ValueError(f"Relationship type must start with letter or underscore: {v}")
+        if not v.replace("_", "").isalnum():
+            raise ValueError(
+                f"Relationship type must contain only alphanumeric and underscore: {v}"
+            )
+        return v
+
+    model_config = {"frozen": True}
+
+
+class DatasetNameInput(BaseModel):
+    """Validates dataset name input."""
+
+    name: str = Field(..., min_length=1, description="Dataset name")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate dataset name is not just whitespace."""
+        if not v.strip():
+            raise ValueError("Dataset name cannot be empty or whitespace only")
+        return v
+
+    model_config = {"frozen": True}
 
 
 class GraphForge:
@@ -47,6 +124,9 @@ class GraphForge:
                   If None, uses in-memory storage.
                   If provided, loads existing graph or creates new database.
 
+        Raises:
+            ValueError: If path is empty string or whitespace only
+
         Examples:
             >>> # In-memory graph (lost on exit)
             >>> gf = GraphForge()
@@ -59,6 +139,11 @@ class GraphForge:
             >>> # Later, load the graph
             >>> gf = GraphForge("my-graph.db")  # Graph is still there
         """
+        # Validate path if provided
+        if path is not None:
+            if isinstance(path, str) and not path.strip():
+                raise ValueError("Path cannot be empty or whitespace only")
+
         # Initialize storage backend
         if path:
             # Use SQLite for persistence
@@ -99,6 +184,10 @@ class GraphForge:
         Returns:
             GraphForge instance with dataset loaded
 
+        Raises:
+            ValueError: If dataset name is empty or whitespace only
+            pydantic.ValidationError: If dataset name fails validation
+
         Examples:
             >>> # Load dataset into in-memory graph
             >>> gf = GraphForge.from_dataset("snap-ego-facebook")
@@ -107,6 +196,9 @@ class GraphForge:
             >>> gf = GraphForge.from_dataset("neo4j-movie-graph", "movies.db")
         """
         from graphforge.datasets import load_dataset
+
+        # Validate dataset name
+        DatasetNameInput(name=name)
 
         instance = cls(path)
         load_dataset(instance, name)  # nosec B615 - Not Hugging Face, our own dataset loader
@@ -121,10 +213,17 @@ class GraphForge:
         Returns:
             List of result rows as dictionaries
 
+        Raises:
+            ValueError: If query is empty or whitespace only
+            pydantic.ValidationError: If query fails validation
+
         Examples:
             >>> gf = GraphForge()
             >>> results = gf.execute("MATCH (n) RETURN n LIMIT 10")
         """
+        # Validate query input
+        QueryInput(query=query)
+
         # Parse query
         ast = self.parser.parse(query)
 
@@ -150,6 +249,11 @@ class GraphForge:
         Returns:
             NodeRef for the created node
 
+        Raises:
+            ValueError: If labels are invalid (empty, don't start with letter, etc.)
+            pydantic.ValidationError: If labels fail validation
+            TypeError: If property values are unsupported types
+
         Examples:
             >>> gf = GraphForge()
             >>> alice = gf.create_node(['Person'], name='Alice', age=30)
@@ -157,6 +261,9 @@ class GraphForge:
             >>> # Query the created nodes
             >>> results = gf.execute("MATCH (p:Person) RETURN p.name")
         """
+        # Validate labels
+        NodeInput(labels=labels or [])
+
         # Convert properties to CypherValues
         cypher_properties = {key: self._to_cypher_value(value) for key, value in properties.items()}
 
@@ -192,6 +299,11 @@ class GraphForge:
         Returns:
             EdgeRef for the created relationship
 
+        Raises:
+            ValueError: If rel_type is invalid (empty, doesn't start with letter/underscore, etc.)
+            TypeError: If src or dst are not NodeRef instances
+            pydantic.ValidationError: If rel_type fails validation
+
         Examples:
             >>> gf = GraphForge()
             >>> alice = gf.create_node(['Person'], name='Alice')
@@ -200,6 +312,14 @@ class GraphForge:
             >>> # Query relationships
             >>> results = gf.execute("MATCH (a)-[r:KNOWS]->(b) RETURN a.name, b.name")
         """
+        # Validate inputs
+        if not isinstance(src, NodeRef):
+            raise TypeError(f"src must be a NodeRef, got {type(src).__name__}")
+        if not isinstance(dst, NodeRef):
+            raise TypeError(f"dst must be a NodeRef, got {type(dst).__name__}")
+
+        RelationshipInput(rel_type=rel_type)
+
         # Convert properties to CypherValues
         cypher_properties = {key: self._to_cypher_value(value) for key, value in properties.items()}
 
