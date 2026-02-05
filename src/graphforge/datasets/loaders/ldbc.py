@@ -6,6 +6,7 @@ containing multiple CSV files with nodes and relationships.
 
 import csv
 from pathlib import Path
+import tempfile
 from typing import TYPE_CHECKING, Any
 
 from graphforge.datasets.base import DatasetLoader
@@ -57,22 +58,22 @@ class LDBCLoader(DatasetLoader):
         if not path.exists():
             raise FileNotFoundError(f"Dataset path not found: {path}")
 
-        # Extract archive if needed
+        # Extract archive if needed, using temporary directory for cleanup
         if is_compressed_archive(path):
-            # Extract to temporary directory
-            extract_dir = path.parent / f".{path.stem}_extracted"
-            extract_archive(path, extract_dir)
-            data_dir = extract_dir
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Extract to temporary directory (auto-cleaned on context exit)
+                extract_dir = Path(temp_dir)
+                extract_archive(path, extract_dir)
+
+                # Load data while temp directory exists
+                node_cache = self._load_nodes(gf, extract_dir)
+                self._load_relationships(gf, extract_dir, node_cache)
         elif path.is_dir():
-            data_dir = path
+            # Load directly from directory (no cleanup needed)
+            node_cache = self._load_nodes(gf, path)
+            self._load_relationships(gf, path, node_cache)
         else:
             raise ValueError(f"Expected .tar.zst archive or directory, got: {path.suffix}")
-
-        # Load nodes first (so relationships can reference them)
-        node_cache = self._load_nodes(gf, data_dir)
-
-        # Then load relationships
-        self._load_relationships(gf, data_dir, node_cache)
 
     def _load_nodes(self, gf: "GraphForge", data_dir: Path) -> dict[tuple[str, str], Any]:
         """Load all node types from CSV files.

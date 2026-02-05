@@ -1,4 +1,8 @@
-"""Unit tests for compression utilities."""
+"""Integration tests for compression utilities.
+
+These tests perform actual file I/O operations and are therefore
+classified as integration tests rather than unit tests.
+"""
 
 from pathlib import Path
 import tarfile
@@ -10,7 +14,7 @@ from graphforge.datasets.loaders.compression import (
     is_compressed_archive,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = pytest.mark.integration
 
 
 class TestIsCompressedArchive:

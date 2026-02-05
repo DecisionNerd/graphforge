@@ -1,4 +1,8 @@
-"""Unit tests for LDBC loader."""
+"""Integration tests for LDBC loader.
+
+These tests instantiate GraphForge and execute Cypher queries,
+making them integration tests rather than unit tests.
+"""
 
 from pathlib import Path
 
@@ -8,7 +12,7 @@ from graphforge import GraphForge
 from graphforge.datasets.loaders.ldbc import LDBCLoader
 from graphforge.datasets.loaders.ldbc_schema import PropertyMapping, parse_int, parse_string
 
-pytestmark = pytest.mark.unit
+pytestmark = pytest.mark.integration
 
 
 class TestLDBCLoader:
