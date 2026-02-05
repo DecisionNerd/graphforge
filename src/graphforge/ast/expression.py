@@ -7,46 +7,80 @@ This module defines expression nodes for:
 - Binary operations (comparisons, logical operators)
 """
 
-from dataclasses import dataclass
 from typing import Any
 
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-@dataclass
-class Literal:
+
+class Literal(BaseModel):
     """Literal value expression.
 
     Examples:
-        42, "hello", true, null
+        Literal(value=42), Literal(value="hello"), Literal(value=True), Literal(value=None)
     """
 
-    value: Any  # int, str, bool, None, float
+    value: Any = Field(..., description="Literal value (int, str, bool, None, float)")
+
+    @field_validator("value")
+    @classmethod
+    def validate_value(cls, v: Any) -> Any:
+        """Validate literal value is a supported type."""
+        if v is not None and not isinstance(v, (int, str, bool, float, list, dict)):
+            raise ValueError(
+                f"Literal value must be int, str, bool, None, float, list, or dict, got {type(v)}"
+            )
+        return v
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class Variable:
+class Variable(BaseModel):
     """Variable reference expression.
 
     Examples:
-        n, person, r
+        Variable(name="n"), Variable(name="person"), Variable(name="r")
     """
 
-    name: str
+    name: str = Field(..., min_length=1, description="Variable name")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate variable name format."""
+        if not v[0].isalpha() and v[0] != "_":
+            raise ValueError(f"Variable name must start with letter or underscore: {v}")
+        if not v.replace("_", "").isalnum():
+            raise ValueError(f"Variable name must contain only alphanumeric and underscore: {v}")
+        return v
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class PropertyAccess:
+class PropertyAccess(BaseModel):
     """Property access expression.
 
     Examples:
-        n.name, person.age
+        PropertyAccess(variable="n", property="name")
+        PropertyAccess(variable="person", property="age")
     """
 
-    variable: str
-    property: str
+    variable: str = Field(..., min_length=1, description="Variable name")
+    property: str = Field(..., min_length=1, description="Property name")
+
+    @field_validator("variable", "property")
+    @classmethod
+    def validate_identifier(cls, v: str) -> str:
+        """Validate identifier format."""
+        if not v[0].isalpha() and v[0] != "_":
+            raise ValueError(f"Identifier must start with letter or underscore: {v}")
+        if not v.replace("_", "").isalnum():
+            raise ValueError(f"Identifier must contain only alphanumeric and underscore: {v}")
+        return v
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class BinaryOp:
+class BinaryOp(BaseModel):
     """Binary operation expression.
 
     Supports:
@@ -55,13 +89,42 @@ class BinaryOp:
     - Arithmetic: +, -, *, / (future)
     """
 
-    op: str
-    left: Any  # Expression
-    right: Any  # Expression
+    op: str = Field(..., description="Operator")
+    left: Any = Field(..., description="Left expression")
+    right: Any = Field(..., description="Right expression")
+
+    @field_validator("op")
+    @classmethod
+    def validate_op(cls, v: str) -> str:
+        """Validate operator is supported."""
+        valid_ops = {
+            "=",
+            "<>",
+            "<",
+            ">",
+            "<=",
+            ">=",
+            "AND",
+            "OR",
+            "+",
+            "-",
+            "*",
+            "/",
+            "%",
+            "^",
+            "STARTS WITH",
+            "ENDS WITH",
+            "CONTAINS",
+            "IN",
+        }
+        if v not in valid_ops:
+            raise ValueError(f"Unsupported binary operator: {v}")
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
-@dataclass
-class UnaryOp:
+class UnaryOp(BaseModel):
     """Unary operation expression.
 
     Supports:
@@ -69,12 +132,22 @@ class UnaryOp:
     - Arithmetic: - (negation, future)
     """
 
-    op: str
-    operand: Any  # Expression
+    op: str = Field(..., description="Operator")
+    operand: Any = Field(..., description="Operand expression")
+
+    @field_validator("op")
+    @classmethod
+    def validate_op(cls, v: str) -> str:
+        """Validate operator is supported."""
+        valid_ops = {"NOT", "-", "IS NULL", "IS NOT NULL"}
+        if v not in valid_ops:
+            raise ValueError(f"Unsupported unary operator: {v}")
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
-@dataclass
-class FunctionCall:
+class FunctionCall(BaseModel):
     """Function call expression.
 
     Examples:
@@ -82,13 +155,29 @@ class FunctionCall:
         COUNT(*) for counting all rows
     """
 
-    name: str  # Function name (COUNT, SUM, AVG, MIN, MAX)
-    args: list[Any]  # List of argument expressions (empty for COUNT(*))
-    distinct: bool = False  # True for COUNT(DISTINCT n)
+    name: str = Field(..., min_length=1, description="Function name")
+    args: list[Any] = Field(default_factory=list, description="Function arguments")
+    distinct: bool = Field(default=False, description="True for DISTINCT modifier")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate and normalize function name."""
+        return v.upper()  # Normalize to uppercase
+
+    @model_validator(mode="after")
+    def validate_function_call(self) -> "FunctionCall":
+        """Validate function call constraints."""
+        # COUNT(*) should have empty args
+        # For now, just validate that args is a list
+        if not isinstance(self.args, list):
+            raise ValueError("Function args must be a list")
+        return self
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
-@dataclass
-class CaseExpression:
+class CaseExpression(BaseModel):
     """CASE expression for conditional logic.
 
     Examples:
@@ -96,5 +185,22 @@ class CaseExpression:
         CASE WHEN n.status = 'active' THEN 1 WHEN n.status = 'pending' THEN 2 ELSE 0 END
     """
 
-    when_clauses: list[tuple[Any, Any]]  # List of (condition_expr, result_expr) tuples
-    else_expr: Any | None = None  # Optional ELSE expression, returns NULL if None
+    when_clauses: list[tuple[Any, Any]] = Field(
+        ..., min_length=1, description="List of (condition, result) tuples"
+    )
+    else_expr: Any | None = Field(default=None, description="Optional ELSE expression")
+
+    @field_validator("when_clauses")
+    @classmethod
+    def validate_when_clauses(cls, v: list[tuple[Any, Any]]) -> list[tuple[Any, Any]]:
+        """Validate WHEN clauses format."""
+        if not v:
+            raise ValueError("CASE expression must have at least one WHEN clause")
+        for i, clause in enumerate(v):
+            if not isinstance(clause, tuple) or len(clause) != 2:
+                raise ValueError(
+                    f"WHEN clause {i} must be a tuple of (condition, result), got {clause}"
+                )
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}

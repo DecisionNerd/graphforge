@@ -1,16 +1,16 @@
 """Base classes and data structures for dataset loading."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from pydantic import BaseModel, Field, field_validator
 
 if TYPE_CHECKING:
     from graphforge import GraphForge
 
 
-@dataclass
-class DatasetInfo:
+class DatasetInfo(BaseModel):
     """Metadata about a graph dataset.
 
     Attributes:
@@ -28,22 +28,58 @@ class DatasetInfo:
         loader_class: Name of the DatasetLoader class to use
     """
 
-    name: str
-    description: str
-    source: str
-    url: str
-    nodes: int
-    edges: int
-    labels: list[str]
-    relationship_types: list[str]
-    size_mb: float
-    license: str
-    category: str
-    loader_class: str
+    name: str = Field(..., min_length=1, description="Unique dataset identifier")
+    description: str = Field(..., min_length=1, description="Dataset description")
+    source: str = Field(..., min_length=1, description="Source repository")
+    url: str = Field(..., description="Download URL")
+    nodes: int = Field(..., ge=0, description="Expected number of nodes")
+    edges: int = Field(..., ge=0, description="Expected number of edges")
+    labels: list[str] = Field(default_factory=list, description="Node labels")
+    relationship_types: list[str] = Field(default_factory=list, description="Relationship types")
+    size_mb: float = Field(..., gt=0, description="Download size in MB")
+    license: str = Field(..., min_length=1, description="Dataset license")
+    category: str = Field(..., min_length=1, description="Dataset category")
+    loader_class: str = Field(..., min_length=1, description="Loader class name")
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        """Validate URL format."""
+        if not v.startswith(("http://", "https://", "ftp://")):
+            raise ValueError(f"Invalid URL scheme: {v}")
+        return v
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate dataset name format."""
+        if not v.replace("-", "").replace("_", "").replace(".", "").isalnum():
+            raise ValueError(
+                f"Dataset name must contain only alphanumeric, dash, underscore, "
+                f"and dot characters: {v}"
+            )
+        return v
+
+    @field_validator("source")
+    @classmethod
+    def validate_source(cls, v: str) -> str:
+        """Validate source is a non-empty lowercase string."""
+        if not v.islower():
+            raise ValueError(f"Source must be lowercase: {v}")
+        return v
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, v: str) -> str:
+        """Validate category is a non-empty lowercase string."""
+        if not v.islower():
+            raise ValueError(f"Category must be lowercase: {v}")
+        return v
+
+    model_config = {"frozen": True}  # Make instances immutable like dataclass(frozen=True)
 
 
-@dataclass
-class Dataset:
+class Dataset(BaseModel):
     """A loaded graph dataset with its metadata.
 
     Attributes:
@@ -53,6 +89,16 @@ class Dataset:
 
     info: DatasetInfo
     path: Path
+
+    @field_validator("path", mode="before")
+    @classmethod
+    def validate_path(cls, v: Any) -> Path:
+        """Validate and convert path to Path object."""
+        if not isinstance(v, Path):
+            return Path(v)
+        return v
+
+    model_config = {"arbitrary_types_allowed": True}  # Allow Path type
 
 
 class DatasetLoader(ABC):

@@ -17,7 +17,7 @@ class TestLiteralEvaluation:
 
     def test_evaluate_int_literal(self):
         """Evaluate integer literal."""
-        expr = Literal(42)
+        expr = Literal(value=42)
         ctx = ExecutionContext()
         result = evaluate_expression(expr, ctx)
 
@@ -26,7 +26,7 @@ class TestLiteralEvaluation:
 
     def test_evaluate_string_literal(self):
         """Evaluate string literal."""
-        expr = Literal("hello")
+        expr = Literal(value="hello")
         ctx = ExecutionContext()
         result = evaluate_expression(expr, ctx)
 
@@ -35,7 +35,7 @@ class TestLiteralEvaluation:
 
     def test_evaluate_null_literal(self):
         """Evaluate null literal."""
-        expr = Literal(None)
+        expr = Literal(value=None)
         ctx = ExecutionContext()
         result = evaluate_expression(expr, ctx)
 
@@ -52,7 +52,7 @@ class TestVariableEvaluation:
         ctx = ExecutionContext()
         ctx.bind("n", node)
 
-        expr = Variable("n")
+        expr = Variable(name="n")
         result = evaluate_expression(expr, ctx)
 
         assert result == node
@@ -60,7 +60,7 @@ class TestVariableEvaluation:
     def test_evaluate_undefined_variable(self):
         """Evaluating undefined variable raises error."""
         ctx = ExecutionContext()
-        expr = Variable("x")
+        expr = Variable(name="x")
 
         with pytest.raises(KeyError):
             evaluate_expression(expr, ctx)
@@ -105,7 +105,7 @@ class TestComparisonOperations:
     def test_greater_than(self):
         """Evaluate greater than comparison."""
         ctx = ExecutionContext()
-        expr = BinaryOp(op=">", left=Literal(10), right=Literal(5))
+        expr = BinaryOp(op=">", left=Literal(value=10), right=Literal(value=5))
         result = evaluate_expression(expr, ctx)
 
         assert isinstance(result, CypherBool)
@@ -114,7 +114,7 @@ class TestComparisonOperations:
     def test_less_than(self):
         """Evaluate less than comparison."""
         ctx = ExecutionContext()
-        expr = BinaryOp(op="<", left=Literal(5), right=Literal(10))
+        expr = BinaryOp(op="<", left=Literal(value=5), right=Literal(value=10))
         result = evaluate_expression(expr, ctx)
 
         assert isinstance(result, CypherBool)
@@ -123,7 +123,7 @@ class TestComparisonOperations:
     def test_equals(self):
         """Evaluate equals comparison."""
         ctx = ExecutionContext()
-        expr = BinaryOp(op="=", left=Literal(5), right=Literal(5))
+        expr = BinaryOp(op="=", left=Literal(value=5), right=Literal(value=5))
         result = evaluate_expression(expr, ctx)
 
         assert isinstance(result, CypherBool)
@@ -132,7 +132,7 @@ class TestComparisonOperations:
     def test_not_equals(self):
         """Evaluate not equals comparison."""
         ctx = ExecutionContext()
-        expr = BinaryOp(op="<>", left=Literal(5), right=Literal(10))
+        expr = BinaryOp(op="<>", left=Literal(value=5), right=Literal(value=10))
         result = evaluate_expression(expr, ctx)
 
         assert isinstance(result, CypherBool)
@@ -146,7 +146,7 @@ class TestLogicalOperations:
     def test_and_true_true(self):
         """AND with both true."""
         ctx = ExecutionContext()
-        expr = BinaryOp(op="AND", left=Literal(True), right=Literal(True))
+        expr = BinaryOp(op="AND", left=Literal(value=True), right=Literal(value=True))
         result = evaluate_expression(expr, ctx)
 
         assert isinstance(result, CypherBool)
@@ -155,7 +155,7 @@ class TestLogicalOperations:
     def test_and_true_false(self):
         """AND with one false."""
         ctx = ExecutionContext()
-        expr = BinaryOp(op="AND", left=Literal(True), right=Literal(False))
+        expr = BinaryOp(op="AND", left=Literal(value=True), right=Literal(value=False))
         result = evaluate_expression(expr, ctx)
 
         assert isinstance(result, CypherBool)
@@ -164,7 +164,7 @@ class TestLogicalOperations:
     def test_or_false_true(self):
         """OR with one true."""
         ctx = ExecutionContext()
-        expr = BinaryOp(op="OR", left=Literal(False), right=Literal(True))
+        expr = BinaryOp(op="OR", left=Literal(value=False), right=Literal(value=True))
         result = evaluate_expression(expr, ctx)
 
         assert isinstance(result, CypherBool)
@@ -178,7 +178,7 @@ class TestNullPropagation:
     def test_null_comparison(self):
         """Comparing NULL returns NULL."""
         ctx = ExecutionContext()
-        expr = BinaryOp(op=">", left=Literal(None), right=Literal(10))
+        expr = BinaryOp(op=">", left=Literal(value=None), right=Literal(value=10))
         result = evaluate_expression(expr, ctx)
 
         assert isinstance(result, CypherNull)
@@ -186,7 +186,7 @@ class TestNullPropagation:
     def test_null_and_true(self):
         """NULL AND true returns NULL."""
         ctx = ExecutionContext()
-        expr = BinaryOp(op="AND", left=Literal(None), right=Literal(True))
+        expr = BinaryOp(op="AND", left=Literal(value=None), right=Literal(value=True))
         result = evaluate_expression(expr, ctx)
 
         assert isinstance(result, CypherNull)
@@ -205,7 +205,7 @@ class TestComplexExpressions:
         expr = BinaryOp(
             op=">",
             left=PropertyAccess(variable="n", property="age"),
-            right=Literal(30),
+            right=Literal(value=30),
         )
         result = evaluate_expression(expr, ctx)
 
@@ -218,8 +218,8 @@ class TestComplexExpressions:
         # (10 > 5) AND (20 < 30)
         expr = BinaryOp(
             op="AND",
-            left=BinaryOp(op=">", left=Literal(10), right=Literal(5)),
-            right=BinaryOp(op="<", left=Literal(20), right=Literal(30)),
+            left=BinaryOp(op=">", left=Literal(value=10), right=Literal(value=5)),
+            right=BinaryOp(op="<", left=Literal(value=20), right=Literal(value=30)),
         )
         result = evaluate_expression(expr, ctx)
 
@@ -236,7 +236,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="COALESCE",
-            args=[Literal(None), Literal(42), Literal(100)],
+            args=[Literal(value=None), Literal(value=42), Literal(value=100)],
         )
         result = evaluate_expression(expr, ctx)
 
@@ -248,7 +248,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="COALESCE",
-            args=[Literal(None), Literal(None)],
+            args=[Literal(value=None), Literal(value=None)],
         )
         result = evaluate_expression(expr, ctx)
 
@@ -259,7 +259,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="COALESCE",
-            args=[Literal("first"), Literal("second")],
+            args=[Literal(value="first"), Literal(value="second")],
         )
         result = evaluate_expression(expr, ctx)
 
@@ -272,7 +272,7 @@ class TestFunctionCalls:
         # LENGTH(NULL) should return NULL
         expr = FunctionCall(
             name="LENGTH",
-            args=[Literal(None)],
+            args=[Literal(value=None)],
         )
         result = evaluate_expression(expr, ctx)
 
@@ -283,7 +283,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="UNKNOWN_FUNC",
-            args=[Literal(42)],
+            args=[Literal(value=42)],
         )
 
         with pytest.raises(ValueError, match="Unknown function"):
@@ -313,7 +313,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="LENGTH",
-            args=[Literal("test")],
+            args=[Literal(value="test")],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -325,7 +325,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toInteger",
-            args=[Literal("42")],
+            args=[Literal(value="42")],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -337,7 +337,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toFloat",
-            args=[Literal("3.14")],
+            args=[Literal(value="3.14")],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -351,7 +351,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toString",
-            args=[Literal(42)],
+            args=[Literal(value=42)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -363,7 +363,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toInteger",
-            args=[Literal("not a number")],
+            args=[Literal(value="not a number")],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -376,7 +376,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toFloat",
-            args=[Literal("not a number")],
+            args=[Literal(value="not a number")],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -389,7 +389,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toInteger",
-            args=[Literal(True)],
+            args=[Literal(value=True)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -401,7 +401,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toInteger",
-            args=[Literal(False)],
+            args=[Literal(value=False)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -413,7 +413,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toFloat",
-            args=[Literal(True)],
+            args=[Literal(value=True)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -427,7 +427,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toFloat",
-            args=[Literal(False)],
+            args=[Literal(value=False)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -441,7 +441,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toString",
-            args=[Literal(True)],
+            args=[Literal(value=True)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -453,7 +453,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toString",
-            args=[Literal(False)],
+            args=[Literal(value=False)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -465,7 +465,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toString",
-            args=[Literal(3.14)],
+            args=[Literal(value=3.14)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -477,7 +477,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="type",
-            args=[Literal("hello")],
+            args=[Literal(value="hello")],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -489,7 +489,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toInteger",
-            args=[Literal(None)],
+            args=[Literal(value=None)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -502,7 +502,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toFloat",
-            args=[Literal(None)],
+            args=[Literal(value=None)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -515,7 +515,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toString",
-            args=[Literal(None)],
+            args=[Literal(value=None)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -528,7 +528,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toInteger",
-            args=[Literal(3.99)],
+            args=[Literal(value=3.99)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -540,7 +540,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toInteger",
-            args=[Literal(42)],
+            args=[Literal(value=42)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -552,7 +552,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toFloat",
-            args=[Literal(3.14)],
+            args=[Literal(value=3.14)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -566,7 +566,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toFloat",
-            args=[Literal(42)],
+            args=[Literal(value=42)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -580,7 +580,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toString",
-            args=[Literal("hello")],
+            args=[Literal(value="hello")],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -593,7 +593,7 @@ class TestFunctionCalls:
         # Pass a list (unsupported type)
         expr = FunctionCall(
             name="toString",
-            args=[Literal([1, 2, 3])],
+            args=[Literal(value=[1, 2, 3])],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -606,7 +606,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toBoolean",  # Not implemented
-            args=[Literal("true")],
+            args=[Literal(value="true")],
         )
 
         with pytest.raises(ValueError, match="Unknown function: TOBOOLEAN"):
@@ -619,7 +619,7 @@ class TestFunctionCalls:
         # Create a CypherList (unsupported for conversion)
         expr = FunctionCall(
             name="toInteger",
-            args=[Literal([1, 2, 3])],  # List - unsupported type
+            args=[Literal(value=[1, 2, 3])],  # List - unsupported type
         )
 
         result = evaluate_expression(expr, ctx)
@@ -633,7 +633,7 @@ class TestFunctionCalls:
         # Create a CypherList (unsupported for conversion)
         expr = FunctionCall(
             name="toFloat",
-            args=[Literal([1, 2, 3])],  # List - unsupported type
+            args=[Literal(value=[1, 2, 3])],  # List - unsupported type
         )
 
         result = evaluate_expression(expr, ctx)
@@ -648,7 +648,7 @@ class TestFunctionCalls:
         # Test with CypherInt - should strip "Cypher" prefix
         expr = FunctionCall(
             name="type",
-            args=[Literal(123)],
+            args=[Literal(value=123)],
         )
 
         result = evaluate_expression(expr, ctx)
@@ -660,7 +660,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="SUBSTRING",
-            args=[Literal("hello"), Literal(-1)],
+            args=[Literal(value="hello"), Literal(value=-1)],
         )
 
         with pytest.raises(TypeError, match="SUBSTRING start must be non-negative"):
@@ -671,7 +671,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="SUBSTRING",
-            args=[Literal("hello"), Literal(0), Literal(-1)],
+            args=[Literal(value="hello"), Literal(value=0), Literal(value=-1)],
         )
 
         with pytest.raises(TypeError, match="SUBSTRING length must be non-negative"):
@@ -682,7 +682,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="LENGTH",
-            args=[Literal(123)],
+            args=[Literal(value=123)],
         )
 
         with pytest.raises(TypeError, match="LENGTH expects string"):
@@ -693,7 +693,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="SUBSTRING",
-            args=[Literal(123), Literal(0)],
+            args=[Literal(value=123), Literal(value=0)],
         )
 
         with pytest.raises(TypeError, match="SUBSTRING expects string"):
@@ -704,7 +704,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="SUBSTRING",
-            args=[Literal("hello"), Literal("0")],
+            args=[Literal(value="hello"), Literal(value="0")],
         )
 
         with pytest.raises(TypeError, match="SUBSTRING start must be integer"):
@@ -715,7 +715,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="SUBSTRING",
-            args=[Literal("hello"), Literal(0), Literal("2")],
+            args=[Literal(value="hello"), Literal(value=0), Literal(value="2")],
         )
 
         with pytest.raises(TypeError, match="SUBSTRING length must be integer"):
@@ -726,7 +726,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="UPPER",
-            args=[Literal(123)],
+            args=[Literal(value=123)],
         )
 
         with pytest.raises(TypeError, match="UPPER expects string"):
@@ -737,7 +737,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="LOWER",
-            args=[Literal(123)],
+            args=[Literal(value=123)],
         )
 
         with pytest.raises(TypeError, match="LOWER expects string"):
@@ -748,7 +748,7 @@ class TestFunctionCalls:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="TRIM",
-            args=[Literal(123)],
+            args=[Literal(value=123)],
         )
 
         with pytest.raises(TypeError, match="TRIM expects string"):
