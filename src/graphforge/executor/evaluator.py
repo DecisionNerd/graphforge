@@ -4,6 +4,7 @@ This module evaluates AST expressions in an execution context to produce
 CypherValue results.
 """
 
+from collections.abc import Sequence
 from typing import Any
 
 from graphforge.ast.expression import (
@@ -385,6 +386,7 @@ TEMPORAL_FUNCTIONS = {
     "SECOND",
 }
 SPATIAL_FUNCTIONS = {"POINT", "DISTANCE"}
+GRAPH_FUNCTIONS = {"ID"}
 
 
 def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> CypherValue:
@@ -410,6 +412,11 @@ def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> Cypher
             if not isinstance(arg, CypherNull):
                 return arg
         return CypherNull()
+
+    # Graph functions need special handling for NodeRef/EdgeRef arguments
+    if func_name in GRAPH_FUNCTIONS:
+        args = [evaluate_expression(arg, ctx) for arg in func_call.args]
+        return _evaluate_graph_function(func_name, args)
 
     # Evaluate arguments
     args = [evaluate_expression(arg, ctx) for arg in func_call.args]
@@ -783,3 +790,51 @@ def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> f
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     return earth_radius * c
+
+
+def _evaluate_graph_function(
+    func_name: str, args: Sequence[NodeRef | EdgeRef | CypherValue]
+) -> CypherValue:
+    """Evaluate graph element functions.
+
+    These functions work with graph elements (nodes, relationships) rather than
+    just CypherValues. They handle NodeRef and EdgeRef objects directly.
+
+    Args:
+        func_name: Name of the graph function (uppercase)
+        args: List of evaluated arguments (may include NodeRef/EdgeRef)
+
+    Returns:
+        CypherValue result of the graph function
+
+    Raises:
+        ValueError: If function is unknown
+        TypeError: If arguments have invalid types
+    """
+    if func_name == "ID":
+        # id(node) or id(relationship)
+        if len(args) != 1:
+            raise TypeError(f"ID expects 1 argument, got {len(args)}")
+
+        arg = args[0]
+
+        # Handle NULL
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+
+        # Check if argument is a node or relationship
+        if isinstance(arg, (NodeRef, EdgeRef)):
+            # Return the internal ID as an integer
+            id_value = arg.id
+            # ID might be int or str, convert to int if string
+            if isinstance(id_value, str):
+                try:
+                    id_value = int(id_value)
+                except ValueError:
+                    # If ID is a non-numeric string, hash it to get an int
+                    id_value = hash(id_value)
+            return CypherInt(id_value)
+
+        raise TypeError(f"ID expects node or relationship argument, got {type(arg).__name__}")
+
+    raise ValueError(f"Unknown graph function: {func_name}")
