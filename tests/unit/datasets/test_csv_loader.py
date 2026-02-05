@@ -3,6 +3,7 @@
 import gzip
 from pathlib import Path
 import tempfile
+import zipfile
 
 import pytest
 
@@ -303,3 +304,42 @@ class TestCSVLoader:
         """Test get_format returns correct format name."""
         loader = CSVLoader()
         assert loader.get_format() == "csv"
+
+    def test_load_zip_file(self):
+        """Test loading from a zip archive."""
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as f:
+            temp_path = Path(f.name)
+
+        try:
+            # Create zip file with CSV content
+            with zipfile.ZipFile(temp_path, "w") as zf:
+                zf.writestr("edges.csv", "0,1\n1,2\n2,3\n")
+
+            gf = GraphForge()
+            loader = CSVLoader()
+            loader.load(gf, temp_path)
+
+            # Check edges created
+            edges = gf.execute("MATCH ()-[r]->() RETURN count(r) as count")
+            assert edges[0]["count"].value == 3
+        finally:
+            temp_path.unlink()
+
+    def test_load_zip_file_no_csv_raises_error(self):
+        """Test that loading zip with no CSV files raises error."""
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as f:
+            temp_path = Path(f.name)
+
+        try:
+            # Create zip file with non-CSV/TXT content only
+            with zipfile.ZipFile(temp_path, "w") as zf:
+                zf.writestr("README.md", "This is a markdown file\n")
+                zf.writestr("data.json", '{"key": "value"}\n')
+
+            gf = GraphForge()
+            loader = CSVLoader()
+
+            with pytest.raises(ValueError, match="No CSV/TXT files found in zip archive"):
+                loader.load(gf, temp_path)
+        finally:
+            temp_path.unlink()

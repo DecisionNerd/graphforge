@@ -1,0 +1,1622 @@
+{
+  "source": "snap",
+  "source_name": "SNAP (Stanford Network Analysis Project)",
+  "source_url": "https://snap.stanford.edu/data/",
+  "datasets": [
+    {
+      "name": "snap-act-mooc",
+      "description": "Student actions on MOOC platform with dropout labels",
+      "url": "https://snap.stanford.edu/data/act-mooc.txt.gz",
+      "nodes": 7143,
+      "edges": 411749,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 8,
+      "license": "Public Domain",
+      "category": "temporal",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-amazon-meta",
+      "description": "Amazon product metadata with reviews",
+      "url": "https://snap.stanford.edu/data/amazon-meta.txt.gz",
+      "nodes": 548552,
+      "edges": 1788725,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 150,
+      "license": "Public Domain",
+      "category": "product",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-amazon0302",
+      "description": "Amazon product co-purchasing network from March 2 2003",
+      "url": "https://snap.stanford.edu/data/amazon0302.txt.gz",
+      "nodes": 262111,
+      "edges": 1234877,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 20,
+      "license": "Public Domain",
+      "category": "product",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-amazon0312",
+      "description": "Amazon product co-purchasing network from March 12 2003",
+      "url": "https://snap.stanford.edu/data/amazon0312.txt.gz",
+      "nodes": 400727,
+      "edges": 3200440,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 52,
+      "license": "Public Domain",
+      "category": "product",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-amazon0505",
+      "description": "Amazon product co-purchasing network from May 5 2003",
+      "url": "https://snap.stanford.edu/data/amazon0505.txt.gz",
+      "nodes": 410236,
+      "edges": 3356824,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 55,
+      "license": "Public Domain",
+      "category": "product",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-amazon0601",
+      "description": "Amazon product co-purchasing network from June 1 2003",
+      "url": "https://snap.stanford.edu/data/amazon0601.txt.gz",
+      "nodes": 403394,
+      "edges": 3387388,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 55,
+      "license": "Public Domain",
+      "category": "product",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-as-733",
+      "description": "733 daily instances of AS graph from Nov 1997 to Jan 2000",
+      "url": "https://snap.stanford.edu/data/as-733.tar.gz",
+      "nodes": 6474,
+      "edges": 13233,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 15,
+      "license": "Public Domain",
+      "category": "infrastructure",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-as-caida",
+      "description": "CAIDA AS Relationships from 2004 to 2007",
+      "url": "https://snap.stanford.edu/data/as-caida.tar.gz",
+      "nodes": 26475,
+      "edges": 106762,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 8,
+      "license": "Public Domain",
+      "category": "infrastructure",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-as-skitter",
+      "description": "Internet topology graph from traceroutes in 2005",
+      "url": "https://snap.stanford.edu/data/as-skitter.txt.gz",
+      "nodes": 1696415,
+      "edges": 11095298,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 180,
+      "license": "Public Domain",
+      "category": "infrastructure",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-bitcoin-alpha-temporal",
+      "description": "Bitcoin Alpha trust network with timestamps",
+      "url": "https://snap.stanford.edu/data/soc-sign-bitcoinalpha.csv.gz",
+      "nodes": 3783,
+      "edges": 24186,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "temporal",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-bitcoin-otc-temporal",
+      "description": "Bitcoin OTC trust network with timestamps",
+      "url": "https://snap.stanford.edu/data/soc-sign-bitcoinotc.csv.gz",
+      "nodes": 5881,
+      "edges": 35592,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "temporal",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-ca-astroph",
+      "description": "Astrophysics collaboration network",
+      "url": "https://snap.stanford.edu/data/ca-AstroPh.txt.gz",
+      "nodes": 18772,
+      "edges": 198110,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 3,
+      "license": "Public Domain",
+      "category": "collaboration",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-ca-condmat",
+      "description": "Condensed matter collaboration network",
+      "url": "https://snap.stanford.edu/data/ca-CondMat.txt.gz",
+      "nodes": 23133,
+      "edges": 93497,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 2,
+      "license": "Public Domain",
+      "category": "collaboration",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-ca-grqc",
+      "description": "General relativity collaboration network",
+      "url": "https://snap.stanford.edu/data/ca-GrQc.txt.gz",
+      "nodes": 5242,
+      "edges": 14496,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "collaboration",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-ca-hepph",
+      "description": "High energy physics collaboration network",
+      "url": "https://snap.stanford.edu/data/ca-HepPh.txt.gz",
+      "nodes": 12008,
+      "edges": 118521,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 2,
+      "license": "Public Domain",
+      "category": "collaboration",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-ca-hepth",
+      "description": "High energy physics theory collaboration network",
+      "url": "https://snap.stanford.edu/data/ca-HepTh.txt.gz",
+      "nodes": 9877,
+      "edges": 25998,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "collaboration",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-cisco-secure-workload",
+      "description": "22 graphs of computer communications",
+      "url": "https://snap.stanford.edu/data/cisco-secure-workload.tar.gz",
+      "nodes": 278739,
+      "edges": 2158346,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 250,
+      "license": "Public Domain",
+      "category": "infrastructure",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-cit-hepph",
+      "description": "Arxiv High Energy Physics paper citation network",
+      "url": "https://snap.stanford.edu/data/cit-HepPh.txt.gz",
+      "nodes": 34546,
+      "edges": 421578,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 7,
+      "license": "Public Domain",
+      "category": "citation",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-cit-hepth",
+      "description": "Arxiv High Energy Physics Theory paper citation network",
+      "url": "https://snap.stanford.edu/data/cit-HepTh.txt.gz",
+      "nodes": 27770,
+      "edges": 352807,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 6,
+      "license": "Public Domain",
+      "category": "citation",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-cit-patents",
+      "description": "Citation network among US Patents (1975-1999)",
+      "url": "https://snap.stanford.edu/data/cit-Patents.txt.gz",
+      "nodes": 3774768,
+      "edges": 16518948,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 270,
+      "license": "Public Domain",
+      "category": "citation",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-collegmsg",
+      "description": "Messages on a Facebook-like platform at UC-Irvine",
+      "url": "https://snap.stanford.edu/data/CollegeMsg.txt.gz",
+      "nodes": 1899,
+      "edges": 20296,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "communication",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-com-amazon",
+      "description": "Amazon product network with 75,149 communities",
+      "url": "https://snap.stanford.edu/data/bigdata/communities/com-amazon.ungraph.txt.gz",
+      "nodes": 334863,
+      "edges": 925872,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 15,
+      "license": "Public Domain",
+      "category": "community",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-com-dblp",
+      "description": "DBLP collaboration with 13,477 communities",
+      "url": "https://snap.stanford.edu/data/bigdata/communities/com-dblp.ungraph.txt.gz",
+      "nodes": 317080,
+      "edges": 1049866,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 17,
+      "license": "Public Domain",
+      "category": "community",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-com-friendster",
+      "description": "Friendster with 957,154 communities (largest SNAP dataset)",
+      "url": "https://snap.stanford.edu/data/bigdata/communities/com-friendster.ungraph.txt.gz",
+      "nodes": 65608366,
+      "edges": 1806067135,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 27000,
+      "license": "Public Domain",
+      "category": "community",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-com-livejournal",
+      "description": "LiveJournal with 287,512 communities",
+      "url": "https://snap.stanford.edu/data/bigdata/communities/com-lj.ungraph.txt.gz",
+      "nodes": 3997962,
+      "edges": 34681189,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 500,
+      "license": "Public Domain",
+      "category": "community",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-com-orkut",
+      "description": "Orkut with 6,288,363 communities",
+      "url": "https://snap.stanford.edu/data/bigdata/communities/com-orkut.ungraph.txt.gz",
+      "nodes": 3072441,
+      "edges": 117185083,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1700,
+      "license": "Public Domain",
+      "category": "community",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-com-youtube",
+      "description": "Youtube with 8,385 communities",
+      "url": "https://snap.stanford.edu/data/bigdata/communities/com-youtube.ungraph.txt.gz",
+      "nodes": 1134890,
+      "edges": 2987624,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 48,
+      "license": "Public Domain",
+      "category": "community",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-comm-f2f-resistance",
+      "description": "Dynamic face-to-face interaction network",
+      "url": "https://snap.stanford.edu/data/comm-f2f-Resistance.tar.gz",
+      "nodes": 451,
+      "edges": 3126993,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 50,
+      "license": "Public Domain",
+      "category": "temporal",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-deezer-europe",
+      "description": "Deezer Europe social network",
+      "url": "https://snap.stanford.edu/data/deezer_europe.zip",
+      "nodes": 28281,
+      "edges": 92752,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 3,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-ego-facebook",
+      "description": "Facebook social circles (ego networks)",
+      "url": "https://snap.stanford.edu/data/facebook_combined.txt.gz",
+      "nodes": 4039,
+      "edges": 88234,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 2,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-ego-gplus",
+      "description": "Google+ social circles",
+      "url": "https://snap.stanford.edu/data/gplus_combined.txt.gz",
+      "nodes": 107614,
+      "edges": 13673453,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 200,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-email-enron",
+      "description": "Enron email communication network",
+      "url": "https://snap.stanford.edu/data/email-Enron.txt.gz",
+      "nodes": 36692,
+      "edges": 183831,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 3,
+      "license": "Public Domain",
+      "category": "communication",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-email-euall",
+      "description": "Email network from a EU research institution",
+      "url": "https://snap.stanford.edu/data/email-EuAll.txt.gz",
+      "nodes": 265214,
+      "edges": 420045,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 7,
+      "license": "Public Domain",
+      "category": "communication",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-email-eucore",
+      "description": "E-mail network with 42 departments",
+      "url": "https://snap.stanford.edu/data/email-Eu-core.txt.gz",
+      "nodes": 1005,
+      "edges": 25571,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "community",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-email-eucore-temporal",
+      "description": "E-mails at research institution (temporal)",
+      "url": "https://snap.stanford.edu/data/email-Eu-core-temporal.txt.gz",
+      "nodes": 986,
+      "edges": 332334,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 7,
+      "license": "Public Domain",
+      "category": "temporal",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-facebook-large",
+      "description": "Large Facebook combined network",
+      "url": "https://snap.stanford.edu/data/facebook_large.zip",
+      "nodes": 63731,
+      "edges": 817090,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 13,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-gemsec-deezer",
+      "description": "Gemsec Deezer social network",
+      "url": "https://snap.stanford.edu/data/gemsec-Deezer.txt.gz",
+      "nodes": 143884,
+      "edges": 846915,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 14,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-gemsec-facebook",
+      "description": "Gemsec Facebook page-page network",
+      "url": "https://snap.stanford.edu/data/gemsec-Facebook.txt.gz",
+      "nodes": 134833,
+      "edges": 1380293,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 23,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-github-social",
+      "description": "GitHub developer social network",
+      "url": "https://snap.stanford.edu/data/git_web_ml.zip",
+      "nodes": 37700,
+      "edges": 289003,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 9,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-higgs-twitter",
+      "description": "Higgs boson discovery spread on Twitter July 2012",
+      "url": "https://snap.stanford.edu/data/higgs-twitter.txt.gz",
+      "nodes": 456631,
+      "edges": 14855875,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 240,
+      "license": "Public Domain",
+      "category": "temporal",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-lastfm-asia",
+      "description": "Last.fm Asia social network",
+      "url": "https://snap.stanford.edu/data/lastfm_asia.zip",
+      "nodes": 7624,
+      "edges": 27806,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-loc-brightkite",
+      "description": "Brightkite location-based social network",
+      "url": "https://snap.stanford.edu/data/loc-brightkite_totalCheckins.txt.gz",
+      "nodes": 58228,
+      "edges": 214078,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 8,
+      "license": "Public Domain",
+      "category": "location",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-loc-gowalla",
+      "description": "Gowalla location-based social network",
+      "url": "https://snap.stanford.edu/data/loc-gowalla_totalCheckins.txt.gz",
+      "nodes": 196591,
+      "edges": 950327,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 30,
+      "license": "Public Domain",
+      "category": "location",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-musae-facebook",
+      "description": "Facebook page-page network with features",
+      "url": "https://snap.stanford.edu/data/facebook_large.zip",
+      "nodes": 22470,
+      "edges": 171002,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 5,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-musae-github",
+      "description": "GitHub social network with features",
+      "url": "https://snap.stanford.edu/data/git_web_ml.zip",
+      "nodes": 37700,
+      "edges": 289003,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 9,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-musae-twitch",
+      "description": "Twitch social network with features",
+      "url": "https://snap.stanford.edu/data/twitch.zip",
+      "nodes": 168114,
+      "edges": 6797557,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 110,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-musae-wiki",
+      "description": "Wikipedia page network with traffic info",
+      "url": "https://snap.stanford.edu/data/musae-wiki.tar.gz",
+      "nodes": 19109,
+      "edges": 400832,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 12,
+      "license": "Public Domain",
+      "category": "wikipedia",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-oregon1",
+      "description": "AS peering from Oregon route-views Mar-May 2001",
+      "url": "https://snap.stanford.edu/data/oregon1.tar.gz",
+      "nodes": 11174,
+      "edges": 23409,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 3,
+      "license": "Public Domain",
+      "category": "infrastructure",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-oregon2",
+      "description": "AS peering from Oregon route-views different time period",
+      "url": "https://snap.stanford.edu/data/oregon2.tar.gz",
+      "nodes": 11461,
+      "edges": 32730,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 4,
+      "license": "Public Domain",
+      "category": "infrastructure",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-p2p-gnutella04",
+      "description": "Gnutella p2p network from August 4 2002",
+      "url": "https://snap.stanford.edu/data/p2p-Gnutella04.txt.gz",
+      "nodes": 10876,
+      "edges": 39994,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "p2p",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-p2p-gnutella05",
+      "description": "Gnutella p2p network from August 5 2002",
+      "url": "https://snap.stanford.edu/data/p2p-Gnutella05.txt.gz",
+      "nodes": 8846,
+      "edges": 31839,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "p2p",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-p2p-gnutella06",
+      "description": "Gnutella p2p network from August 6 2002",
+      "url": "https://snap.stanford.edu/data/p2p-Gnutella06.txt.gz",
+      "nodes": 8717,
+      "edges": 31525,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "p2p",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-p2p-gnutella08",
+      "description": "Gnutella p2p network from August 8 2002",
+      "url": "https://snap.stanford.edu/data/p2p-Gnutella08.txt.gz",
+      "nodes": 6301,
+      "edges": 20777,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "p2p",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-p2p-gnutella09",
+      "description": "Gnutella p2p network from August 9 2002",
+      "url": "https://snap.stanford.edu/data/p2p-Gnutella09.txt.gz",
+      "nodes": 8114,
+      "edges": 26013,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "p2p",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-p2p-gnutella24",
+      "description": "Gnutella p2p network from August 24 2002",
+      "url": "https://snap.stanford.edu/data/p2p-Gnutella24.txt.gz",
+      "nodes": 26518,
+      "edges": 65369,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "p2p",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-p2p-gnutella25",
+      "description": "Gnutella p2p network from August 25 2002",
+      "url": "https://snap.stanford.edu/data/p2p-Gnutella25.txt.gz",
+      "nodes": 22687,
+      "edges": 54705,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "p2p",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-p2p-gnutella30",
+      "description": "Gnutella p2p network from August 30 2002",
+      "url": "https://snap.stanford.edu/data/p2p-Gnutella30.txt.gz",
+      "nodes": 36682,
+      "edges": 88328,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 2,
+      "license": "Public Domain",
+      "category": "p2p",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-p2p-gnutella31",
+      "description": "Gnutella p2p network from August 31 2002",
+      "url": "https://snap.stanford.edu/data/p2p-Gnutella31.txt.gz",
+      "nodes": 62586,
+      "edges": 147892,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 2,
+      "license": "Public Domain",
+      "category": "p2p",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-roadnet-ca",
+      "description": "Road network of California",
+      "url": "https://snap.stanford.edu/data/roadNet-CA.txt.gz",
+      "nodes": 1965206,
+      "edges": 2766607,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 45,
+      "license": "Public Domain",
+      "category": "road",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-roadnet-pa",
+      "description": "Road network of Pennsylvania",
+      "url": "https://snap.stanford.edu/data/roadNet-PA.txt.gz",
+      "nodes": 1088092,
+      "edges": 1541898,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 25,
+      "license": "Public Domain",
+      "category": "road",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-roadnet-tx",
+      "description": "Road network of Texas",
+      "url": "https://snap.stanford.edu/data/roadNet-TX.txt.gz",
+      "nodes": 1379917,
+      "edges": 1921660,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 31,
+      "license": "Public Domain",
+      "category": "road",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-bitcoin-alpha",
+      "description": "Bitcoin Alpha web of trust network",
+      "url": "https://snap.stanford.edu/data/soc-sign-bitcoinalpha.csv.gz",
+      "nodes": 3783,
+      "edges": 24186,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-bitcoin-otc",
+      "description": "Bitcoin OTC web of trust network",
+      "url": "https://snap.stanford.edu/data/soc-sign-bitcoinotc.csv.gz",
+      "nodes": 5881,
+      "edges": 35592,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-epinions1",
+      "description": "Who-trusts-whom network of Epinions.com",
+      "url": "https://snap.stanford.edu/data/soc-Epinions1.txt.gz",
+      "nodes": 75879,
+      "edges": 508837,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 10,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-livejournal1",
+      "description": "LiveJournal online social network",
+      "url": "https://snap.stanford.edu/data/soc-LiveJournal1.txt.gz",
+      "nodes": 4847571,
+      "edges": 68993773,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 950,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-pokec",
+      "description": "Pokec online social network from Slovakia",
+      "url": "https://snap.stanford.edu/data/soc-pokec-relationships.txt.gz",
+      "nodes": 1632803,
+      "edges": 30622564,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 500,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-reddit-hyperlinks",
+      "description": "Hyperlinks between subreddits on Reddit",
+      "url": "https://snap.stanford.edu/data/soc-RedditHyperlinks-body.tsv",
+      "nodes": 55863,
+      "edges": 858490,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 60,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-reddit-hyperlinks-signed",
+      "description": "Reddit hyperlinks with sentiment (positive/negative)",
+      "url": "https://snap.stanford.edu/data/soc-RedditHyperlinks-body.tsv",
+      "nodes": 55863,
+      "edges": 858490,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 60,
+      "license": "Public Domain",
+      "category": "signed",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-sign-bitcoin-alpha",
+      "description": "Bitcoin Alpha signed trust network",
+      "url": "https://snap.stanford.edu/data/soc-sign-bitcoinalpha.csv.gz",
+      "nodes": 3783,
+      "edges": 24186,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "signed",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-sign-bitcoin-otc",
+      "description": "Bitcoin OTC signed trust network",
+      "url": "https://snap.stanford.edu/data/soc-sign-bitcoinotc.csv.gz",
+      "nodes": 5881,
+      "edges": 35592,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1,
+      "license": "Public Domain",
+      "category": "signed",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-sign-epinions",
+      "description": "Epinions signed social network",
+      "url": "https://snap.stanford.edu/data/soc-sign-epinions.txt.gz",
+      "nodes": 131828,
+      "edges": 841372,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 14,
+      "license": "Public Domain",
+      "category": "signed",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-sign-slashdot081106",
+      "description": "Slashdot Zoo signed network November 6 2008",
+      "url": "https://snap.stanford.edu/data/soc-sign-Slashdot081106.txt.gz",
+      "nodes": 77357,
+      "edges": 516575,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 9,
+      "license": "Public Domain",
+      "category": "signed",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-sign-slashdot090216",
+      "description": "Slashdot Zoo signed network February 16 2009",
+      "url": "https://snap.stanford.edu/data/soc-sign-Slashdot090216.txt.gz",
+      "nodes": 81871,
+      "edges": 545671,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 9,
+      "license": "Public Domain",
+      "category": "signed",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-sign-slashdot090221",
+      "description": "Slashdot Zoo signed network February 21 2009",
+      "url": "https://snap.stanford.edu/data/soc-sign-Slashdot090221.txt.gz",
+      "nodes": 82144,
+      "edges": 549202,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 9,
+      "license": "Public Domain",
+      "category": "signed",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-slashdot0811",
+      "description": "Slashdot social network from November 2008",
+      "url": "https://snap.stanford.edu/data/soc-Slashdot0811.txt.gz",
+      "nodes": 77360,
+      "edges": 905468,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 15,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-soc-slashdot0922",
+      "description": "Slashdot social network from February 2009",
+      "url": "https://snap.stanford.edu/data/soc-Slashdot0922.txt.gz",
+      "nodes": 82168,
+      "edges": 948464,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 16,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-sx-askubuntu",
+      "description": "Ask Ubuntu questions, answers, comments",
+      "url": "https://snap.stanford.edu/data/sx-askubuntu.txt.gz",
+      "nodes": 159316,
+      "edges": 964437,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 19,
+      "license": "Public Domain",
+      "category": "temporal",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-sx-askubuntu-temporal",
+      "description": "Ask Ubuntu temporal interaction network",
+      "url": "https://snap.stanford.edu/data/sx-askubuntu.txt.gz",
+      "nodes": 159316,
+      "edges": 964437,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 19,
+      "license": "Public Domain",
+      "category": "temporal",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-sx-mathoverflow",
+      "description": "Math Overflow questions, answers, comments",
+      "url": "https://snap.stanford.edu/data/sx-mathoverflow.txt.gz",
+      "nodes": 24818,
+      "edges": 506550,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 10,
+      "license": "Public Domain",
+      "category": "temporal",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-sx-stackoverflow",
+      "description": "Stack Overflow questions, answers, comments (2008-2018)",
+      "url": "https://snap.stanford.edu/data/sx-stackoverflow.txt.gz",
+      "nodes": 2601977,
+      "edges": 63497050,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 1200,
+      "license": "Public Domain",
+      "category": "temporal",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-sx-superuser",
+      "description": "Super User questions, answers, comments",
+      "url": "https://snap.stanford.edu/data/sx-superuser.txt.gz",
+      "nodes": 194085,
+      "edges": 1443339,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 28,
+      "license": "Public Domain",
+      "category": "temporal",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-twitch-gamers",
+      "description": "Twitch gamers social network",
+      "url": "https://snap.stanford.edu/data/twitch_gamers.zip",
+      "nodes": 168114,
+      "edges": 6797557,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 110,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-twitter-combined",
+      "description": "Twitter social circles (combined ego networks)",
+      "url": "https://snap.stanford.edu/data/twitter_combined.txt.gz",
+      "nodes": 81306,
+      "edges": 1768149,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 30,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-web-berkstan",
+      "description": "Web graph of Berkeley and Stanford",
+      "url": "https://snap.stanford.edu/data/web-BerkStan.txt.gz",
+      "nodes": 685230,
+      "edges": 7600595,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 120,
+      "license": "Public Domain",
+      "category": "web",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-web-google",
+      "description": "Google web graph from 2002",
+      "url": "https://snap.stanford.edu/data/web-Google.txt.gz",
+      "nodes": 875713,
+      "edges": 5105039,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 80,
+      "license": "Public Domain",
+      "category": "web",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-web-notredame",
+      "description": "Web graph of Notre Dame",
+      "url": "https://snap.stanford.edu/data/web-NotreDame.txt.gz",
+      "nodes": 325729,
+      "edges": 1497134,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 24,
+      "license": "Public Domain",
+      "category": "web",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-web-stanford",
+      "description": "Web graph of Stanford.edu",
+      "url": "https://snap.stanford.edu/data/web-Stanford.txt.gz",
+      "nodes": 281903,
+      "edges": 2312497,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 37,
+      "license": "Public Domain",
+      "category": "web",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-wiki-elec",
+      "description": "Wikipedia adminship election data",
+      "url": "https://snap.stanford.edu/data/wiki-Elec.txt.gz",
+      "nodes": 7118,
+      "edges": 103675,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 2,
+      "license": "Public Domain",
+      "category": "wikipedia",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-wiki-rfa",
+      "description": "Wikipedia Requests for Adminship with text",
+      "url": "https://snap.stanford.edu/data/wiki-RfA.txt.gz",
+      "nodes": 10835,
+      "edges": 159388,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 3,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-wiki-rfa-signed",
+      "description": "Wikipedia RfA with vote signs (support/oppose/neutral)",
+      "url": "https://snap.stanford.edu/data/wiki-RfA.txt.gz",
+      "nodes": 10835,
+      "edges": 159388,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 3,
+      "license": "Public Domain",
+      "category": "signed",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-wiki-talk",
+      "description": "Wikipedia talk (communication) network",
+      "url": "https://snap.stanford.edu/data/wiki-Talk.txt.gz",
+      "nodes": 2394385,
+      "edges": 5021410,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 80,
+      "license": "Public Domain",
+      "category": "communication",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-wiki-talk-temporal",
+      "description": "Users editing talk pages on Wikipedia (temporal)",
+      "url": "https://snap.stanford.edu/data/wiki-talk-temporal.txt.gz",
+      "nodes": 1140149,
+      "edges": 7833140,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 150,
+      "license": "Public Domain",
+      "category": "temporal",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-wiki-topcats",
+      "description": "Wikipedia hyperlinks with 17,364 categories",
+      "url": "https://snap.stanford.edu/data/wiki-topcats.txt.gz",
+      "nodes": 1791489,
+      "edges": 28511807,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 460,
+      "license": "Public Domain",
+      "category": "community",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-wiki-vote",
+      "description": "Wikipedia who-votes-on-whom network",
+      "url": "https://snap.stanford.edu/data/wiki-Vote.txt.gz",
+      "nodes": 7115,
+      "edges": 103689,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 2,
+      "license": "Public Domain",
+      "category": "social",
+      "loader_class": "csv"
+    },
+    {
+      "name": "snap-wikispeedia",
+      "description": "Navigation paths on Wikipedia from Wikispeedia game",
+      "url": "https://snap.stanford.edu/data/wikispeedia.tar.gz",
+      "nodes": 4604,
+      "edges": 119882,
+      "labels": [
+        "Node"
+      ],
+      "relationship_types": [
+        "CONNECTED_TO"
+      ],
+      "size_mb": 5,
+      "license": "Public Domain",
+      "category": "wikipedia",
+      "loader_class": "csv"
+    }
+  ]
+}

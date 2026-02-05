@@ -321,8 +321,8 @@ class TestDatasetLoading:
     def test_load_dataset_uses_cache_if_valid(self):
         """Test that load_dataset uses cached file if available."""
         with patch("graphforge.datasets.registry._CACHE_DIR", Path(self.temp_cache)):
-            # Create a cached file
-            cache_path = Path(self.temp_cache) / "test-dataset"
+            # Create a cached file (with extension matching the URL)
+            cache_path = Path(self.temp_cache) / "test-dataset.csv"
             cache_path.touch()
 
             with patch("graphforge.datasets.registry.urlretrieve") as mock_download:
@@ -335,8 +335,8 @@ class TestDatasetLoading:
     def test_load_dataset_force_download(self):
         """Test that force_download bypasses cache."""
         with patch("graphforge.datasets.registry._CACHE_DIR", Path(self.temp_cache)):
-            # Create a cached file
-            cache_path = Path(self.temp_cache) / "test-dataset"
+            # Create a cached file (with extension matching the URL)
+            cache_path = Path(self.temp_cache) / "test-dataset.csv"
             cache_path.touch()
 
             with patch("graphforge.datasets.registry.urlretrieve") as mock_download:

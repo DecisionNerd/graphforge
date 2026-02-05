@@ -19,9 +19,9 @@ class TestSNAPDatasetRegistrations:
 
     def test_snap_datasets_registered(self):
         """Test that SNAP datasets are registered on module import."""
-        # Should have 5 SNAP datasets
+        # Should have 95 SNAP datasets (comprehensive coverage)
         snap_datasets = [d for d in list_datasets() if d.source == "snap"]
-        assert len(snap_datasets) == 5
+        assert len(snap_datasets) == 95
 
     def test_csv_loader_registered(self):
         """Test that CSV loader is registered."""
@@ -89,7 +89,11 @@ class TestSNAPDatasetRegistrations:
 
         for dataset in snap_datasets:
             assert dataset.url.startswith("https://snap.stanford.edu")
-            assert dataset.url.endswith(".txt.gz")
+            # URLs can end with various extensions: .txt.gz, .csv.gz, .tsv, .tar.gz, .zip
+            assert any(
+                dataset.url.endswith(ext)
+                for ext in [".txt.gz", ".csv.gz", ".tsv", ".tar.gz", ".zip"]
+            )
 
     def test_all_snap_datasets_use_csv_loader(self):
         """Test that all SNAP datasets use CSV loader."""
@@ -102,10 +106,14 @@ class TestSNAPDatasetRegistrations:
         """Test filtering SNAP datasets by social category."""
         social = list_datasets(source="snap", category="social")
 
-        assert len(social) == 2  # ego-facebook and twitter-combined
+        # Should have 23 social datasets in the comprehensive collection
+        assert len(social) == 23
         names = {d.name for d in social}
         assert "snap-ego-facebook" in names
         assert "snap-twitter-combined" in names
+        assert "snap-soc-epinions1" in names
+        assert "snap-musae-github" in names
+        assert "snap-musae-twitch" in names
 
     def test_filter_by_size(self):
         """Test filtering SNAP datasets by size."""
@@ -128,3 +136,166 @@ class TestSNAPDatasetRegistrations:
 
         for dataset in snap_datasets:
             assert "CONNECTED_TO" in dataset.relationship_types
+
+    def test_all_dataset_names_unique(self):
+        """Test that all SNAP dataset names are unique."""
+        snap_datasets = list_datasets(source="snap")
+        names = [d.name for d in snap_datasets]
+
+        assert len(names) == len(set(names)), "Duplicate dataset names found"
+
+    def test_all_datasets_have_valid_metadata(self):
+        """Test that all SNAP datasets have valid metadata."""
+        snap_datasets = list_datasets(source="snap")
+
+        for dataset in snap_datasets:
+            # Name checks
+            assert dataset.name.startswith("snap-"), f"{dataset.name} doesn't start with 'snap-'"
+            assert len(dataset.name) > 5, f"{dataset.name} is too short"
+
+            # Numeric metadata checks
+            assert dataset.nodes > 0, f"{dataset.name} has invalid node count: {dataset.nodes}"
+            assert dataset.edges > 0, f"{dataset.name} has invalid edge count: {dataset.edges}"
+            assert dataset.size_mb > 0, f"{dataset.name} has invalid size: {dataset.size_mb}"
+
+            # String metadata checks
+            assert len(dataset.description) > 0, f"{dataset.name} has no description"
+            assert dataset.source == "snap", f"{dataset.name} has wrong source"
+            assert dataset.license == "Public Domain", f"{dataset.name} has unexpected license"
+
+    def test_all_categories_represented(self):
+        """Test that all major categories have datasets."""
+        snap_datasets = list_datasets(source="snap")
+        categories = {d.category for d in snap_datasets}
+
+        # Expected categories in comprehensive collection
+        expected_categories = {
+            "social",
+            "communication",
+            "citation",
+            "collaboration",
+            "web",
+            "product",
+            "road",
+            "infrastructure",
+            "community",
+            "p2p",
+            "temporal",
+            "signed",
+            "location",
+            "wikipedia",
+        }
+
+        assert expected_categories.issubset(categories), (
+            f"Missing categories: {expected_categories - categories}"
+        )
+
+    def test_large_community_datasets_included(self):
+        """Test that large community datasets are included."""
+        snap_datasets = list_datasets(source="snap")
+        names = {d.name for d in snap_datasets}
+
+        # Check for the large community datasets
+        assert "snap-com-livejournal" in names
+        assert "snap-com-orkut" in names
+        assert "snap-com-friendster" in names
+
+        # Verify Friendster is the largest
+        friendster = get_dataset_info("snap-com-friendster")
+        assert friendster.nodes > 60_000_000
+        assert friendster.size_mb > 20_000
+
+    def test_autonomous_systems_datasets_included(self):
+        """Test that autonomous systems datasets are included."""
+        snap_datasets = list_datasets(source="snap")
+        names = {d.name for d in snap_datasets}
+
+        # Check for AS datasets
+        assert "snap-as-skitter" in names
+        assert "snap-as-733" in names
+        assert "snap-as-caida" in names
+        assert "snap-oregon1" in names
+        assert "snap-oregon2" in names
+
+    def test_musae_datasets_included(self):
+        """Test that MUSAE (Multi-Scale Attributed Node Embedding) datasets are included."""
+        snap_datasets = list_datasets(source="snap")
+        names = {d.name for d in snap_datasets}
+
+        # Check for MUSAE datasets
+        assert "snap-musae-github" in names
+        assert "snap-musae-facebook" in names
+        assert "snap-musae-twitch" in names
+        assert "snap-musae-wiki" in names
+
+    def test_musae_and_social_features_included(self):
+        """Test that MUSAE and social feature datasets are included."""
+        snap_datasets = list_datasets(source="snap")
+        names = {d.name for d in snap_datasets}
+
+        # Check for MUSAE and social network feature datasets
+        feature_datasets = [
+            "snap-musae-github",
+            "snap-musae-facebook",
+            "snap-musae-twitch",
+            "snap-lastfm-asia",
+            "snap-deezer-europe",
+        ]
+
+        for dataset in feature_datasets:
+            assert dataset in names, f"Missing social feature dataset: {dataset}"
+
+    def test_dataset_size_distribution(self):
+        """Test that datasets have reasonable size distribution."""
+        snap_datasets = list_datasets(source="snap")
+
+        # Count datasets by size
+        small = [d for d in snap_datasets if d.size_mb < 10]
+        medium = [d for d in snap_datasets if 10 <= d.size_mb < 100]
+        large = [d for d in snap_datasets if 100 <= d.size_mb < 1000]
+        very_large = [d for d in snap_datasets if d.size_mb >= 1000]
+
+        # Should have datasets across all size ranges
+        assert len(small) > 20, "Not enough small datasets"
+        assert len(medium) > 20, "Not enough medium datasets"
+        assert len(large) > 5, "Not enough large datasets"
+        assert len(very_large) > 2, "Not enough very large datasets"
+
+    def test_edge_density_varies(self):
+        """Test that datasets have varying edge densities."""
+        snap_datasets = list_datasets(source="snap")
+
+        # Calculate edge densities (edges/nodes ratio)
+        densities = [d.edges / d.nodes for d in snap_datasets]
+
+        # Should have both sparse and dense graphs
+        min_density = min(densities)
+        max_density = max(densities)
+
+        assert min_density < 2, "No sparse graphs found"
+        assert max_density > 10, "No dense graphs found"
+
+    def test_temporal_datasets_properly_labeled(self):
+        """Test that temporal datasets are properly categorized."""
+        temporal = list_datasets(source="snap", category="temporal")
+
+        # Should have at least 10 temporal datasets
+        assert len(temporal) >= 10
+
+        # Check for specific temporal datasets
+        names = {d.name for d in temporal}
+        assert "snap-sx-stackoverflow" in names
+        assert "snap-wiki-talk-temporal" in names
+        assert "snap-email-eucore-temporal" in names
+
+    def test_signed_networks_properly_labeled(self):
+        """Test that signed networks are properly categorized."""
+        signed = list_datasets(source="snap", category="signed")
+
+        # Should have at least 8 signed network datasets
+        assert len(signed) >= 8
+
+        # Check for specific signed datasets
+        names = {d.name for d in signed}
+        assert "snap-soc-sign-epinions" in names
+        assert "snap-wiki-rfa-signed" in names
