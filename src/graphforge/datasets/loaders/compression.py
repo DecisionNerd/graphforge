@@ -50,8 +50,8 @@ def extract_tar_zst(archive_path: Path, extract_to: Path) -> None:
             dctx.stream_reader(compressed_file) as reader,
             tarfile.open(fileobj=reader, mode="r|") as tar,
         ):
-            # Extract all files
-            tar.extractall(extract_to)
+            # Extract all files safely (filter='data' prevents path traversal attacks)
+            tar.extractall(extract_to, filter="data")
 
 
 def extract_archive(archive_path: Path, extract_to: Path) -> Path:
@@ -82,11 +82,13 @@ def extract_archive(archive_path: Path, extract_to: Path) -> Path:
     elif archive_path.suffixes[-2:] == [".tar", ".gz"]:
         # .tar.gz
         with tarfile.open(archive_path, "r:gz") as tar:
-            tar.extractall(extract_to)
+            # Extract safely (filter='data' prevents path traversal attacks)
+            tar.extractall(extract_to, filter="data")
     elif archive_path.suffix == ".tar":
         # .tar (uncompressed)
         with tarfile.open(archive_path, "r") as tar:
-            tar.extractall(extract_to)
+            # Extract safely (filter='data' prevents path traversal attacks)
+            tar.extractall(extract_to, filter="data")
     else:
         raise ValueError(f"Unsupported archive format: {archive_path.suffixes}")
 
