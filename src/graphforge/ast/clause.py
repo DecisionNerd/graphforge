@@ -15,12 +15,12 @@ This module defines the major query clauses:
 - SkipClause: SKIP offset
 """
 
-from dataclasses import dataclass
 from typing import Any
 
+from pydantic import BaseModel, Field, field_validator
 
-@dataclass
-class MatchClause:
+
+class MatchClause(BaseModel):
     """MATCH clause for pattern matching.
 
     Examples:
@@ -28,11 +28,12 @@ class MatchClause:
         MATCH (a)-[r:KNOWS]->(b)
     """
 
-    patterns: list[Any]  # List of NodePattern or RelationshipPattern
+    patterns: list[Any] = Field(..., min_length=1, description="List of patterns")
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
-@dataclass
-class CreateClause:
+class CreateClause(BaseModel):
     """CREATE clause for creating graph elements.
 
     Examples:
@@ -40,11 +41,12 @@ class CreateClause:
         CREATE (a)-[r:KNOWS]->(b)
     """
 
-    patterns: list[Any]  # List of NodePattern or RelationshipPattern
+    patterns: list[Any] = Field(..., min_length=1, description="List of patterns")
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
-@dataclass
-class SetClause:
+class SetClause(BaseModel):
     """SET clause for updating properties.
 
     Examples:
@@ -52,11 +54,25 @@ class SetClause:
         SET n.age = 30, n.name = 'Alice'
     """
 
-    items: list[tuple[Any, Any]]  # List of (property_access, expression) tuples
+    items: list[tuple[Any, Any]] = Field(
+        ..., min_length=1, description="List of (property, expression) tuples"
+    )
+
+    @field_validator("items")
+    @classmethod
+    def validate_items(cls, v: list[tuple[Any, Any]]) -> list[tuple[Any, Any]]:
+        """Validate SET items format."""
+        for i, item in enumerate(v):
+            if not isinstance(item, tuple) or len(item) != 2:
+                raise ValueError(
+                    f"SET item {i} must be a tuple of (property_access, expression), got {item}"
+                )
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
-@dataclass
-class RemoveItem:
+class RemoveItem(BaseModel):
     """A single REMOVE item (property or label).
 
     Attributes:
@@ -65,13 +81,22 @@ class RemoveItem:
         name: Property name or label name
     """
 
-    item_type: str  # 'property' or 'label'
-    variable: str  # Variable name
-    name: str  # Property or label name
+    item_type: str = Field(..., description="'property' or 'label'")
+    variable: str = Field(..., min_length=1, description="Variable name")
+    name: str = Field(..., min_length=1, description="Property or label name")
+
+    @field_validator("item_type")
+    @classmethod
+    def validate_item_type(cls, v: str) -> str:
+        """Validate item_type is 'property' or 'label'."""
+        if v not in {"property", "label"}:
+            raise ValueError(f"item_type must be 'property' or 'label', got {v}")
+        return v
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class RemoveClause:
+class RemoveClause(BaseModel):
     """REMOVE clause for removing properties and labels.
 
     Examples:
@@ -81,11 +106,12 @@ class RemoveClause:
         REMOVE n:Person:Employee
     """
 
-    items: list[RemoveItem]  # List of RemoveItems
+    items: list[RemoveItem] = Field(..., min_length=1, description="List of RemoveItems")
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class DeleteClause:
+class DeleteClause(BaseModel):
     """DELETE clause for removing nodes and relationships.
 
     Examples:
@@ -94,12 +120,13 @@ class DeleteClause:
         DELETE n, r
     """
 
-    variables: list[str]  # List of variable names to delete
-    detach: bool = False  # True for DETACH DELETE
+    variables: list[str] = Field(..., min_length=1, description="Variables to delete")
+    detach: bool = Field(default=False, description="True for DETACH DELETE")
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class MergeClause:
+class MergeClause(BaseModel):
     """MERGE clause for creating or matching patterns.
 
     Examples:
@@ -110,13 +137,14 @@ class MergeClause:
         MERGE (a)-[r:KNOWS]->(b)
     """
 
-    patterns: list[Any]  # List of NodePattern or RelationshipPattern
-    on_create: "SetClause | None" = None  # Optional ON CREATE SET clause
-    on_match: "SetClause | None" = None  # Optional ON MATCH SET clause
+    patterns: list[Any] = Field(..., min_length=1, description="List of patterns")
+    on_create: "SetClause | None" = Field(default=None, description="ON CREATE SET clause")
+    on_match: "SetClause | None" = Field(default=None, description="ON MATCH SET clause")
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
-@dataclass
-class UnwindClause:
+class UnwindClause(BaseModel):
     """UNWIND clause for expanding lists into rows.
 
     Examples:
@@ -125,12 +153,13 @@ class UnwindClause:
         UNWIND ['Alice', 'Bob'] AS name
     """
 
-    expression: Any  # Expression that evaluates to a list
-    variable: str  # Variable name to bind each list item to
+    expression: Any = Field(..., description="Expression that evaluates to a list")
+    variable: str = Field(..., min_length=1, description="Variable name for each item")
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
-@dataclass
-class WhereClause:
+class WhereClause(BaseModel):
     """WHERE clause for filtering.
 
     Examples:
@@ -138,11 +167,12 @@ class WhereClause:
         WHERE n.name = "Alice" AND n.age < 50
     """
 
-    predicate: Any  # Expression
+    predicate: Any = Field(..., description="Filter predicate expression")
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
-@dataclass
-class ReturnItem:
+class ReturnItem(BaseModel):
     """A single return item with optional alias.
 
     Examples:
@@ -150,12 +180,21 @@ class ReturnItem:
         n.name AS name (with alias)
     """
 
-    expression: Any  # Expression to evaluate
-    alias: str | None = None  # Optional alias
+    expression: Any = Field(..., description="Expression to evaluate")
+    alias: str | None = Field(default=None, description="Optional alias")
+
+    @field_validator("alias")
+    @classmethod
+    def validate_alias(cls, v: str | None) -> str | None:
+        """Validate alias format if provided."""
+        if v is not None and len(v) == 0:
+            raise ValueError("Alias cannot be empty string")
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
-@dataclass
-class ReturnClause:
+class ReturnClause(BaseModel):
     """RETURN clause for projection.
 
     Examples:
@@ -165,24 +204,27 @@ class ReturnClause:
         RETURN DISTINCT n.name
     """
 
-    items: list[ReturnItem]  # List of ReturnItems
-    distinct: bool = False  # True for RETURN DISTINCT
+    items: list[ReturnItem] = Field(..., min_length=1, description="List of ReturnItems")
+    distinct: bool = Field(default=False, description="True for RETURN DISTINCT")
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class LimitClause:
+class LimitClause(BaseModel):
     """LIMIT clause for limiting result rows.
 
     Examples:
         LIMIT 10
         LIMIT 100
+        LIMIT 0  (valid - returns no rows)
     """
 
-    count: int
+    count: int = Field(..., ge=0, description="Maximum number of rows")
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class SkipClause:
+class SkipClause(BaseModel):
     """SKIP clause for offsetting results.
 
     Examples:
@@ -190,11 +232,12 @@ class SkipClause:
         SKIP 20
     """
 
-    count: int
+    count: int = Field(..., ge=0, description="Number of rows to skip")
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class OrderByItem:
+class OrderByItem(BaseModel):
     """A single ORDER BY item with direction.
 
     Examples:
@@ -202,12 +245,13 @@ class OrderByItem:
         n.age DESC
     """
 
-    expression: Any  # Expression to sort by
-    ascending: bool = True  # True for ASC, False for DESC
+    expression: Any = Field(..., description="Expression to sort by")
+    ascending: bool = Field(default=True, description="True for ASC, False for DESC")
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
-@dataclass
-class OrderByClause:
+class OrderByClause(BaseModel):
     """ORDER BY clause for sorting results.
 
     Examples:
@@ -216,11 +260,12 @@ class OrderByClause:
         ORDER BY n.age DESC, n.name ASC
     """
 
-    items: list[OrderByItem]  # List of OrderByItems
+    items: list[OrderByItem] = Field(..., min_length=1, description="List of OrderByItems")
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class WithClause:
+class WithClause(BaseModel):
     """WITH clause for query chaining and subqueries.
 
     The WITH clause allows you to pipe the results of one part of a query
@@ -233,9 +278,11 @@ class WithClause:
         WITH DISTINCT n.name AS name
     """
 
-    items: list[ReturnItem]  # Projection items (same as RETURN)
-    distinct: bool = False  # True for WITH DISTINCT
-    where: WhereClause | None = None  # Optional WHERE after WITH
-    order_by: OrderByClause | None = None  # Optional ORDER BY
-    skip: SkipClause | None = None  # Optional SKIP
-    limit: LimitClause | None = None  # Optional LIMIT
+    items: list[ReturnItem] = Field(..., min_length=1, description="Projection items")
+    distinct: bool = Field(default=False, description="True for WITH DISTINCT")
+    where: "WhereClause | None" = Field(default=None, description="Optional WHERE after WITH")
+    order_by: "OrderByClause | None" = Field(default=None, description="Optional ORDER BY")
+    skip: "SkipClause | None" = Field(default=None, description="Optional SKIP")
+    limit: "LimitClause | None" = Field(default=None, description="Optional LIMIT")
+
+    model_config = {"frozen": True}

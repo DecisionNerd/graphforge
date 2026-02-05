@@ -1,7 +1,28 @@
-"""Serialization layer for CypherValue types.
+"""Serialization layer for CypherValue types (SQLite + MessagePack).
 
 This module handles conversion between CypherValue types and bytes
 for storage in SQLite.
+
+IMPORTANT: This is System 1 - Graph Data Storage
+================================================
+
+Purpose: Serialize actual graph data (nodes, edges, properties)
+Format: Binary MessagePack (fast, compact)
+Storage: SQLite database files (*.db)
+
+Use this for:
+- Node properties (CypherInt, CypherString, CypherBool, etc.)
+- Edge properties
+- Node labels
+- Runtime graph operations
+
+Do NOT use this for:
+- Dataset metadata (use pydantic_serialization.py instead)
+- Schema definitions (use pydantic_serialization.py instead)
+- Configuration files (use pydantic_serialization.py instead)
+
+See: src/graphforge/storage/pydantic_serialization.py for System 2 (metadata)
+See: CLAUDE.md "Two Serialization Systems" for detailed explanation
 """
 
 import msgpack

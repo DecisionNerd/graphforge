@@ -360,6 +360,299 @@ return CypherString("hello")
 result.value  # Returns Python type
 ```
 
+### Pydantic Validation System
+
+All AST nodes, operators, and dataset metadata use **Pydantic v2 BaseModel** for validation:
+
+```python
+# AST nodes (src/graphforge/ast/)
+class BinaryOp(BaseModel):
+    op: str = Field(..., description="Operator")
+    left: Any = Field(..., description="Left expression")
+    right: Any = Field(..., description="Right expression")
+
+    @field_validator("op")
+    @classmethod
+    def validate_op(cls, v: str) -> str:
+        valid_ops = {"=", "<>", "<", ">", "<=", ">=", "AND", "OR", "+", "-", "*", "/", ...}
+        if v not in valid_ops:
+            raise ValueError(f"Unsupported binary operator: {v}")
+        return v
+
+    model_config = {"frozen": True}  # Immutable after creation
+```
+
+**Key patterns:**
+
+1. **Always use keyword arguments** - Pydantic v2 requires keyword args:
+   ```python
+   # ✅ Correct
+   BinaryOp(op="=", left=Variable(name="x"), right=Literal(value=5))
+
+   # ❌ Wrong - will raise TypeError
+   BinaryOp("=", Variable("x"), Literal(5))
+   ```
+
+2. **Field validators** - Use `@field_validator` for single-field validation:
+   ```python
+   @field_validator("name")
+   @classmethod
+   def validate_name(cls, v: str) -> str:
+       if not v.strip():
+           raise ValueError("Name cannot be empty")
+       return v
+   ```
+
+3. **Model validators** - Use `@model_validator` for cross-field validation:
+   ```python
+   @model_validator(mode="after")
+   def validate_limits(self) -> "LimitClause":
+       if self.count < 0:
+           raise ValueError("LIMIT must be non-negative")
+       return self
+   ```
+
+4. **Frozen models** - All AST nodes and operators are immutable:
+   ```python
+   model_config = {"frozen": True}
+   ```
+
+5. **API validation** - Validate user inputs with dedicated models:
+   ```python
+   # src/graphforge/api.py
+   class QueryInput(BaseModel):
+       query: str = Field(..., min_length=1)
+
+       @field_validator("query")
+       @classmethod
+       def validate_query(cls, v: str) -> str:
+           if not v.strip():
+               raise ValueError("Query cannot be empty")
+           return v
+
+   def execute(self, query: str) -> list[dict]:
+       QueryInput(query=query)  # Validates input
+       # ... proceed with execution
+   ```
+
+6. **Serialization** - Use Pydantic's built-in serialization for metadata:
+   ```python
+   from graphforge.storage import serialize_model, deserialize_model
+
+   # Serialize to dict
+   data = serialize_model(dataset_info)
+
+   # Deserialize from dict
+   restored = deserialize_model(DatasetInfo, data)
+
+   # Save to JSON file
+   save_model_to_file(dataset_info, "dataset.json")
+
+   # Load from JSON file
+   loaded = load_model_from_file(DatasetInfo, "dataset.json")
+   ```
+
+**When to use Pydantic vs plain classes:**
+- **Use Pydantic:** AST nodes, operators, dataset metadata, API inputs (anything that needs validation)
+- **Use dataclasses:** NodeRef, EdgeRef, CypherValue types (performance-critical, no validation needed)
+
+**Testing Pydantic models:**
+```python
+from pydantic import ValidationError
+import pytest
+
+def test_invalid_operator():
+    # Pydantic validates at construction time
+    with pytest.raises(ValidationError, match="Unsupported binary operator"):
+        BinaryOp(op="INVALID", left=Literal(value=1), right=Literal(value=2))
+```
+
+### Two Serialization Systems (Critical Architecture)
+
+GraphForge uses **two separate serialization systems** for different purposes. Understanding this separation is critical for maintaining correctness and performance.
+
+#### System 1: SQLite + MessagePack (Graph Data Storage)
+
+**Purpose:** Store actual graph data (nodes, edges, properties)
+
+**Location:** `src/graphforge/storage/serialization.py`
+
+**Format:** Binary MessagePack (compact, fast)
+
+**What it serializes:**
+- CypherValue types (CypherInt, CypherString, CypherBool, etc.)
+- Node labels (frozenset of strings)
+- Node/edge properties (dict of CypherValues)
+- Graph structure stored in SQLite tables
+
+**Used by:**
+- `SQLiteBackend` (src/graphforge/storage/sqlite_backend.py)
+- Persistent graph storage
+- Transaction management
+- Graph snapshots for rollback
+
+**Example:**
+```python
+# User creates a node
+gf = GraphForge("my-graph.db")
+gf.create_node(['Person'], name='Alice', age=30)
+
+# Behind the scenes:
+# 1. Properties converted to CypherValues: {name: CypherString('Alice'), age: CypherInt(30)}
+# 2. Serialized with MessagePack: serialize_properties({...})
+# 3. Stored in SQLite: INSERT INTO nodes (id, labels, properties) VALUES (...)
+# 4. Binary format optimized for speed and space
+
+gf.close()  # Commits to SQLite
+```
+
+**Why MessagePack:**
+- Binary format (smaller than JSON)
+- Fast serialization/deserialization
+- Efficient for frequent read/write operations
+- No human readability needed (internal storage)
+
+**Do NOT use for:** Metadata, schemas, dataset definitions (use Pydantic instead)
+
+#### System 2: Pydantic + JSON (Metadata & Schema Storage)
+
+**Purpose:** Store metadata, schemas, dataset definitions, ontologies
+
+**Location:** `src/graphforge/storage/pydantic_serialization.py`
+
+**Format:** JSON (human-readable, validatable)
+
+**What it serializes:**
+- DatasetInfo models (dataset metadata)
+- AST nodes (query plan caching - future)
+- Ontology definitions (schemas, constraints - future)
+- LDBC dataset metadata (future)
+- User-defined class schemas (future)
+
+**Used by:**
+- Dataset registry (metadata files)
+- Configuration files
+- Schema definitions
+- Future ontology system
+
+**Example:**
+```python
+from graphforge.storage import save_model_to_file, load_model_from_file
+
+# Define dataset metadata
+dataset_info = DatasetInfo(
+    name="ldbc-snb-sf0.1",
+    description="LDBC Social Network Benchmark",
+    url="https://repository.surfsara.nl/...",
+    nodes=327588,
+    edges=1800000,
+    labels=["Person", "Post", "Comment"],
+    size_mb=50.0,
+    license="CC BY 4.0",
+    category="social",
+    loader_class="ldbc"
+)
+
+# Save to JSON file (human-readable)
+save_model_to_file(dataset_info, "datasets/ldbc-sf0.1.json")
+
+# Later, load with validation
+loaded = load_model_from_file(DatasetInfo, "datasets/ldbc-sf0.1.json")
+# Pydantic validates: URL scheme, field types, required fields, etc.
+```
+
+**Why Pydantic + JSON:**
+- Human-readable (can edit metadata files)
+- Validatable (catches errors at load time)
+- Versionable (can track changes in git)
+- Self-documenting (field names and descriptions)
+- Extensible (easy to add new fields)
+
+**Do NOT use for:** Actual graph data (use SQLite + MessagePack instead)
+
+#### Critical: Never Mix These Systems
+
+**❌ Wrong - Don't serialize graph data with Pydantic:**
+```python
+# DON'T DO THIS - Performance disaster
+node = gf.create_node(['Person'], name='Alice')
+save_model_to_file(node, "node.json")  # Wrong! Use SQLite instead
+```
+
+**❌ Wrong - Don't serialize metadata with MessagePack:**
+```python
+# DON'T DO THIS - Loses validation and readability
+dataset_info = DatasetInfo(...)
+blob = msgpack.packb(serialize_model(dataset_info))  # Wrong! Use JSON instead
+```
+
+**✅ Correct - Use the right system for each purpose:**
+```python
+# Graph data → SQLite + MessagePack
+gf = GraphForge("graph.db")
+gf.create_node(['Person'], name='Alice')
+gf.close()  # Stored efficiently in SQLite
+
+# Metadata → Pydantic + JSON
+dataset_info = DatasetInfo(...)
+save_model_to_file(dataset_info, "metadata.json")  # Readable and validated
+```
+
+#### Future: Ontology Support
+
+When ontology support is added, the separation becomes even more important:
+
+**Ontology Schema (Pydantic + JSON):**
+```python
+# Define a Person class schema (future)
+person_schema = ClassSchema(
+    name="Person",
+    properties=[
+        PropertyDef(name="name", type="string", required=True),
+        PropertyDef(name="age", type="integer", min=0, max=150),
+        PropertyDef(name="email", type="string", format="email"),
+    ],
+    constraints=[
+        UniqueConstraint(property="email"),
+    ]
+)
+
+# Save schema definition (human-readable, validatable)
+save_model_to_file(person_schema, "ontologies/person.json")
+```
+
+**Graph Instances (SQLite + MessagePack):**
+```python
+# Create actual Person nodes (uses schema for validation)
+gf = GraphForge("graph.db", ontology="ontologies/")
+gf.create_node(['Person'], name='Alice', age=30, email='alice@example.com')
+# Still stored in SQLite with MessagePack (unchanged)
+gf.close()
+```
+
+**Benefits:**
+1. **Schema definitions** are versioned, readable, shareable (JSON)
+2. **Graph data** remains fast and compact (MessagePack)
+3. **Validation** happens at graph operation time (Pydantic models)
+4. **Storage** remains optimized for graph operations (SQLite)
+
+#### Summary Table
+
+| Aspect | SQLite + MessagePack | Pydantic + JSON |
+|--------|---------------------|----------------|
+| **Purpose** | Graph data storage | Metadata & schemas |
+| **Data Types** | CypherValues, nodes, edges | DatasetInfo, AST, ontologies |
+| **Format** | Binary (MessagePack) | Text (JSON) |
+| **Readable** | No (binary) | Yes (human-readable) |
+| **Validation** | At write time | At load time |
+| **Performance** | Optimized for speed | Optimized for safety |
+| **Versioning** | Not intended | Git-friendly |
+| **Use Case** | Runtime graph operations | Configuration & definitions |
+| **Files** | `serialization.py` | `pydantic_serialization.py` |
+| **Storage** | `*.db` SQLite files | `*.json` metadata files |
+
+**Key Takeaway:** These systems are complementary, not competing. Use MessagePack for data, JSON for metadata. Never mix them.
+
 ### Graph Storage Duality
 
 Storage has TWO modes (no configuration required):
@@ -399,7 +692,7 @@ Datasets are loaded via registry pattern (`src/graphforge/datasets/`):
 
 ```
 datasets/
-├── base.py          # DatasetInfo dataclass
+├── base.py          # DatasetInfo Pydantic model
 ├── registry.py      # Global registry + API functions
 ├── loaders/         # Format-specific loaders
 │   ├── csv.py       # Edge list format (SNAP)

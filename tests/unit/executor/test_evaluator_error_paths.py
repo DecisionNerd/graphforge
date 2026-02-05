@@ -33,15 +33,12 @@ class TestEvaluatorErrorPaths:
             evaluate_expression(not_expr, ctx)
 
     def test_unknown_unary_operator(self):
-        """Unknown unary operator raises ValueError."""
-        ctx = ExecutionContext()
-        ctx.bind("x", CypherInt(5))
+        """Unknown unary operator is rejected by Pydantic validation."""
+        from pydantic import ValidationError
 
-        # Unknown unary operator
-        unknown_expr = UnaryOp(op="UNKNOWN_OP", operand=Variable(name="x"))
-
-        with pytest.raises(ValueError, match="Unknown unary operator"):
-            evaluate_expression(unknown_expr, ctx)
+        # Pydantic now validates operators at construction time
+        with pytest.raises(ValidationError, match="Unsupported unary operator"):
+            UnaryOp(op="UNKNOWN_OP", operand=Variable(name="x"))
 
     def test_and_operator_with_non_boolean(self):
         """AND operator with non-boolean operands raises TypeError."""
@@ -68,16 +65,14 @@ class TestEvaluatorErrorPaths:
             evaluate_expression(or_expr, ctx)
 
     def test_unknown_binary_operator(self):
-        """Unknown binary operator raises ValueError."""
-        ctx = ExecutionContext()
-        ctx.bind("x", CypherInt(5))
-        ctx.bind("y", CypherInt(10))
+        """Unknown binary operator is rejected by Pydantic validation."""
+        from pydantic import ValidationError
 
-        # Unknown binary operator
-        unknown_expr = BinaryOp(op="UNKNOWN_OP", left=Variable(name="x"), right=Variable(name="y"))
+        from graphforge.ast.expression import Literal
 
-        with pytest.raises(ValueError, match="Unknown binary operator"):
-            evaluate_expression(unknown_expr, ctx)
+        # Pydantic now validates operators at construction time
+        with pytest.raises(ValidationError, match="Unsupported binary operator"):
+            BinaryOp(op="UNKNOWN_OP", left=Literal(value=1), right=Literal(value=2))
 
     def test_unknown_expression_type(self):
         """Unknown expression type raises TypeError."""

@@ -14,7 +14,7 @@ class TestRemovePlanner:
     def test_plan_simple_remove_property(self):
         """Plan simple REMOVE property query."""
         # MATCH (n) REMOVE n.age
-        node_pattern = NodePattern(variable="n", labels=None, properties=None)
+        node_pattern = NodePattern(variable="n")
         match_clause = MatchClause(patterns=[[node_pattern]])
 
         remove_item = RemoveItem(item_type="property", variable="n", name="age")
@@ -39,7 +39,7 @@ class TestRemovePlanner:
     def test_plan_remove_multiple_properties(self):
         """Plan REMOVE with multiple properties."""
         # MATCH (n) REMOVE n.age, n.city
-        node_pattern = NodePattern(variable="n", labels=None, properties=None)
+        node_pattern = NodePattern(variable="n")
         match_clause = MatchClause(patterns=[[node_pattern]])
 
         remove_items = [
@@ -62,7 +62,7 @@ class TestRemovePlanner:
     def test_plan_remove_label(self):
         """Plan REMOVE label query."""
         # MATCH (n) REMOVE n:Person
-        node_pattern = NodePattern(variable="n", labels=None, properties=None)
+        node_pattern = NodePattern(variable="n")
         match_clause = MatchClause(patterns=[[node_pattern]])
 
         remove_item = RemoveItem(item_type="label", variable="n", name="Person")
@@ -82,7 +82,7 @@ class TestRemovePlanner:
     def test_plan_remove_mixed(self):
         """Plan REMOVE with mixed properties and labels."""
         # MATCH (n) REMOVE n.age, n:Temp
-        node_pattern = NodePattern(variable="n", labels=None, properties=None)
+        node_pattern = NodePattern(variable="n")
         match_clause = MatchClause(patterns=[[node_pattern]])
 
         remove_items = [
@@ -107,7 +107,7 @@ class TestRemovePlanner:
         from graphforge.ast.clause import SetClause
 
         # MATCH (n) SET n.x = 1 REMOVE n.y
-        node_pattern = NodePattern(variable="n", labels=None, properties=None)
+        node_pattern = NodePattern(variable="n")
         match_clause = MatchClause(patterns=[[node_pattern]])
 
         # Create a simple SET clause (we'll mock the property access)

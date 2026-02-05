@@ -30,8 +30,12 @@ class TestCypherQuery:
 
     def test_query_with_clauses(self):
         """Query can contain multiple clauses."""
-        match_clause = MatchClause(patterns=[])
-        return_clause = ReturnClause(items=[])
+        from graphforge.ast.clause import ReturnItem
+
+        # Valid clauses with required content
+        pattern = NodePattern(variable="n")
+        match_clause = MatchClause(patterns=[pattern])
+        return_clause = ReturnClause(items=[ReturnItem(expression=Variable(name="n"))])
         query = CypherQuery(clauses=[match_clause, return_clause])
         assert len(query.clauses) == 2
 
@@ -47,10 +51,12 @@ class TestMatchClause:
         assert len(match.patterns) == 1
         assert match.patterns[0].variable == "n"
 
-    def test_empty_match(self):
-        """Match clause can have no patterns (invalid but parseable)."""
-        match = MatchClause(patterns=[])
-        assert len(match.patterns) == 0
+    def test_empty_match_validation(self):
+        """Match clause must have at least one pattern."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            MatchClause(patterns=[])
 
 
 @pytest.mark.unit
@@ -78,7 +84,7 @@ class TestNodePattern:
 
     def test_node_with_properties(self):
         """Node pattern can have property constraints."""
-        props = {"name": Literal("Alice"), "age": Literal(30)}
+        props = {"name": Literal(value="Alice"), "age": Literal(value=30)}
         pattern = NodePattern(variable="n", labels=["Person"], properties=props)
         assert len(pattern.properties) == 2
         assert "name" in pattern.properties
@@ -150,7 +156,7 @@ class TestWhereClause:
         predicate = BinaryOp(
             op=">",
             left=PropertyAccess(variable="n", property="age"),
-            right=Literal(30),
+            right=Literal(value=30),
         )
         where = WhereClause(predicate=predicate)
         assert where.predicate.op == ">"
@@ -162,18 +168,29 @@ class TestReturnClause:
 
     def test_return_single_item(self):
         """Return clause with single item."""
-        return_clause = ReturnClause(items=[Variable("n")])
+        from graphforge.ast.clause import ReturnItem
+
+        return_clause = ReturnClause(items=[ReturnItem(expression=Variable(name="n"))])
         assert len(return_clause.items) == 1
 
     def test_return_multiple_items(self):
         """Return clause with multiple items."""
-        return_clause = ReturnClause(items=[Variable("n"), Variable("m")])
+        from graphforge.ast.clause import ReturnItem
+
+        return_clause = ReturnClause(
+            items=[
+                ReturnItem(expression=Variable(name="n")),
+                ReturnItem(expression=Variable(name="m")),
+            ]
+        )
         assert len(return_clause.items) == 2
 
     def test_return_expression(self):
         """Return clause can return expressions."""
+        from graphforge.ast.clause import ReturnItem
+
         expr = PropertyAccess(variable="n", property="name")
-        return_clause = ReturnClause(items=[expr])
+        return_clause = ReturnClause(items=[ReturnItem(expression=expr)])
         assert len(return_clause.items) == 1
 
 
@@ -198,22 +215,22 @@ class TestExpressions:
 
     def test_literal_int(self):
         """Literal integer expression."""
-        lit = Literal(42)
+        lit = Literal(value=42)
         assert lit.value == 42
 
     def test_literal_string(self):
         """Literal string expression."""
-        lit = Literal("hello")
+        lit = Literal(value="hello")
         assert lit.value == "hello"
 
     def test_literal_null(self):
         """Literal null expression."""
-        lit = Literal(None)
+        lit = Literal(value=None)
         assert lit.value is None
 
     def test_variable(self):
         """Variable reference."""
-        var = Variable("n")
+        var = Variable(name="n")
         assert var.name == "n"
 
     def test_property_access(self):
@@ -226,8 +243,8 @@ class TestExpressions:
         """Binary comparison operation."""
         op = BinaryOp(
             op=">",
-            left=Variable("x"),
-            right=Literal(10),
+            left=Variable(name="x"),
+            right=Literal(value=10),
         )
         assert op.op == ">"
         assert isinstance(op.left, Variable)
@@ -235,8 +252,8 @@ class TestExpressions:
 
     def test_binary_op_logical(self):
         """Binary logical operation (AND, OR)."""
-        left_cond = BinaryOp(op=">", left=Variable("x"), right=Literal(10))
-        right_cond = BinaryOp(op="<", left=Variable("x"), right=Literal(20))
+        left_cond = BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=10))
+        right_cond = BinaryOp(op="<", left=Variable(name="x"), right=Literal(value=20))
         combined = BinaryOp(op="AND", left=left_cond, right=right_cond)
         assert combined.op == "AND"
 
@@ -247,9 +264,11 @@ class TestCompleteQuery:
 
     def test_simple_match_return(self):
         """MATCH (n:Person) RETURN n"""
+        from graphforge.ast.clause import ReturnItem
+
         node = NodePattern(variable="n", labels=["Person"], properties={})
         match = MatchClause(patterns=[node])
-        return_clause = ReturnClause(items=[Variable("n")])
+        return_clause = ReturnClause(items=[ReturnItem(expression=Variable(name="n"))])
         query = CypherQuery(clauses=[match, return_clause])
 
         assert len(query.clauses) == 2
@@ -264,12 +283,14 @@ class TestCompleteQuery:
         predicate = BinaryOp(
             op=">",
             left=PropertyAccess(variable="n", property="age"),
-            right=Literal(30),
+            right=Literal(value=30),
         )
         where = WhereClause(predicate=predicate)
 
-        return_item = PropertyAccess(variable="n", property="name")
-        return_clause = ReturnClause(items=[return_item])
+        from graphforge.ast.clause import ReturnItem
+
+        return_item_expr = PropertyAccess(variable="n", property="name")
+        return_clause = ReturnClause(items=[ReturnItem(expression=return_item_expr)])
 
         query = CypherQuery(clauses=[match, where, return_clause])
 
@@ -280,9 +301,11 @@ class TestCompleteQuery:
 
     def test_match_return_limit(self):
         """MATCH (n) RETURN n LIMIT 5"""
+        from graphforge.ast.clause import ReturnItem
+
         node = NodePattern(variable="n", labels=[], properties={})
         match = MatchClause(patterns=[node])
-        return_clause = ReturnClause(items=[Variable("n")])
+        return_clause = ReturnClause(items=[ReturnItem(expression=Variable(name="n"))])
         limit = LimitClause(count=5)
 
         query = CypherQuery(clauses=[match, return_clause, limit])

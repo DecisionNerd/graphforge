@@ -45,7 +45,17 @@ from graphforge.planner.operators import (
 class QueryPlanner:
     """Plans query execution from AST."""
 
-    def plan(self, ast: CypherQuery) -> list:
+    def __init__(self):
+        """Initialize the query planner."""
+        self._anon_counter = 0
+
+    def _generate_anonymous_variable(self) -> str:
+        """Generate a unique variable name for anonymous patterns."""
+        var = f"__anon_{self._anon_counter}"
+        self._anon_counter += 1
+        return var
+
+    def plan(self, ast: CypherQuery) -> list[Any]:
         """Convert AST to logical plan operators.
 
         Operators are ordered for correct execution:
@@ -311,7 +321,7 @@ class QueryPlanner:
 
         return operators
 
-    def _plan_match(self, clause: MatchClause) -> list:
+    def _plan_match(self, clause: MatchClause) -> list[Any]:
         """Plan MATCH clause into operators.
 
         Args:
@@ -320,7 +330,7 @@ class QueryPlanner:
         Returns:
             List of operators for the MATCH pattern
         """
-        operators = []
+        operators: list[Any] = []
 
         for pattern in clause.patterns:
             if not pattern:
@@ -342,16 +352,22 @@ class QueryPlanner:
                         node_pattern.variable,  # type: ignore[arg-type]
                         node_pattern.properties,
                     )
-                    operators.append(Filter(predicate=predicate))  # type: ignore[arg-type]
+                    operators.append(Filter(predicate=predicate))
 
             # Handle node-relationship-node pattern
             elif len(pattern) >= 3:
                 # First node
                 if isinstance(pattern[0], NodePattern):
                     src_pattern = pattern[0]
+                    # Generate variable name for anonymous patterns
+                    src_var = (
+                        src_pattern.variable
+                        if src_pattern.variable
+                        else self._generate_anonymous_variable()
+                    )
                     operators.append(
                         ScanNodes(
-                            variable=src_pattern.variable,  # type: ignore[arg-type]
+                            variable=src_var,
                             labels=src_pattern.labels if src_pattern.labels else None,
                         )
                     )
@@ -359,15 +375,27 @@ class QueryPlanner:
                     # Add Filter for inline property predicates on src node
                     if src_pattern.properties:
                         predicate = self._properties_to_predicate(
-                            src_pattern.variable,  # type: ignore[arg-type]
+                            src_var,
                             src_pattern.properties,
                         )
-                        operators.append(Filter(predicate=predicate))  # type: ignore[arg-type]
+                        operators.append(Filter(predicate=predicate))
 
                 # Relationship
                 if isinstance(pattern[1], RelationshipPattern):
                     rel_pattern = pattern[1]
                     dst_pattern = pattern[2]
+
+                    # Generate variable names for anonymous patterns
+                    rel_var = (
+                        rel_pattern.variable
+                        if rel_pattern.variable
+                        else self._generate_anonymous_variable()
+                    )
+                    dst_var = (
+                        dst_pattern.variable
+                        if dst_pattern.variable
+                        else self._generate_anonymous_variable()
+                    )
 
                     direction_map = {
                         Direction.OUT: "OUT",
@@ -377,9 +405,9 @@ class QueryPlanner:
 
                     operators.append(
                         ExpandEdges(
-                            src_var=src_pattern.variable,  # type: ignore[arg-type]
-                            edge_var=rel_pattern.variable,
-                            dst_var=dst_pattern.variable,
+                            src_var=src_var,
+                            edge_var=rel_var,
+                            dst_var=dst_var,
                             edge_types=rel_pattern.types if rel_pattern.types else [],
                             direction=direction_map[rel_pattern.direction],
                         )

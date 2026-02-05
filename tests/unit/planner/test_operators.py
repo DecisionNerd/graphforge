@@ -100,7 +100,7 @@ class TestFilter:
         predicate = BinaryOp(
             op=">",
             left=PropertyAccess(variable="n", property="age"),
-            right=Literal(30),
+            right=Literal(value=30),
         )
         op = Filter(predicate=predicate)
         assert op.predicate.op == ">"
@@ -114,7 +114,7 @@ class TestProject:
         """Project can project single item."""
         from graphforge.ast.expression import Variable
 
-        op = Project(items=[Variable("n")])
+        op = Project(items=[Variable(name="n")])
         assert len(op.items) == 1
 
     def test_project_multiple_items(self):
@@ -123,7 +123,7 @@ class TestProject:
 
         op = Project(
             items=[
-                Variable("n"),
+                Variable(name="n"),
                 PropertyAccess(variable="n", property="name"),
             ]
         )
@@ -159,7 +159,7 @@ class TestOperatorChaining:
         from graphforge.ast.expression import Variable
 
         scan = ScanNodes(variable="n", labels=["Person"])
-        project = Project(items=[Variable("n")])
+        project = Project(items=[Variable(name="n")])
         limit = Limit(count=10)
 
         # Create pipeline
