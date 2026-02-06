@@ -153,7 +153,7 @@ class TestLabelsFunction:
         # Check that Alice has Employee label
         alice = results[0]
         assert alice["name"].value == "Alice"
-        alice_labels = [l.value for l in alice["labels"].value]
+        alice_labels = [label.value for label in alice["labels"].value]
         assert "Employee" in alice_labels
 
     def test_labels_function_multiple_nodes(self):
@@ -170,7 +170,7 @@ class TestLabelsFunction:
         name_to_labels = {}
         for row in results:
             name = row["name"].value
-            labels = [l.value for l in row["labels"].value]
+            labels = [label.value for label in row["labels"].value]
             name_to_labels[name] = labels
 
         # Check Alice (Person)
@@ -255,7 +255,7 @@ class TestCombinedGraphFunctions:
         results = gf.execute("MATCH (n:Person) RETURN id(n) AS nid, labels(n) AS labels")
         assert len(results) == 1
         assert results[0]["nid"].value == alice.id
-        labels = [l.value for l in results[0]["labels"].value]
+        labels = [label.value for label in results[0]["labels"].value]
         assert labels == ["Customer", "Person"]
 
     def test_all_graph_functions(self):
@@ -299,7 +299,7 @@ class TestCombinedGraphFunctions:
         id_to_labels = {}
         for row in results:
             nid = row["nid"].value
-            labels = [l.value for l in row["labels"].value]
+            labels = [label.value for label in row["labels"].value]
             id_to_labels[nid] = labels
 
         # Check that all nodes are present
