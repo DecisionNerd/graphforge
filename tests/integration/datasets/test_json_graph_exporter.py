@@ -127,10 +127,11 @@ class TestJSONGraphExporter:
             data = json.load(f)
 
         node = data["nodes"][0]
-        # TODO: Change to "point" once Issue #97 is resolved
-        assert node["properties"]["location"]["t"] == "map"
-        assert node["properties"]["location"]["v"]["x"]["v"] == 1.0
-        assert node["properties"]["location"]["v"]["y"]["v"] == 2.0
+        # Issue #97 resolved: spatial types now properly exported as "point"
+        assert node["properties"]["location"]["t"] == "point"
+        assert node["properties"]["location"]["v"]["x"] == 1.0
+        assert node["properties"]["location"]["v"]["y"] == 2.0
+        assert node["properties"]["location"]["v"]["crs"] == "cartesian"
 
     def test_export_with_metadata(self, tmp_path):
         """Test exporting with custom metadata."""
