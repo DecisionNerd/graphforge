@@ -203,7 +203,7 @@ class TestPropertyValue:
 
     def test_point_missing_coordinates(self):
         """Test point without proper coordinates raises error."""
-        with pytest.raises(ValidationError, match="Type 'point' requires .* or .*"):
+        with pytest.raises(ValidationError, match=r"Type 'point' requires .* or .*"):
             PropertyValue(t="point", v={"invalid": "coords"})
 
     def test_distance_wrong_type(self):

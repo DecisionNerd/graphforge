@@ -1,8 +1,10 @@
-"""Unit tests for graph introspection functions (id, labels, type)."""
+"""Integration tests for graph introspection functions (id, labels, type)."""
 
 import pytest
 
 from graphforge import GraphForge
+
+pytestmark = pytest.mark.integration
 
 
 class TestIdFunction:
