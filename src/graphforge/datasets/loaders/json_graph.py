@@ -160,8 +160,8 @@ class JSONGraphLoader(DatasetLoader):
 
         Raises:
             FileNotFoundError: If JSON file doesn't exist
-            ValidationError: If JSON doesn't match expected format
-            ValueError: If JSON is malformed or contains invalid data
+            ValueError: If JSON is malformed, doesn't match expected format,
+                or contains invalid data
         """
         dataset_path = path
         if not dataset_path.exists():
