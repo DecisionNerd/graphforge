@@ -155,16 +155,20 @@ class TestPropertyValueToCypher:
         assert isinstance(result.value["age"], CypherInt)
 
     def test_invalid_list_item(self):
-        """Test list with invalid item raises error."""
-        pv = PropertyValue(t="list", v=["not a property value"])
-        with pytest.raises(ValueError, match="List items must be PropertyValue objects"):
-            property_value_to_cypher(pv)
+        """Test list with invalid item raises error at construction time."""
+        from pydantic import ValidationError
+
+        # Validation now happens at PropertyValue construction, not during conversion
+        with pytest.raises(ValidationError, match="Type 'list' item at index 0"):
+            PropertyValue(t="list", v=["not a property value"])
 
     def test_invalid_map_value(self):
-        """Test map with invalid value raises error."""
-        pv = PropertyValue(t="map", v={"key": "not a property value"})
-        with pytest.raises(ValueError, match="Map values must be PropertyValue objects"):
-            property_value_to_cypher(pv)
+        """Test map with invalid value raises error at construction time."""
+        from pydantic import ValidationError
+
+        # Validation now happens at PropertyValue construction, not during conversion
+        with pytest.raises(ValidationError, match="Type 'map' value at key 'key'"):
+            PropertyValue(t="map", v={"key": "not a property value"})
 
 
 @pytest.mark.unit

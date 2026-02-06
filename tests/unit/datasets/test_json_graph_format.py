@@ -226,6 +226,106 @@ class TestPropertyValue:
         with pytest.raises(ValidationError, match="Type 'map' requires object value"):
             PropertyValue(t="map", v="not a map")
 
+    def test_list_invalid_nested_item_type(self):
+        """Test list with non-dict nested item raises error."""
+        with pytest.raises(
+            ValidationError, match=r"Type 'list' item at index 1 must be PropertyValue object"
+        ):
+            PropertyValue(
+                t="list", v=[{"t": "int", "v": 1}, "not a property value", {"t": "int", "v": 3}]
+            )
+
+    def test_list_nested_item_missing_keys(self):
+        """Test list with nested item missing 't' or 'v' keys raises error."""
+        with pytest.raises(
+            ValidationError, match=r"Type 'list' item at index 0 must have 't' and 'v' keys"
+        ):
+            PropertyValue(t="list", v=[{"v": 42}])
+
+    def test_list_nested_item_invalid_type_tag(self):
+        """Test list with nested item having invalid type tag raises error."""
+        with pytest.raises(ValidationError, match=r"Type 'list' item at index 1 validation failed"):
+            PropertyValue(t="list", v=[{"t": "int", "v": 1}, {"t": "invalid_type", "v": 2}])
+
+    def test_map_invalid_nested_value_type(self):
+        """Test map with non-dict nested value raises error."""
+        with pytest.raises(
+            ValidationError, match=r"Type 'map' value at key 'age' must be PropertyValue object"
+        ):
+            PropertyValue(
+                t="map",
+                v={"name": {"t": "string", "v": "Alice"}, "age": 30},  # 30 is not a PropertyValue
+            )
+
+    def test_map_nested_value_missing_keys(self):
+        """Test map with nested value missing 't' or 'v' keys raises error."""
+        with pytest.raises(
+            ValidationError, match=r"Type 'map' value at key 'score' must have 't' and 'v' keys"
+        ):
+            PropertyValue(t="map", v={"score": {"v": 100}})
+
+    def test_map_nested_value_invalid_type_tag(self):
+        """Test map with nested value having invalid type tag raises error."""
+        with pytest.raises(
+            ValidationError, match=r"Type 'map' value at key 'count' validation failed"
+        ):
+            PropertyValue(
+                t="map",
+                v={"name": {"t": "string", "v": "Alice"}, "count": {"t": "bad_type", "v": 5}},
+            )
+
+    def test_deeply_nested_list_validation(self):
+        """Test validation works for deeply nested lists."""
+        # Valid deeply nested structure
+        valid = PropertyValue(
+            t="list",
+            v=[
+                {"t": "int", "v": 1},
+                {"t": "list", "v": [{"t": "string", "v": "nested"}, {"t": "int", "v": 2}]},
+            ],
+        )
+        assert valid.t == "list"
+
+        # Invalid deeply nested structure
+        with pytest.raises(ValidationError, match=r"Type 'list' item at index 1 validation failed"):
+            PropertyValue(
+                t="list",
+                v=[
+                    {"t": "int", "v": 1},
+                    {
+                        "t": "list",
+                        "v": [{"t": "string", "v": "ok"}, "invalid"],
+                    },  # Invalid nested item
+                ],
+            )
+
+    def test_deeply_nested_map_validation(self):
+        """Test validation works for deeply nested maps."""
+        # Valid deeply nested structure
+        valid = PropertyValue(
+            t="map",
+            v={
+                "simple": {"t": "int", "v": 42},
+                "nested": {"t": "map", "v": {"inner": {"t": "string", "v": "value"}}},
+            },
+        )
+        assert valid.t == "map"
+
+        # Invalid deeply nested structure
+        with pytest.raises(
+            ValidationError, match=r"Type 'map' value at key 'data' validation failed"
+        ):
+            PropertyValue(
+                t="map",
+                v={
+                    "simple": {"t": "int", "v": 42},
+                    "data": {
+                        "t": "map",
+                        "v": {"bad": 123},
+                    },  # Invalid nested value (not PropertyValue)
+                },
+            )
+
     def test_immutable(self):
         """Test PropertyValue is immutable."""
         pv = PropertyValue(t="int", v=42)

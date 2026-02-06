@@ -41,7 +41,7 @@ Example JSON Graph:
 
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 
 class PropertyValue(BaseModel):
@@ -190,13 +190,49 @@ class PropertyValue(BaseModel):
         elif t == "list":
             if not isinstance(v, list):
                 raise ValueError(f"Type 'list' requires array value, got {type(v).__name__}")
-            # Each item should be a PropertyValue (validated recursively if nested)
+            # Recursively validate each item
+            for idx, item in enumerate(v):
+                if not isinstance(item, dict):
+                    raise ValueError(
+                        f"Type 'list' item at index {idx} must be PropertyValue object, "
+                        f"got {type(item).__name__}"
+                    )
+                if "t" not in item or "v" not in item:
+                    raise ValueError(
+                        f"Type 'list' item at index {idx} must have 't' and 'v' keys, "
+                        f"got keys: {list(item.keys())}"
+                    )
+                # Recursively validate nested PropertyValue
+                try:
+                    PropertyValue(t=item["t"], v=item["v"])
+                except (ValueError, ValidationError) as e:
+                    raise ValueError(
+                        f"Type 'list' item at index {idx} validation failed: {e}"
+                    ) from e
 
         # map: value must be object with PropertyValue values
         elif t == "map":
             if not isinstance(v, dict):
                 raise ValueError(f"Type 'map' requires object value, got {type(v).__name__}")
-            # Each value should be a PropertyValue (validated recursively if nested)
+            # Recursively validate each value
+            for key, val in v.items():
+                if not isinstance(val, dict):
+                    raise ValueError(
+                        f"Type 'map' value at key {key!r} must be PropertyValue object, "
+                        f"got {type(val).__name__}"
+                    )
+                if "t" not in val or "v" not in val:
+                    raise ValueError(
+                        f"Type 'map' value at key {key!r} must have 't' and 'v' keys, "
+                        f"got keys: {list(val.keys())}"
+                    )
+                # Recursively validate nested PropertyValue
+                try:
+                    PropertyValue(t=val["t"], v=val["v"])
+                except (ValueError, ValidationError) as e:
+                    raise ValueError(
+                        f"Type 'map' value at key {key!r} validation failed: {e}"
+                    ) from e
 
         return self
 
