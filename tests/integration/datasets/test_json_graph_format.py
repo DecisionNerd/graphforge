@@ -1,7 +1,7 @@
 """Integration tests for JSON Graph format Pydantic models."""
 
-import pytest
 from pydantic import ValidationError
+import pytest
 
 from graphforge.datasets.formats.json_graph import (
     JSONGraph,
