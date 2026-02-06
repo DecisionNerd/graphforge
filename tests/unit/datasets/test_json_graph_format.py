@@ -1,4 +1,4 @@
-"""Integration tests for JSON Graph format Pydantic models."""
+"""Unit tests for JSON Graph format Pydantic models."""
 
 from pydantic import ValidationError
 import pytest
@@ -10,7 +10,7 @@ from graphforge.datasets.formats.json_graph import (
     PropertyValue,
 )
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.unit
 
 
 class TestPropertyValue:
