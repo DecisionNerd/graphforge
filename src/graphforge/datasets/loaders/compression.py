@@ -140,17 +140,23 @@ def extract_tar_zst(archive_path: Path, extract_to: Path) -> None:
 
     extract_to.mkdir(parents=True, exist_ok=True)
 
-    # Open zstd-compressed file
-    with archive_path.open("rb") as compressed_file:
+    # Open zstd-compressed file and decompress to temporary tar
+    import tempfile
+
+    with (
+        archive_path.open("rb") as compressed_file,
+        tempfile.NamedTemporaryFile(suffix=".tar", delete=True) as temp_tar,
+    ):
         # Create zstd decompressor
         dctx = zstd.ZstdDecompressor()
 
-        # Decompress and extract tar
-        with (
-            dctx.stream_reader(compressed_file) as reader,
-            tarfile.open(fileobj=reader, mode="r|") as tar,
-        ):
-            # Extract with path validation
+        # Decompress to temporary file
+        with dctx.stream_reader(compressed_file) as reader:
+            temp_tar.write(reader.read())
+            temp_tar.flush()
+
+        # Extract tar with path validation
+        with tarfile.open(temp_tar.name, "r") as tar:
             safe_extract_tar(tar, extract_to)
 
 
