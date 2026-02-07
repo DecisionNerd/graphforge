@@ -239,6 +239,7 @@ check_untyped_defs = false
 module = [
     "lark.*",
     "msgpack.*",
+    "zstandard.*",
 ]
 ignore_missing_imports = true
 
