@@ -262,7 +262,9 @@ class TestTarSecurityValidation:
 
         # Extract should raise ValueError
         # (Can be caught by either absolute path check or path traversal check)
-        with pytest.raises(ValueError, match="(Absolute path not allowed|Path traversal attempt detected)"):
+        with pytest.raises(
+            ValueError, match="(Absolute path not allowed|Path traversal attempt detected)"
+        ):
             extract_archive(archive_path, extract_to)
 
     def test_reject_parent_directory_reference_tar(self, tmp_path):
@@ -282,7 +284,10 @@ class TestTarSecurityValidation:
 
         # Extract should raise ValueError
         # (Can be caught by either path traversal check or parent directory check)
-        with pytest.raises(ValueError, match="(Parent directory reference not allowed|Path traversal attempt detected)"):
+        with pytest.raises(
+            ValueError,
+            match="(Parent directory reference not allowed|Path traversal attempt detected)",
+        ):
             extract_archive(archive_path, extract_to)
 
     def test_reject_backslash_absolute_path_tar(self, tmp_path):
@@ -460,7 +465,7 @@ class TestTarZstExtraction:
             compression.ZSTD_AVAILABLE = original_available
 
     @pytest.mark.skipif(
-        not __import__('importlib').util.find_spec("zstandard"),
+        not __import__("importlib").util.find_spec("zstandard"),
         reason="zstandard not available",
     )
     def test_extract_tar_zst_nonexistent(self, tmp_path):
@@ -474,13 +479,14 @@ class TestTarZstExtraction:
             extract_tar_zst(archive_path, extract_to)
 
     @pytest.mark.skipif(
-        not __import__('importlib').util.find_spec("zstandard"),
+        not __import__("importlib").util.find_spec("zstandard"),
         reason="zstandard not available",
     )
     def test_extract_tar_zst_with_zstandard(self, tmp_path):
         """Test extracting .tar.zst archive when zstandard is available."""
-        import zstandard as zstd
         import io
+
+        import zstandard as zstd
 
         # Create a test .tar.zst archive
         archive_path = tmp_path / "test.tar.zst"
@@ -515,13 +521,14 @@ class TestTarZstExtraction:
         assert (extract_to / "test.txt").read_text() == "zst content"
 
     @pytest.mark.skipif(
-        not __import__('importlib').util.find_spec("zstandard"),
+        not __import__("importlib").util.find_spec("zstandard"),
         reason="zstandard not available",
     )
     def test_extract_tar_zst_security(self, tmp_path):
         """Test that .tar.zst extraction validates paths."""
-        import zstandard as zstd
         import io
+
+        import zstandard as zstd
 
         archive_path = tmp_path / "malicious.tar.zst"
         extract_to = tmp_path / "extracted"
@@ -550,7 +557,9 @@ class TestTarZstExtraction:
         # Should reject absolute path
         from graphforge.datasets.loaders.compression import extract_archive
 
-        with pytest.raises(ValueError, match="(Absolute path not allowed|Path traversal attempt detected)"):
+        with pytest.raises(
+            ValueError, match="(Absolute path not allowed|Path traversal attempt detected)"
+        ):
             extract_archive(archive_path, extract_to)
 
 
@@ -636,7 +645,10 @@ class TestPathValidationEdgeCases:
         # Should reject due to parent reference
         from graphforge.datasets.loaders.compression import extract_archive
 
-        with pytest.raises(ValueError, match="(Parent directory reference not allowed|Path traversal attempt detected)"):
+        with pytest.raises(
+            ValueError,
+            match="(Parent directory reference not allowed|Path traversal attempt detected)",
+        ):
             extract_archive(archive_path, extract_to)
 
     def test_tar_with_many_parent_refs(self, tmp_path):
@@ -657,7 +669,10 @@ class TestPathValidationEdgeCases:
         # Should reject due to parent directory reference
         from graphforge.datasets.loaders.compression import extract_archive
 
-        with pytest.raises(ValueError, match="(Parent directory reference not allowed|Path traversal attempt detected)"):
+        with pytest.raises(
+            ValueError,
+            match="(Parent directory reference not allowed|Path traversal attempt detected)",
+        ):
             extract_archive(archive_path, extract_to)
 
     def test_zip_with_many_parent_refs(self, tmp_path):
@@ -672,5 +687,8 @@ class TestPathValidationEdgeCases:
         # Should reject due to parent directory reference
         from graphforge.datasets.loaders.compression import extract_archive
 
-        with pytest.raises(ValueError, match="(Parent directory reference not allowed|Path traversal attempt detected)"):
+        with pytest.raises(
+            ValueError,
+            match="(Parent directory reference not allowed|Path traversal attempt detected)",
+        ):
             extract_archive(archive_path, extract_to)

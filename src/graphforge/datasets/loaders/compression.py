@@ -15,7 +15,7 @@ import tarfile
 import zipfile
 
 try:
-    import zstandard as zstd  # type: ignore[import-not-found]
+    import zstandard as zstd
 
     ZSTD_AVAILABLE = True
 except ImportError:
@@ -39,6 +39,14 @@ def safe_extract_tar(tar: tarfile.TarFile, extract_to: Path) -> None:
     extract_to_resolved = extract_to.resolve()
 
     for member in tar.getmembers():
+        # Refuse absolute paths (check first, before path operations)
+        if member.name.startswith("/") or member.name.startswith("\\"):
+            raise ValueError(f"Absolute path not allowed: '{member.name}'")
+
+        # Refuse paths with parent directory references (check before resolution)
+        if ".." in Path(member.name).parts:
+            raise ValueError(f"Parent directory reference not allowed: '{member.name}'")
+
         # Compute target path for this member
         target_path = extract_to / member.name
 
@@ -57,14 +65,6 @@ def safe_extract_tar(tar: tarfile.TarFile, extract_to: Path) -> None:
                     f"would extract to '{target_path_resolved}' "
                     f"outside of '{extract_to_resolved}'"
                 )
-
-        # Refuse absolute paths
-        if member.name.startswith("/") or member.name.startswith("\\"):
-            raise ValueError(f"Absolute path not allowed: '{member.name}'")
-
-        # Refuse paths with parent directory references
-        if ".." in Path(member.name).parts:
-            raise ValueError(f"Parent directory reference not allowed: '{member.name}'")
 
         # Extract this validated member
         tar.extract(member, extract_to)
@@ -87,6 +87,14 @@ def safe_extract_zip(zip_file: zipfile.ZipFile, extract_to: Path) -> None:
     extract_to_resolved = extract_to.resolve()
 
     for member in zip_file.namelist():
+        # Refuse absolute paths (check first, before path operations)
+        if member.startswith("/") or member.startswith("\\"):
+            raise ValueError(f"Absolute path not allowed: '{member}'")
+
+        # Refuse paths with parent directory references (check before resolution)
+        if ".." in Path(member).parts:
+            raise ValueError(f"Parent directory reference not allowed: '{member}'")
+
         # Compute target path for this member
         target_path = extract_to / member
 
@@ -105,14 +113,6 @@ def safe_extract_zip(zip_file: zipfile.ZipFile, extract_to: Path) -> None:
                     f"would extract to '{target_path_resolved}' "
                     f"outside of '{extract_to_resolved}'"
                 )
-
-        # Refuse absolute paths
-        if member.startswith("/") or member.startswith("\\"):
-            raise ValueError(f"Absolute path not allowed: '{member}'")
-
-        # Refuse paths with parent directory references
-        if ".." in Path(member).parts:
-            raise ValueError(f"Parent directory reference not allowed: '{member}'")
 
         # Extract this validated member
         zip_file.extract(member, extract_to)
