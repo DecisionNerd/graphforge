@@ -1289,7 +1289,7 @@ For production workloads, consider Neo4j, Memgraph, or other production graph da
 - ✅ Dynamic dataset loading via URL
 - ✅ GraphML loader with type-aware parsing
 - ✅ Compression support (.tar.gz, .tar.zst, .zip)
-- ✅ ~950/3,837 TCK scenarios (~25%)
+- ✅ 1,277/7,722 TCK scenarios (16.5%)
 
 **Planned (v0.4.0 - Advanced Patterns):**
 - ⏳ Variable-length patterns `-[*1..5]->` ([#24](https://github.com/DecisionNerd/graphforge/issues/24))
@@ -1301,10 +1301,11 @@ For production workloads, consider Neo4j, Memgraph, or other production graph da
 
 **Future Considerations:**
 - v0.5+: Additional functions, performance optimization
-- v1.0: Full core OpenCypher (70-75% TCK compliance)
+- v1.0: Full OpenCypher (>99% TCK compliance - complete production platform)
 - Query plan visualization and EXPLAIN
 - Performance profiling tools
-- Import/export formats (additional formats)
+- Modern APIs (REST, GraphQL, WebSocket)
+- Analytical integrations (NetworkX, iGraph, QuantumFusion)
 - Ontology support and schema validation
 
 **See [OpenCypher Compatibility](docs/reference/opencypher-compatibility.md) for detailed feature matrix.**
@@ -1378,11 +1379,14 @@ GraphForge tracks compliance using the openCypher Technology Compatibility Kit (
 
 | Version | Scenarios | Percentage |
 |---------|-----------|------------|
-| v0.1.4 | 638/3,837 | 16.6% |
-| v0.2.1 | 850/3,837 | 22.1% |
-| v0.3.0 | ~950/3,837 | ~25% |
-| v0.4.0 (target) | ~1,500/3,837 | ~39% |
-| v1.0 (target) | ~2,800/3,837 | ~73% |
+| v0.1.4 | 1,277/7,722 | 16.5% |
+| v0.2.0 | ~1,900/7,722 | ~25% |
+| v0.3.0 | ~3,000/7,722 | ~39% |
+| v0.4.0 (target) | ~4,250/7,722 | ~55% |
+| v0.5.0 (target) | ~5,400/7,722 | ~70% |
+| v0.6.0 (target) | ~6,300/7,722 | ~82% |
+| v0.7.0 (target) | ~7,100/7,722 | ~92% |
+| v1.0 (target) | >7,650/7,722 | >99% |
 
 **See [OpenCypher Compatibility](docs/reference/opencypher-compatibility.md) for complete details.**
 
