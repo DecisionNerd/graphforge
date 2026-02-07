@@ -10,7 +10,8 @@ Supported formats are detected by extract_archive() and is_compressed_archive().
 """
 
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import re
 import sys
 import tarfile
 import zipfile
@@ -21,6 +22,40 @@ try:
     ZSTD_AVAILABLE = True
 except ImportError:
     ZSTD_AVAILABLE = False
+
+
+# Regex patterns for Windows path detection
+_WINDOWS_DRIVE_RE = re.compile(r"^[a-zA-Z]:[\\/]")
+_UNC_RE = re.compile(r"^[\\/]{2}[^\\/]+[\\/]+[^\\/]+")  # \\server\share or //server/share
+
+
+def _validate_archive_member(name: str) -> None:
+    """Validate an archive member name for security (absolute or traversal).
+
+    Args:
+        name: Archive member name to validate
+
+    Raises:
+        ValueError: If the name is unsafe (absolute path or contains parent traversal)
+    """
+    # TAR member names are POSIX-ish, but can contain backslashes.
+    # Convert backslashes to forward slashes for consistent checks.
+    normalized = name.replace("\\", "/")
+
+    # Reject Windows absolute path variants + Unix absolute paths
+    if normalized.startswith("/"):
+        raise ValueError(f"Absolute path not allowed: '{name}'")
+    if name.startswith("\\"):  # Critical for Windows backslash-absolute paths
+        raise ValueError(f"Absolute path not allowed: '{name}'")
+    if _WINDOWS_DRIVE_RE.match(name):
+        raise ValueError(f"Absolute path not allowed: '{name}'")
+    if _UNC_RE.match(name):
+        raise ValueError(f"Absolute path not allowed: '{name}'")
+
+    # Reject parent traversal
+    parts = PurePosixPath(normalized).parts
+    if ".." in parts:
+        raise ValueError(f"Parent directory reference not allowed: '{name}'")
 
 
 def safe_extract_tar(tar: tarfile.TarFile, extract_to: Path) -> None:
@@ -40,22 +75,11 @@ def safe_extract_tar(tar: tarfile.TarFile, extract_to: Path) -> None:
     extract_to_resolved = extract_to.resolve()
 
     for member in tar.getmembers():
-        # Check for absolute paths BEFORE normalization (defense in depth)
-        if member.name.startswith("/") or member.name.startswith("\\"):
-            raise ValueError(f"Absolute path not allowed: '{member.name}'")
+        # Validate member name for security (absolute paths, traversal, etc.)
+        _validate_archive_member(member.name)
 
-        # Normalize to forward slashes for consistent validation across platforms
+        # Normalize to forward slashes for extraction
         normalized = member.name.replace("\\", "/")
-
-        # Refuse Windows drive-letter absolute paths (e.g., "C:/..." or "C:\\...")
-        if len(normalized) >= 3 and normalized[1] == ":" and normalized[2] == "/":
-            raise ValueError(f"Absolute path not allowed: '{member.name}'")
-
-        # Refuse paths with parent directory references (use normalized separators)
-        if ".." in Path(normalized).parts:
-            raise ValueError(f"Parent directory reference not allowed: '{member.name}'")
-
-        # Compute target path using normalized path
         target_path = extract_to / normalized
 
         # Resolve to absolute path and check if it's within extraction directory
@@ -101,22 +125,11 @@ def safe_extract_zip(zip_file: zipfile.ZipFile, extract_to: Path) -> None:
     extract_to_resolved = extract_to.resolve()
 
     for member in zip_file.namelist():
-        # Check for absolute paths BEFORE normalization (defense in depth)
-        if member.startswith("/") or member.startswith("\\"):
-            raise ValueError(f"Absolute path not allowed: '{member}'")
+        # Validate member name for security (absolute paths, traversal, etc.)
+        _validate_archive_member(member)
 
-        # Normalize to forward slashes for consistent validation across platforms
+        # Normalize to forward slashes for extraction
         normalized = member.replace("\\", "/")
-
-        # Refuse Windows drive-letter absolute paths (e.g., "C:/..." or "C:\\...")
-        if len(normalized) >= 3 and normalized[1] == ":" and normalized[2] == "/":
-            raise ValueError(f"Absolute path not allowed: '{member}'")
-
-        # Refuse paths with parent directory references (use normalized separators)
-        if ".." in Path(normalized).parts:
-            raise ValueError(f"Parent directory reference not allowed: '{member}'")
-
-        # Compute target path using normalized path
         target_path = extract_to / normalized
 
         # Resolve to absolute path and check if it's within extraction directory
