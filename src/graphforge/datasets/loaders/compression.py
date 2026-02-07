@@ -11,6 +11,7 @@ Supported formats are detected by extract_archive() and is_compressed_archive().
 
 import os
 from pathlib import Path
+import sys
 import tarfile
 import zipfile
 
@@ -66,8 +67,14 @@ def safe_extract_tar(tar: tarfile.TarFile, extract_to: Path) -> None:
                     f"outside of '{extract_to_resolved}'"
                 )
 
-        # Extract this validated member (filter="data" strips metadata to avoid security issues)
-        tar.extract(member, extract_to, filter="data")
+        # Extract this validated member
+        # Python 3.12+ supports filter="data" to strip metadata (avoids deprecation warning)
+        if sys.version_info >= (3, 12):
+            # Use filter parameter on Python 3.12+ to avoid deprecation warning
+            tar.extract(member, extract_to, filter="data")  # type: ignore[call-arg]
+        else:
+            # Python 3.10-3.11 don't support filter parameter
+            tar.extract(member, extract_to)
 
 
 def safe_extract_zip(zip_file: zipfile.ZipFile, extract_to: Path) -> None:
