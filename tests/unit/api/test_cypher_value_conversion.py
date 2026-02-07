@@ -218,6 +218,71 @@ class TestSpatialTypeConversion:
         assert result.value["x"] == 1.0
         assert result.value["y"] == 2.0
 
+    def test_cartesian_with_crs_to_cypher_point(self):
+        """Test dict with {x, y, crs} converts to CypherPoint."""
+        gf = GraphForge()
+        coords = {"x": 1.0, "y": 2.0, "crs": "cartesian"}
+        result = gf._to_cypher_value(coords)
+        assert isinstance(result, CypherPoint)
+        assert result.value["x"] == 1.0
+        assert result.value["y"] == 2.0
+        assert result.value["crs"] == "cartesian"
+
+    def test_cartesian_3d_with_crs_to_cypher_point(self):
+        """Test dict with {x, y, z, crs} converts to CypherPoint."""
+        gf = GraphForge()
+        coords = {"x": 1.0, "y": 2.0, "z": 3.0, "crs": "cartesian-3d"}
+        result = gf._to_cypher_value(coords)
+        assert isinstance(result, CypherPoint)
+        assert result.value["x"] == 1.0
+        assert result.value["y"] == 2.0
+        assert result.value["z"] == 3.0
+        assert result.value["crs"] == "cartesian-3d"
+
+    def test_geographic_with_crs_to_cypher_point(self):
+        """Test dict with {latitude, longitude, crs} converts to CypherPoint."""
+        gf = GraphForge()
+        coords = {"latitude": 37.7749, "longitude": -122.4194, "crs": "wgs-84"}
+        result = gf._to_cypher_value(coords)
+        assert isinstance(result, CypherPoint)
+        assert result.value["latitude"] == 37.7749
+        assert result.value["longitude"] == -122.4194
+        assert result.value["crs"] == "wgs-84"
+
+    def test_cartesian_with_extra_keys_to_cypher_map(self):
+        """Test dict with x, y and extra keys converts to CypherMap (not CypherPoint)."""
+        gf = GraphForge()
+        data = {"x": 1.0, "y": 2.0, "name": "test"}
+        result = gf._to_cypher_value(data)
+        # Should be CypherMap because of extra "name" key
+        assert isinstance(result, CypherMap)
+        assert result.value["x"].value == 1.0
+        assert result.value["y"].value == 2.0
+        assert result.value["name"].value == "test"
+
+    def test_geographic_with_extra_keys_to_cypher_map(self):
+        """Test dict with latitude, longitude and extra keys converts to CypherMap."""
+        gf = GraphForge()
+        data = {"latitude": 37.7749, "longitude": -122.4194, "name": "SF"}
+        result = gf._to_cypher_value(data)
+        # Should be CypherMap because of extra "name" key
+        assert isinstance(result, CypherMap)
+        assert result.value["latitude"].value == 37.7749
+        assert result.value["longitude"].value == -122.4194
+        assert result.value["name"].value == "SF"
+
+    def test_cartesian_3d_with_extra_keys_to_cypher_map(self):
+        """Test dict with x, y, z and extra keys converts to CypherMap."""
+        gf = GraphForge()
+        data = {"x": 1.0, "y": 2.0, "z": 3.0, "id": "point1"}
+        result = gf._to_cypher_value(data)
+        # Should be CypherMap because of extra "id" key
+        assert isinstance(result, CypherMap)
+        assert result.value["x"].value == 1.0
+        assert result.value["y"].value == 2.0
+        assert result.value["z"].value == 3.0
+        assert result.value["id"].value == "point1"
+
 
 class TestListConversion:
     """Test conversion of lists to CypherList."""

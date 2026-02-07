@@ -178,6 +178,30 @@ class TestSpatialAPIIntegration:
         results = gf.execute("MATCH (p:Place) RETURN p.location AS loc")
         assert results[0]["loc"].type == CypherType.MAP
 
+    def test_dict_with_extra_keys_creates_map(self):
+        """Test that dicts with coordinate keys plus extra keys create CypherMap."""
+        gf = GraphForge()
+
+        # Create node with x, y plus extra "name" key
+        node1 = gf.create_node(["Place"], location={"x": 1.0, "y": 2.0, "name": "test"})
+
+        # Should be CypherMap because of extra key
+        assert node1.properties["location"].type == CypherType.MAP
+
+        # Create node with latitude, longitude plus extra "city" key
+        node2 = gf.create_node(
+            ["Place"], location={"latitude": 37.7749, "longitude": -122.4194, "city": "SF"}
+        )
+
+        # Should be CypherMap because of extra key
+        assert node2.properties["location"].type == CypherType.MAP
+
+        # Query both - should be maps
+        results = gf.execute("MATCH (p:Place) RETURN p.location AS loc ORDER BY id(p)")
+        assert len(results) == 2
+        assert results[0]["loc"].type == CypherType.MAP
+        assert results[1]["loc"].type == CypherType.MAP
+
     def test_multiple_points_distance_comparison(self):
         """Test distance calculations with multiple points."""
         gf = GraphForge()

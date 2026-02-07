@@ -429,20 +429,32 @@ class GraphForge:
 
         # Handle dict - check for Point coordinates before CypherMap
         if isinstance(value, dict):
-            # Detect Cartesian coordinates: {x, y} or {x, y, z}
-            if "x" in value and "y" in value:
+            keys = set(value.keys())
+
+            # Detect Cartesian coordinates: {x, y} or {x, y, z}, optionally with crs
+            # Valid: {"x", "y"}, {"x", "y", "crs"}, {"x", "y", "z"}, {"x", "y", "z", "crs"}
+            cartesian_2d = {"x", "y"}
+            cartesian_2d_crs = {"x", "y", "crs"}
+            cartesian_3d = {"x", "y", "z"}
+            cartesian_3d_crs = {"x", "y", "z", "crs"}
+
+            if keys in (cartesian_2d, cartesian_2d_crs, cartesian_3d, cartesian_3d_crs):
                 try:
                     return CypherPoint(value)
                 except ValueError:
-                    # Invalid coordinates (e.g., mixed types), fall through to CypherMap
+                    # Invalid coordinates (out of range values), fall through to CypherMap
                     pass
 
-            # Detect Geographic coordinates: {latitude, longitude}
-            if "latitude" in value and "longitude" in value:
+            # Detect Geographic coordinates: {latitude, longitude}, optionally with crs
+            # Valid: {"latitude", "longitude"}, {"latitude", "longitude", "crs"}
+            geographic = {"latitude", "longitude"}
+            geographic_crs = {"latitude", "longitude", "crs"}
+
+            if keys in (geographic, geographic_crs):
                 try:
                     return CypherPoint(value)
                 except ValueError:
-                    # Invalid coordinates (out of range), fall through to CypherMap
+                    # Invalid coordinates (e.g., out of range values), fall through to CypherMap
                     pass
 
             # Default to CypherMap (recursively convert values)
