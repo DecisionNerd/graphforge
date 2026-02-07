@@ -25,6 +25,7 @@ from graphforge.types.values import (
 )
 
 
+@pytest.mark.unit
 class TestBasicTypeConversion:
     """Test conversion of basic Python types to CypherValue types."""
 
@@ -67,6 +68,7 @@ class TestBasicTypeConversion:
         assert result.value == "hello"
 
 
+@pytest.mark.unit
 class TestTemporalTypeConversion:
     """Test conversion of temporal Python types to CypherValue types."""
 
@@ -102,6 +104,7 @@ class TestTemporalTypeConversion:
         assert isinstance(result, CypherDuration)
 
 
+@pytest.mark.unit
 class TestSpatialTypeConversion:
     """Test conversion of coordinate dicts to CypherPoint (Issue #97)."""
 
@@ -284,6 +287,7 @@ class TestSpatialTypeConversion:
         assert result.value["id"].value == "point1"
 
 
+@pytest.mark.unit
 class TestListConversion:
     """Test conversion of lists to CypherList."""
 
@@ -318,6 +322,7 @@ class TestListConversion:
         assert isinstance(result.value[1], CypherPoint)
 
 
+@pytest.mark.unit
 class TestNestedDictConversion:
     """Test conversion of nested dicts."""
 
@@ -340,6 +345,7 @@ class TestNestedDictConversion:
         assert isinstance(result.value["user"], CypherMap)
 
 
+@pytest.mark.unit
 class TestUnsupportedTypes:
     """Test error handling for unsupported types."""
 
