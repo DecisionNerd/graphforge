@@ -38,19 +38,19 @@ def _validate_archive_member(name: str) -> None:
         ValueError: If the name is unsafe (absolute path or contains parent traversal)
     """
     # Reject Windows rooted / UNC paths (check BEFORE normalization)
-    if name.startswith(("\\\\", "/")):
+    if name.startswith(("\\\\", "\\", "/")):
         raise ValueError("Absolute path not allowed")
 
-    # Important: on Windows, tar member names like "\Windows\System32\..." may appear
-    if name.startswith("\\"):
-        raise ValueError("Absolute path not allowed")
-
-    # Reject drive-letter absolute paths
+    # Reject drive-letter absolute paths like C:\ or C:/
     if _DRIVE_ABS_RE.match(name):
         raise ValueError("Absolute path not allowed")
 
     # Normalize separators for traversal detection
     normalized = name.replace("\\", "/")
+
+    # If normalization produces a leading slash, it's still absolute
+    if normalized.startswith("/"):
+        raise ValueError("Absolute path not allowed")
 
     # Parent directory traversal
     parts = PurePosixPath(normalized).parts
