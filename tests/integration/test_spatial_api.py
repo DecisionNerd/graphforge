@@ -5,10 +5,13 @@ Tests end-to-end workflows with Point types via Python API.
 
 import datetime
 
+import pytest
+
 from graphforge import GraphForge
 from graphforge.types.values import CypherDistance, CypherPoint, CypherType
 
 
+@pytest.mark.integration
 class TestSpatialAPIIntegration:
     """Test spatial types work end-to-end via Python API."""
 
@@ -249,6 +252,7 @@ class TestSpatialAPIIntegration:
         assert waypoints[2].value["x"] == 2.0
 
 
+@pytest.mark.integration
 class TestSpatialAPIPersistence:
     """Test spatial types persist correctly to SQLite."""
 
