@@ -98,11 +98,15 @@ class GraphMLLoader(DatasetLoader):
         if nested_graphs:
             raise ValueError("Nested graphs are not supported")
 
+        # Determine if graph is directed (default: directed)
+        edgedefault = graph.get("edgedefault", "directed")
+        is_directed = edgedefault == "directed"
+
         # Parse nodes
         node_map = self._parse_nodes(gf, graph, keys, ns)
 
         # Parse edges
-        self._parse_edges(gf, graph, keys, node_map, ns)
+        self._parse_edges(gf, graph, keys, node_map, ns, is_directed)
 
     def get_format(self) -> str:
         """Return format identifier.
@@ -155,10 +159,12 @@ class GraphMLLoader(DatasetLoader):
                 "type": key.get("attr.type", "string"),
             }
 
-            # Check for default value
+            # Check for default value (preserve empty strings)
+            # If <default> element exists, use its text (even if empty/None)
             default_elem = key.find("graphml:default" if ns else "default", ns)
-            if default_elem is not None and default_elem.text:
-                key_info["default"] = default_elem.text
+            if default_elem is not None:
+                # Treat None as empty string (for <default/> or <default></default>)
+                key_info["default"] = default_elem.text if default_elem.text is not None else ""
 
             keys[key_id] = key_info
 
@@ -218,6 +224,7 @@ class GraphMLLoader(DatasetLoader):
         keys: dict[str, dict[str, Any]],
         node_map: dict[str, Any],
         ns: dict[str, str],
+        is_directed: bool = True,
     ) -> None:
         """Parse edges from GraphML.
 
@@ -227,6 +234,7 @@ class GraphMLLoader(DatasetLoader):
             keys: Key declarations
             node_map: Mapping of node IDs to NodeRef
             ns: Namespace dict
+            is_directed: Whether the graph is directed (default: True)
 
         Raises:
             ValueError: If edge references invalid node
@@ -246,10 +254,20 @@ class GraphMLLoader(DatasetLoader):
             # Parse properties
             properties = self._parse_data_elements(edge_elem, keys, "edge", ns)
 
-            # Create edge (default relationship type)
-            gf.create_relationship(
-                node_map[source_id], node_map[target_id], "RELATED_TO", **properties
-            )
+            # Create edge(s) based on directedness
+            if is_directed:
+                # Directed: create single relationship
+                gf.create_relationship(
+                    node_map[source_id], node_map[target_id], "RELATED_TO", **properties
+                )
+            else:
+                # Undirected: create reciprocal relationships
+                gf.create_relationship(
+                    node_map[source_id], node_map[target_id], "RELATED_TO", **properties
+                )
+                gf.create_relationship(
+                    node_map[target_id], node_map[source_id], "RELATED_TO", **properties
+                )
 
     def _parse_data_elements(
         self,
@@ -275,22 +293,24 @@ class GraphMLLoader(DatasetLoader):
         properties = {}
 
         # Apply defaults from key declarations
-        for key_info in keys.values():
+        for key_id, key_info in keys.items():
             if key_info["for"] in (context, "all") and "default" in key_info:
                 prop_name = key_info["name"]
                 prop_type = key_info["type"]
-                properties[prop_name] = self._convert_value(key_info["default"], prop_type)
+                properties[prop_name] = self._convert_value(
+                    key_info["default"], prop_type, key_id=key_id, prop_name=prop_name
+                )
 
         # Parse <data> elements
         for data_elem in elem.findall("graphml:data" if ns else "data", ns):
-            key_id = data_elem.get("key")
-            if not key_id:
+            data_key_id = data_elem.get("key")
+            if not data_key_id:
                 continue
 
-            if key_id not in keys:
-                raise ValueError(f"Data references undefined key: {key_id}")
+            if data_key_id not in keys:
+                raise ValueError(f"Data references undefined key: {data_key_id}")
 
-            key_info = keys[key_id]
+            key_info = keys[data_key_id]
 
             # Skip if wrong context
             if key_info["for"] not in (context, "all"):
@@ -304,29 +324,45 @@ class GraphMLLoader(DatasetLoader):
             prop_name = key_info["name"]
             prop_type = key_info["type"]
 
-            properties[prop_name] = self._convert_value(value, prop_type)
+            properties[prop_name] = self._convert_value(
+                value, prop_type, key_id=data_key_id, prop_name=prop_name
+            )
 
         return properties
 
-    def _convert_value(self, value: str, value_type: str) -> Any:
-        """Convert GraphML value to Python type.
+    def _convert_value(
+        self, value: str, value_type: str, key_id: str | None = None, prop_name: str | None = None
+    ) -> Any:
+        """Convert GraphML value to Python type with error handling.
 
         Args:
             value: String value from GraphML
             value_type: GraphML type (boolean, int, long, float, double, string)
+            key_id: Optional key ID for error context
+            prop_name: Optional property name for error context
 
         Returns:
             Python value (bool, int, float, str)
+
+        Raises:
+            ValueError: If conversion fails with context information
         """
-        if value_type == "boolean":
-            # GraphML boolean can be "true"/"false" or "1"/"0"
-            return value.lower() in ("true", "1")
-        elif value_type in ("int", "long"):
-            return int(value)
-        elif value_type in ("float", "double"):
-            return float(value)
-        else:  # string or unknown types default to string
-            return value
+        context = f" for key '{key_id}' (property '{prop_name}')" if key_id else ""
+
+        try:
+            if value_type == "boolean":
+                # GraphML boolean can be "true"/"false" or "1"/"0"
+                return value.lower() in ("true", "1")
+            elif value_type in ("int", "long"):
+                return int(value)
+            elif value_type in ("float", "double"):
+                return float(value)
+            else:  # string or unknown types default to string
+                return value
+        except (ValueError, TypeError, AttributeError) as e:
+            raise ValueError(
+                f"Failed to convert value '{value}' to type '{value_type}'{context}"
+            ) from e
 
     def _extract_labels(self, properties: dict[str, Any]) -> list[str]:
         """Extract labels from properties.
