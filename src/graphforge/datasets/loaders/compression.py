@@ -37,6 +37,13 @@ def _validate_archive_member(name: str) -> None:
     Raises:
         ValueError: If the name is unsafe (absolute path or contains parent traversal)
     """
+    # Debug on Windows
+    import sys
+    if sys.platform == "win32":
+        print(f"DEBUG _validate_archive_member: name={repr(name)}")
+        print(f"DEBUG: starts with backslash? {name.startswith(chr(92))}")
+        print(f"DEBUG: starts with tuple? {name.startswith(('\\\\', '\\', '/'))}")
+
     # Reject Windows rooted / UNC paths (check BEFORE normalization)
     if name.startswith(("\\\\", "\\", "/")):
         raise ValueError("Absolute path not allowed")
@@ -75,6 +82,11 @@ def safe_extract_tar(tar: tarfile.TarFile, extract_to: Path) -> None:
     extract_to_resolved = extract_to.resolve()
 
     for member in tar.getmembers():
+        # Debug: Print member name for Windows debugging
+        import sys
+        if sys.platform == "win32":
+            print(f"DEBUG: member.name = {repr(member.name)}")
+
         # Validate member name for security (absolute paths, traversal, etc.)
         _validate_archive_member(member.name)
 
