@@ -4,6 +4,7 @@ Handles various compression formats used by graph datasets:
 - .tar.zst (Zstandard tar archives, used by LDBC)
 - .tar.gz (Gzip tar archives)
 - .tar (Uncompressed tar archives)
+- .zip (Zip archives, used by NetworkRepository)
 
 Supported formats are detected by extract_archive() and is_compressed_archive().
 """
@@ -11,6 +12,7 @@ Supported formats are detected by extract_archive() and is_compressed_archive().
 import os
 from pathlib import Path
 import tarfile
+import zipfile
 
 try:
     import zstandard as zstd  # type: ignore[import-not-found]
@@ -68,6 +70,54 @@ def safe_extract_tar(tar: tarfile.TarFile, extract_to: Path) -> None:
         tar.extract(member, extract_to)
 
 
+def safe_extract_zip(zip_file: zipfile.ZipFile, extract_to: Path) -> None:
+    """Safely extract zip archive members with path traversal validation.
+
+    Validates each member to prevent path traversal attacks by ensuring
+    extracted files remain within the target directory.
+
+    Args:
+        zip_file: Open ZipFile object to extract from
+        extract_to: Directory to extract files into
+
+    Raises:
+        ValueError: If a member path would escape the extraction directory
+    """
+    # Resolve the extraction directory to absolute path
+    extract_to_resolved = extract_to.resolve()
+
+    for member in zip_file.namelist():
+        # Compute target path for this member
+        target_path = extract_to / member
+
+        # Resolve to absolute path and check if it's within extraction directory
+        try:
+            target_path_resolved = target_path.resolve()
+        except (OSError, RuntimeError) as e:
+            raise ValueError(f"Invalid member path '{member}': cannot resolve path") from e
+
+        # Ensure the resolved path is within the extraction directory
+        if not str(target_path_resolved).startswith(str(extract_to_resolved) + os.sep):
+            # Also check exact match (for files directly in extract_to)
+            if target_path_resolved != extract_to_resolved:
+                raise ValueError(
+                    f"Path traversal attempt detected: '{member}' "
+                    f"would extract to '{target_path_resolved}' "
+                    f"outside of '{extract_to_resolved}'"
+                )
+
+        # Refuse absolute paths
+        if member.startswith("/") or member.startswith("\\"):
+            raise ValueError(f"Absolute path not allowed: '{member}'")
+
+        # Refuse paths with parent directory references
+        if ".." in Path(member).parts:
+            raise ValueError(f"Parent directory reference not allowed: '{member}'")
+
+        # Extract this validated member
+        zip_file.extract(member, extract_to)
+
+
 def extract_tar_zst(archive_path: Path, extract_to: Path) -> None:
     """Extract a .tar.zst archive using zstandard.
 
@@ -108,7 +158,7 @@ def extract_archive(archive_path: Path, extract_to: Path) -> Path:
     """Extract an archive file to a directory.
 
     Automatically detects compression format based on file extension.
-    Supported formats: .tar.zst, .tar.gz, .tar
+    Supported formats: .tar.zst, .tar.gz, .tar, .zip
 
     Args:
         archive_path: Path to archive file
@@ -127,7 +177,11 @@ def extract_archive(archive_path: Path, extract_to: Path) -> Path:
     extract_to.mkdir(parents=True, exist_ok=True)
 
     # Determine compression format
-    if archive_path.suffixes[-2:] == [".tar", ".zst"]:
+    if archive_path.suffix == ".zip":
+        # .zip
+        with zipfile.ZipFile(archive_path, "r") as zip_file:
+            safe_extract_zip(zip_file, extract_to)
+    elif archive_path.suffixes[-2:] == [".tar", ".zst"]:
         # .tar.zst
         extract_tar_zst(archive_path, extract_to)
     elif archive_path.suffixes[-2:] == [".tar", ".gz"]:
@@ -147,7 +201,7 @@ def extract_archive(archive_path: Path, extract_to: Path) -> Path:
 def is_compressed_archive(path: Path) -> bool:
     """Check if a file is a supported compressed archive.
 
-    Checks for formats supported by extract_archive(): .tar.zst, .tar.gz, .tar
+    Checks for formats supported by extract_archive(): .tar.zst, .tar.gz, .tar, .zip
 
     Args:
         path: Path to check
@@ -155,6 +209,10 @@ def is_compressed_archive(path: Path) -> bool:
     Returns:
         True if file is a supported archive format
     """
+    # Check for .zip
+    if path.suffix == ".zip":
+        return True
+
     # Check for .tar.zst or .tar.gz
     if path.suffixes[-2:] in [[".tar", ".zst"], [".tar", ".gz"]]:
         return True
