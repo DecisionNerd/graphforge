@@ -40,16 +40,25 @@ def safe_extract_tar(tar: tarfile.TarFile, extract_to: Path) -> None:
     extract_to_resolved = extract_to.resolve()
 
     for member in tar.getmembers():
-        # Refuse absolute paths (check first, before path operations)
-        if member.name.startswith("/") or member.name.startswith("\\"):
+        # Normalize to forward slashes for consistent validation across platforms
+        normalized = member.name.replace("\\", "/")
+
+        # Refuse absolute paths (POSIX-style and Windows-style)
+        # - "/etc/passwd"
+        # - "\\Windows\\System32\\evil.dll" (normalized to "/Windows/System32/evil.dll")
+        if normalized.startswith("/"):
             raise ValueError(f"Absolute path not allowed: '{member.name}'")
 
-        # Refuse paths with parent directory references (check before resolution)
-        if ".." in Path(member.name).parts:
+        # Refuse Windows drive-letter absolute paths (e.g., "C:/..." or "C:\\...")
+        if len(normalized) >= 3 and normalized[1] == ":" and normalized[2] == "/":
+            raise ValueError(f"Absolute path not allowed: '{member.name}'")
+
+        # Refuse paths with parent directory references (use normalized separators)
+        if ".." in Path(normalized).parts:
             raise ValueError(f"Parent directory reference not allowed: '{member.name}'")
 
-        # Compute target path for this member
-        target_path = extract_to / member.name
+        # Compute target path using normalized path
+        target_path = extract_to / normalized
 
         # Resolve to absolute path and check if it's within extraction directory
         try:
@@ -94,16 +103,25 @@ def safe_extract_zip(zip_file: zipfile.ZipFile, extract_to: Path) -> None:
     extract_to_resolved = extract_to.resolve()
 
     for member in zip_file.namelist():
-        # Refuse absolute paths (check first, before path operations)
-        if member.startswith("/") or member.startswith("\\"):
+        # Normalize to forward slashes for consistent validation across platforms
+        normalized = member.replace("\\", "/")
+
+        # Refuse absolute paths (POSIX-style and Windows-style)
+        # - "/etc/passwd"
+        # - "\\Windows\\System32\\evil.dll" (normalized to "/Windows/System32/evil.dll")
+        if normalized.startswith("/"):
             raise ValueError(f"Absolute path not allowed: '{member}'")
 
-        # Refuse paths with parent directory references (check before resolution)
-        if ".." in Path(member).parts:
+        # Refuse Windows drive-letter absolute paths (e.g., "C:/..." or "C:\\...")
+        if len(normalized) >= 3 and normalized[1] == ":" and normalized[2] == "/":
+            raise ValueError(f"Absolute path not allowed: '{member}'")
+
+        # Refuse paths with parent directory references (use normalized separators)
+        if ".." in Path(normalized).parts:
             raise ValueError(f"Parent directory reference not allowed: '{member}'")
 
-        # Compute target path for this member
-        target_path = extract_to / member
+        # Compute target path using normalized path
+        target_path = extract_to / normalized
 
         # Resolve to absolute path and check if it's within extraction directory
         try:
