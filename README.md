@@ -88,7 +88,14 @@ pip install graphforge
 
 **Requirements:** Python 3.10+
 
-**Dependencies:** `pydantic>=2.6`, `lark>=1.1`, `msgpack>=1.0`
+**Core Dependencies:**
+- `pydantic>=2.6` - Data validation and type safety
+- `lark>=1.1` - Cypher query parsing
+- `msgpack>=1.0` - Efficient graph serialization
+
+**Optional Dependencies:**
+- `defusedxml` - Secure XML parsing for GraphML datasets
+- `zstandard` - Support for .tar.zst compression (LDBC datasets)
 
 ---
 
@@ -127,6 +134,50 @@ for row in results:
 # Alice knows Charlie
 ```
 
+### Spatial and Temporal Types
+
+GraphForge supports spatial types (Point, Distance) and temporal types (Date, DateTime, Time, Duration):
+
+```python
+from graphforge import GraphForge
+
+db = GraphForge()
+
+# Create nodes with spatial properties using Cypher
+db.execute("CREATE (:Place {name: 'Office', location: point({x: 1.0, y: 2.0})})")
+db.execute("CREATE (:Place {name: 'Home', location: point({x: 5.0, y: 3.0})})")
+
+# Or use the Python API with coordinate dictionaries
+db.create_node(['Place'], name='Cafe', location={"x": 3.0, "y": 4.0})
+
+# Geographic coordinates (latitude, longitude)
+db.create_node(['City'], name='SF', location={"latitude": 37.7749, "longitude": -122.4194})
+
+# Calculate distances between points
+results = db.execute("""
+    MATCH (a:Place {name: 'Office'}), (b:Place {name: 'Home'})
+    RETURN distance(a.location, b.location) AS dist
+""")
+print(f"Distance: {results[0]['dist'].value:.2f} units")
+
+# Temporal types for dates and times
+db.execute("""
+    CREATE (:Event {
+        name: 'Meeting',
+        date: date('2024-01-15'),
+        start_time: datetime('2024-01-15T14:00:00'),
+        duration: duration({hours: 2, minutes: 30})
+    })
+""")
+
+# Query events in a date range
+results = db.execute("""
+    MATCH (e:Event)
+    WHERE e.date >= date('2024-01-01')
+    RETURN e.name, e.date, e.duration
+""")
+```
+
 ### Persistent Graphs
 
 ```python
@@ -149,9 +200,11 @@ Analyze real networks instantly with built-in datasets:
 
 ```python
 from graphforge import GraphForge
+from graphforge.datasets import load_dataset
 
-# Load a dataset (automatically downloads and caches)
-db = GraphForge.from_dataset("snap-ego-facebook")
+# Create graph and load a dataset (automatically downloads and caches)
+db = GraphForge()
+load_dataset(db, "snap-ego-facebook")
 
 # Analyze the social network
 results = db.execute("""
@@ -166,17 +219,52 @@ for row in results:
 ```
 
 **Available datasets:**
-- **SNAP** (Stanford): 5 real-world networks (social, web, email, collaboration)
-- More sources coming soon: Neo4j examples, LDBC benchmarks, NetworkRepository
+- **SNAP** (Stanford): 95 real-world networks (social, web, email, collaboration, citation)
+- **LDBC** (Linked Data Benchmark Council): 10 social network benchmark datasets
+- **NetworkRepository**: 10 pre-registered datasets + load thousands more via direct URL
 
-Browse datasets:
+**Load from URL:**
+```python
+# Load any NetworkRepository dataset by URL
+load_dataset(db, "https://nrvis.com/download/data/labeled/karate.zip")
+```
+
+Browse and filter datasets:
 ```python
 from graphforge.datasets import list_datasets
 
-datasets = list_datasets(source="snap")
-for ds in datasets:
-    print(f"{ds.name}: {ds.nodes:,} nodes, {ds.edges:,} edges")
+# List all datasets (115+ available)
+datasets = list_datasets()
+print(f"Total datasets: {len(datasets)}")
+
+# Filter by source
+snap_datasets = list_datasets(source="snap")       # 95 SNAP datasets
+ldbc_datasets = list_datasets(source="ldbc")       # 10 LDBC benchmarks
+netrepo_datasets = list_datasets(source="netrepo") # 10 NetworkRepository
+
+# View dataset details
+for ds in ldbc_datasets[:3]:
+    print(f"{ds.name}: {ds.nodes:,} nodes, {ds.edges:,} edges ({ds.size_mb:.1f} MB)")
 ```
+
+**Dataset Sources:**
+
+1. **SNAP (Stanford Network Analysis Project)** - 95 datasets
+   - Social networks (Facebook, Twitter, email)
+   - Collaboration networks (arXiv, DBLP)
+   - Web graphs (Google, Wikipedia)
+   - Citation networks (patents, papers)
+
+2. **LDBC (Linked Data Benchmark Council)** - 10 datasets
+   - Social Network Benchmark (SNB) with varying scale factors
+   - Realistic social network schemas with temporal data
+   - Used for performance benchmarking
+
+3. **NetworkRepository** - 10 pre-registered + thousands via URL
+   - Biological networks (protein interactions, gene regulation)
+   - Infrastructure networks (power grids, road networks)
+   - Social and collaboration networks
+   - Load any dataset directly via URL without pre-registration
 
 ---
 
@@ -255,12 +343,18 @@ Create a node with labels and properties.
 
 **Parameters:**
 - `labels`: List of label strings (e.g., `['Person', 'Employee']`)
-- `**properties`: Property key-value pairs (str, int, float, bool, None, list, dict)
+- `**properties`: Property key-value pairs. Values are automatically converted to CypherValue types:
+  - `str`, `int`, `float`, `bool`, `None` → Primitive types
+  - `list` → `CypherList`
+  - `dict` → `CypherMap` or `CypherPoint` (if coordinate dict)
+  - Coordinate dicts (`{"x": 1.0, "y": 2.0}`) → `CypherPoint`
+  - Date/time objects → Temporal types
 
 **Returns:** `NodeRef` for the created node
 
 **Example:**
 ```python
+# Standard properties
 alice = db.create_node(
     ['Person', 'Employee'],
     name='Alice',
@@ -268,6 +362,20 @@ alice = db.create_node(
     active=True,
     skills=['Python', 'SQL'],
     metadata={'department': 'Engineering'}
+)
+
+# Spatial properties (auto-detected)
+office = db.create_node(
+    ['Place'],
+    name='Office',
+    location={"x": 1.0, "y": 2.0}  # Automatically becomes CypherPoint
+)
+
+# Geographic coordinates
+city = db.create_node(
+    ['City'],
+    name='San Francisco',
+    location={"latitude": 37.7749, "longitude": -122.4194}
 )
 ```
 
@@ -375,6 +483,12 @@ for row in results:
 - `CypherNull`: Python `None`
 - `CypherList`: Python `list` (nested CypherValues)
 - `CypherMap`: Python `dict` (string keys, CypherValue values)
+- `CypherPoint`: Spatial point with coordinates
+- `CypherDistance`: Distance between points
+- `CypherDate`: Date (year, month, day)
+- `CypherDateTime`: Date and time with timezone
+- `CypherTime`: Time of day
+- `CypherDuration`: Time duration (years, months, days, hours, etc.)
 
 ---
 
@@ -988,6 +1102,40 @@ print(metadata['tags'].value[0].value)      # 'ML'
 print(metadata['version'].value['major'].value)  # 1
 ```
 
+### Dataset Import and Export
+
+GraphForge supports multiple dataset formats and compression schemes:
+
+**Supported Loaders:**
+- **CSV**: Edge-list format (SNAP datasets)
+- **Cypher**: Cypher script format (LDBC datasets)
+- **GraphML**: XML-based format with type-aware parsing (NetworkRepository)
+- **JSON Graph**: JSON interchange format for graph data
+
+**Supported Compression:**
+- `.tar.gz` - Gzip compressed tar archives
+- `.tar.zst` - Zstandard compressed tar archives (LDBC)
+- `.zip` - Zip archives (NetworkRepository)
+- Direct `.graphml` files
+
+**Example: Load from various sources**
+```python
+from graphforge import GraphForge
+from graphforge.datasets import load_dataset
+
+db = GraphForge()
+
+# Load pre-registered dataset (auto-detects format)
+load_dataset(db, "snap-email-enron")  # CSV format
+load_dataset(db, "ldbc-snb-sf0.1")    # Cypher script format
+load_dataset(db, "netrepo-karate")    # GraphML format
+
+# Load from direct URLs
+load_dataset(db, "https://nrvis.com/download/data/labeled/karate.zip")
+
+# All formats support automatic caching
+```
+
 ### Graph Export
 
 Export subgraphs for sharing or archival.
@@ -1125,40 +1273,39 @@ For production workloads, consider Neo4j, Memgraph, or other production graph da
 
 ## Roadmap
 
-**Completed (v0.1.4):**
+**Completed (v0.3.0 - Full Dataset Integration):**
 - ✅ MATCH, WHERE, RETURN, ORDER BY, LIMIT, SKIP, WITH
-- ✅ Aggregations (COUNT, SUM, AVG, MIN, MAX)
-- ✅ CREATE, SET, DELETE, MERGE clauses
-- ✅ Python builder API
+- ✅ Aggregations (COUNT, SUM, AVG, MIN, MAX, COLLECT)
+- ✅ CREATE, SET, DELETE, MERGE, REMOVE clauses
+- ✅ UNWIND for list iteration
+- ✅ CASE expressions and arithmetic operators (+, -, *, /, %)
+- ✅ String matching (STARTS WITH, ENDS WITH, CONTAINS)
+- ✅ Spatial types (Point, Distance) with automatic detection in Python API
+- ✅ Temporal types (Date, DateTime, Time, Duration)
+- ✅ Graph introspection functions (id, labels, type)
+- ✅ Python builder API with full type support
 - ✅ SQLite persistence with ACID transactions
-- ✅ 638/3,837 TCK scenarios (16.6%)
+- ✅ 115+ datasets (95 SNAP + 10 LDBC + 10 NetworkRepository)
+- ✅ Dynamic dataset loading via URL
+- ✅ GraphML loader with type-aware parsing
+- ✅ Compression support (.tar.gz, .tar.zst, .zip)
+- ✅ ~950/3,837 TCK scenarios (~25%)
 
-**In Progress (v0.2.0 - Core Cypher Complete):** [See milestone](https://github.com/DecisionNerd/graphforge/milestone/1)
-- 🚧 UNWIND for list iteration ([#20](https://github.com/DecisionNerd/graphforge/issues/20))
-- 🚧 DETACH DELETE - cascading deletion ([#21](https://github.com/DecisionNerd/graphforge/issues/21))
-- 🚧 CASE expressions for conditional logic ([#22](https://github.com/DecisionNerd/graphforge/issues/22))
-- 🚧 MATCH-CREATE formalization and tests ([#23](https://github.com/DecisionNerd/graphforge/issues/23))
-- 🚧 REMOVE clause for property/label removal ([#25](https://github.com/DecisionNerd/graphforge/issues/25))
-- 🚧 Arithmetic operators (+, -, *, /, %) ([#26](https://github.com/DecisionNerd/graphforge/issues/26))
-- 🚧 COLLECT aggregation ([#27](https://github.com/DecisionNerd/graphforge/issues/27))
-- 🚧 String matching (STARTS WITH, ENDS WITH, CONTAINS) ([#28](https://github.com/DecisionNerd/graphforge/issues/28))
-- 🚧 NOT logical operator ([#29](https://github.com/DecisionNerd/graphforge/issues/29))
-- 🎯 Target: ~950 TCK scenarios (~25%)
-
-**Planned (v0.3.0 - Advanced Patterns):** [See milestone](https://github.com/DecisionNerd/graphforge/milestone/2)
+**Planned (v0.4.0 - Advanced Patterns):**
 - ⏳ Variable-length patterns `-[*1..5]->` ([#24](https://github.com/DecisionNerd/graphforge/issues/24))
 - ⏳ OPTIONAL MATCH (left outer joins)
-- ⏳ List comprehensions
+- ⏳ List comprehensions `[x IN list WHERE ...]`
 - ⏳ Subqueries (EXISTS, COUNT)
 - ⏳ UNION / UNION ALL
 - 🎯 Target: ~1,500 TCK scenarios (~39%)
 
 **Future Considerations:**
-- v0.4+: Additional functions, performance optimization
+- v0.5+: Additional functions, performance optimization
 - v1.0: Full core OpenCypher (70-75% TCK compliance)
-- Query plan visualization
+- Query plan visualization and EXPLAIN
 - Performance profiling tools
-- Import/export formats (GraphML, CSV)
+- Import/export formats (additional formats)
+- Ontology support and schema validation
 
 **See [OpenCypher Compatibility](docs/reference/opencypher-compatibility.md) for detailed feature matrix.**
 
@@ -1191,11 +1338,16 @@ GraphForge implements a **practical subset of OpenCypher** focused on common gra
 **Functions:**
 - String: length, substring, toUpper, toLower, trim
 - Type conversion: toInteger, toFloat, toString
-- Utility: coalesce, type
+- Spatial: point, distance
+- Temporal: date, datetime, time, duration
+- Graph: id, labels, type
+- Utility: coalesce
 
 **Data Types:**
 - Primitives: Integer, float, string, boolean, null
 - Collections: Lists, maps (nested structures)
+- Spatial types: Point (cartesian, geographic), Distance
+- Temporal types: Date, DateTime, Time, Duration
 - Graph elements: Nodes, relationships
 
 **Other:**
@@ -1214,12 +1366,11 @@ GraphForge implements a **practical subset of OpenCypher** focused on common gra
 
 ### ❌ Out of Scope
 
-- Temporal types (date, datetime, duration)
-- Spatial types (point, distance)
-- Full-text search
+- Full-text search and advanced indexing
 - Multi-database features
 - User management / security
-- Stored procedures
+- Stored procedures and user-defined functions
+- Distributed queries and sharding
 
 ### TCK Compliance
 
@@ -1228,8 +1379,9 @@ GraphForge tracks compliance using the openCypher Technology Compatibility Kit (
 | Version | Scenarios | Percentage |
 |---------|-----------|------------|
 | v0.1.4 | 638/3,837 | 16.6% |
-| v0.2.0 | ~950/3,837 | ~25% |
-| v0.3.0 | ~1,500/3,837 | ~39% |
+| v0.2.1 | 850/3,837 | 22.1% |
+| v0.3.0 | ~950/3,837 | ~25% |
+| v0.4.0 (target) | ~1,500/3,837 | ~39% |
 | v1.0 (target) | ~2,800/3,837 | ~73% |
 
 **See [OpenCypher Compatibility](docs/reference/opencypher-compatibility.md) for complete details.**
@@ -1252,6 +1404,7 @@ This runs:
 - Code formatting checks (ruff format --check)
 - Linting (ruff check)
 - Type checking (mypy)
+- Security scanning (bandit)
 - Tests with coverage measurement
 - Coverage threshold validation (minimum 85%)
 
@@ -1330,10 +1483,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Testing
 
-GraphForge has **368 tests** covering:
-- Unit tests for parser, planner, executor, storage
-- Integration tests for end-to-end workflows
-- openCypher TCK compliance tests (17 passing)
+GraphForge has **1,721 tests** covering:
+- Unit tests for parser, planner, executor, storage (comprehensive layer-by-layer testing)
+- Integration tests for end-to-end workflows and real-world scenarios
+- openCypher TCK compliance tests (~950 scenarios passing, ~25% of full TCK suite)
+- Security tests for archive extraction and input validation
+
+**Current test coverage: 93.24%**
 
 Run the test suite:
 
@@ -1351,6 +1507,9 @@ pytest --cov=graphforge --cov-report=html
 pytest -m unit           # Unit tests only
 pytest -m integration    # Integration tests only
 pytest -m tck            # TCK compliance tests
+
+# Run pre-push checks (format, lint, type-check, security, tests, coverage)
+make pre-push
 ```
 
 ---
@@ -1367,7 +1526,7 @@ A: GraphForge is designed for research and analysis, not production applications
 A: No. GraphForge is embedded and single-node only.
 
 **Q: Can I import data from Neo4j?**
-A: Not directly yet. You can export from Neo4j to CSV and import via Python scripts.
+A: Not directly yet. You can export from Neo4j to CSV or Cypher scripts and import via Python. GraphForge also supports GraphML format which many tools can export.
 
 **Q: What's the maximum graph size?**
 A: Practical limit is ~10M nodes. Beyond that, query performance degrades significantly.
