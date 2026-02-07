@@ -66,8 +66,8 @@ def safe_extract_tar(tar: tarfile.TarFile, extract_to: Path) -> None:
                     f"outside of '{extract_to_resolved}'"
                 )
 
-        # Extract this validated member
-        tar.extract(member, extract_to)
+        # Extract this validated member (filter="data" strips metadata to avoid security issues)
+        tar.extract(member, extract_to, filter="data")
 
 
 def safe_extract_zip(zip_file: zipfile.ZipFile, extract_to: Path) -> None:
@@ -143,21 +143,30 @@ def extract_tar_zst(archive_path: Path, extract_to: Path) -> None:
     # Open zstd-compressed file and decompress to temporary tar
     import tempfile
 
-    with (
-        archive_path.open("rb") as compressed_file,
-        tempfile.NamedTemporaryFile(suffix=".tar", delete=True) as temp_tar,
-    ):
-        # Create zstd decompressor
-        dctx = zstd.ZstdDecompressor()
+    # Use delete=False for Windows compatibility (avoids exclusive lock issues)
+    temp_tar_file = tempfile.NamedTemporaryFile(suffix=".tar", delete=False)  # noqa: SIM115
+    temp_path = Path(temp_tar_file.name)
 
-        # Decompress to temporary file
-        with dctx.stream_reader(compressed_file) as reader:
-            temp_tar.write(reader.read())
-            temp_tar.flush()
+    try:
+        with archive_path.open("rb") as compressed_file:
+            # Create zstd decompressor
+            dctx = zstd.ZstdDecompressor()
+
+            # Decompress to temporary file
+            with dctx.stream_reader(compressed_file) as reader:
+                temp_tar_file.write(reader.read())
+                temp_tar_file.flush()
+
+        # Close temp file before re-opening (required on Windows)
+        temp_tar_file.close()
 
         # Extract tar with path validation
-        with tarfile.open(temp_tar.name, "r") as tar:
+        with tarfile.open(temp_path, "r") as tar:
             safe_extract_tar(tar, extract_to)
+    finally:
+        # Always clean up the temporary file
+        if temp_path.exists():
+            temp_path.unlink()
 
 
 def extract_archive(archive_path: Path, extract_to: Path) -> Path:
