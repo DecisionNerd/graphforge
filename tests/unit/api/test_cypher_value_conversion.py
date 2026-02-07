@@ -236,6 +236,42 @@ class TestSpatialTypeConversion:
         assert isinstance(result, CypherMap)
         assert len(result.value) == 0
 
+    def test_cartesian_with_none_coordinate_to_cypher_map(self):
+        """Test dict with None as coordinate value falls back to CypherMap.
+
+        Non-numeric coordinate values (None, strings, etc.) raise TypeError
+        when CypherPoint tries to convert them to float. The exception handler
+        catches both ValueError and TypeError to gracefully fall through to
+        CypherMap.
+        """
+        gf = GraphForge()
+        data = {"x": None, "y": 2.0}
+        result = gf._to_cypher_value(data)
+        # Should be CypherMap because x=None raises TypeError in CypherPoint
+        assert isinstance(result, CypherMap)
+        assert isinstance(result.value["x"], CypherNull)
+        assert result.value["y"].value == 2.0
+
+    def test_cartesian_with_string_coordinate_to_cypher_map(self):
+        """Test dict with string as coordinate value falls back to CypherMap."""
+        gf = GraphForge()
+        data = {"x": "not a number", "y": 2.0}
+        result = gf._to_cypher_value(data)
+        # Should be CypherMap because string coordinate raises TypeError
+        assert isinstance(result, CypherMap)
+        assert result.value["x"].value == "not a number"
+        assert result.value["y"].value == 2.0
+
+    def test_geographic_with_none_coordinate_to_cypher_map(self):
+        """Test geographic dict with None falls back to CypherMap."""
+        gf = GraphForge()
+        data = {"latitude": 37.7, "longitude": None}
+        result = gf._to_cypher_value(data)
+        # Should be CypherMap because None raises TypeError
+        assert isinstance(result, CypherMap)
+        assert result.value["latitude"].value == 37.7
+        assert isinstance(result.value["longitude"], CypherNull)
+
     def test_cartesian_with_int_coordinates(self):
         """Test Cartesian coordinates with integers (should convert to float)."""
         gf = GraphForge()

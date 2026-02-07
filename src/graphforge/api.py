@@ -441,8 +441,8 @@ class GraphForge:
             if keys in (cartesian_2d, cartesian_2d_crs, cartesian_3d, cartesian_3d_crs):
                 try:
                     return CypherPoint(value)
-                except ValueError:
-                    # Invalid coordinates (out of range values), fall through to CypherMap
+                except (ValueError, TypeError):
+                    # Invalid coordinates (out of range or non-numeric), fall through to CypherMap
                     pass
 
             # Detect Geographic coordinates: {latitude, longitude}, optionally with crs
@@ -453,8 +453,8 @@ class GraphForge:
             if keys in (geographic, geographic_crs):
                 try:
                     return CypherPoint(value)
-                except ValueError:
-                    # Invalid coordinates (e.g., out of range values), fall through to CypherMap
+                except (ValueError, TypeError):
+                    # Invalid coordinates (out of range or non-numeric), fall through to CypherMap
                     pass
 
             # Default to CypherMap (recursively convert values)
