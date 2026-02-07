@@ -3,7 +3,9 @@
 import gzip
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-import xml.etree.ElementTree as ET
+from xml.etree.ElementTree import Element  # nosec B405 - Only used for type hints, not parsing
+
+import defusedxml.ElementTree as ET  # noqa: N817
 
 from graphforge.datasets.base import DatasetLoader
 
@@ -76,6 +78,8 @@ class GraphMLLoader(DatasetLoader):
             raise ValueError(f"Invalid GraphML XML: {e}") from e
 
         root = tree.getroot()
+        if root is None:
+            raise ValueError("Empty GraphML document")
 
         # Extract namespace if present
         namespace = self._extract_namespace(root.tag)
@@ -121,7 +125,7 @@ class GraphMLLoader(DatasetLoader):
             return tag[1 : tag.index("}")]
         return ""
 
-    def _parse_keys(self, root: ET.Element, ns: dict[str, str]) -> dict[str, dict[str, Any]]:
+    def _parse_keys(self, root: Element, ns: dict[str, str]) -> dict[str, dict[str, Any]]:
         """Parse key declarations (schema) from GraphML.
 
         Args:
@@ -163,7 +167,7 @@ class GraphMLLoader(DatasetLoader):
     def _parse_nodes(
         self,
         gf: "GraphForge",
-        graph: ET.Element,
+        graph: Element,
         keys: dict[str, dict[str, Any]],
         ns: dict[str, str],
     ) -> dict[str, Any]:
@@ -210,7 +214,7 @@ class GraphMLLoader(DatasetLoader):
     def _parse_edges(
         self,
         gf: "GraphForge",
-        graph: ET.Element,
+        graph: Element,
         keys: dict[str, dict[str, Any]],
         node_map: dict[str, Any],
         ns: dict[str, str],
@@ -249,7 +253,7 @@ class GraphMLLoader(DatasetLoader):
 
     def _parse_data_elements(
         self,
-        elem: ET.Element,
+        elem: Element,
         keys: dict[str, dict[str, Any]],
         context: str,
         ns: dict[str, str],

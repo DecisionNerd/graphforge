@@ -28,6 +28,7 @@ dependencies = [
   "pyyaml>=6.0.3",
   "python-dateutil>=2.8.2",
   "isodate>=0.6.1",
+  "defusedxml>=0.7.1",
 ]
 
 [project.optional-dependencies]
@@ -265,4 +266,5 @@ dev = [
     "types-python-dateutil>=2.8",
     "bandit[toml]>=1.7.0",
     "pre-commit>=3.6.0",
+    "types-defusedxml>=0.7.0.20250822",
 ]
