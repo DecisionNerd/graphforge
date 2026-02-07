@@ -40,14 +40,12 @@ def safe_extract_tar(tar: tarfile.TarFile, extract_to: Path) -> None:
     extract_to_resolved = extract_to.resolve()
 
     for member in tar.getmembers():
+        # Check for absolute paths BEFORE normalization (defense in depth)
+        if member.name.startswith("/") or member.name.startswith("\\"):
+            raise ValueError(f"Absolute path not allowed: '{member.name}'")
+
         # Normalize to forward slashes for consistent validation across platforms
         normalized = member.name.replace("\\", "/")
-
-        # Refuse absolute paths (POSIX-style and Windows-style)
-        # - "/etc/passwd"
-        # - "\\Windows\\System32\\evil.dll" (normalized to "/Windows/System32/evil.dll")
-        if normalized.startswith("/"):
-            raise ValueError(f"Absolute path not allowed: '{member.name}'")
 
         # Refuse Windows drive-letter absolute paths (e.g., "C:/..." or "C:\\...")
         if len(normalized) >= 3 and normalized[1] == ":" and normalized[2] == "/":
@@ -103,14 +101,12 @@ def safe_extract_zip(zip_file: zipfile.ZipFile, extract_to: Path) -> None:
     extract_to_resolved = extract_to.resolve()
 
     for member in zip_file.namelist():
+        # Check for absolute paths BEFORE normalization (defense in depth)
+        if member.startswith("/") or member.startswith("\\"):
+            raise ValueError(f"Absolute path not allowed: '{member}'")
+
         # Normalize to forward slashes for consistent validation across platforms
         normalized = member.replace("\\", "/")
-
-        # Refuse absolute paths (POSIX-style and Windows-style)
-        # - "/etc/passwd"
-        # - "\\Windows\\System32\\evil.dll" (normalized to "/Windows/System32/evil.dll")
-        if normalized.startswith("/"):
-            raise ValueError(f"Absolute path not allowed: '{member}'")
 
         # Refuse Windows drive-letter absolute paths (e.g., "C:/..." or "C:\\...")
         if len(normalized) >= 3 and normalized[1] == ":" and normalized[2] == "/":
