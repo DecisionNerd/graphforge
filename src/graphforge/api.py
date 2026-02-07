@@ -25,6 +25,7 @@ from graphforge.types.values import (
     CypherList,
     CypherMap,
     CypherNull,
+    CypherPoint,
     CypherString,
     CypherTime,
 )
@@ -248,8 +249,20 @@ class GraphForge:
 
         Args:
             labels: List of label strings (e.g., ['Person', 'Employee'])
-            **properties: Property key-value pairs as Python types
-                         (str, int, float, bool, None, list, dict)
+            **properties: Property key-value pairs as Python types.
+                Values are converted to CypherValue types:
+                - int → CypherInt
+                - float → CypherFloat
+                - str → CypherString
+                - bool → CypherBool
+                - None → CypherNull
+                - dict with {x, y} or {latitude, longitude} → CypherPoint
+                - dict (other) → CypherMap
+                - list → CypherList
+                - date → CypherDate
+                - datetime → CypherDateTime
+                - time → CypherTime
+                - timedelta → CypherDuration
 
         Returns:
             NodeRef for the created node
@@ -263,6 +276,12 @@ class GraphForge:
             >>> gf = GraphForge()
             >>> alice = gf.create_node(['Person'], name='Alice', age=30)
             >>> bob = gf.create_node(['Person', 'Employee'], name='Bob', salary=50000)
+            >>> # Create node with spatial property (Cartesian coordinates)
+            >>> office = gf.create_node(['Place'], name='Office', location={"x": 1.0, "y": 2.0})
+            >>> # Create node with geographic coordinates
+            >>> sf = gf.create_node(
+            ...     ['City'], name='SF', location={"latitude": 37.7749, "longitude": -122.4194}
+            ... )
             >>> # Query the created nodes
             >>> results = gf.execute("MATCH (p:Person) RETURN p.name")
         """
@@ -299,7 +318,10 @@ class GraphForge:
             src: Source node (NodeRef)
             dst: Destination node (NodeRef)
             rel_type: Relationship type (e.g., 'KNOWS', 'WORKS_AT')
-            **properties: Property key-value pairs as Python types
+            **properties: Property key-value pairs as Python types.
+                Values are converted to CypherValue types (same as create_node).
+                Supports Point coordinates: {"x": 1.0, "y": 2.0} or
+                {"latitude": 37.7, "longitude": -122.4}
 
         Returns:
             EdgeRef for the created relationship
@@ -314,6 +336,10 @@ class GraphForge:
             >>> alice = gf.create_node(['Person'], name='Alice')
             >>> bob = gf.create_node(['Person'], name='Bob')
             >>> knows = gf.create_relationship(alice, bob, 'KNOWS', since=2020)
+            >>> # Relationship with spatial property
+            >>> travels = gf.create_relationship(
+            ...     alice, bob, 'TRAVELS_TO', distance_from={"x": 0.0, "y": 0.0}
+            ... )
             >>> # Query relationships
             >>> results = gf.execute("MATCH (a)-[r:KNOWS]->(b) RETURN a.name, b.name")
         """
@@ -401,8 +427,37 @@ class GraphForge:
         if isinstance(value, list):
             return CypherList([self._to_cypher_value(item) for item in value])
 
-        # Handle dict (recursively convert values)
+        # Handle dict - check for Point coordinates before CypherMap
         if isinstance(value, dict):
+            keys = set(value.keys())
+
+            # Detect Cartesian coordinates: {x, y} or {x, y, z}, optionally with crs
+            # Valid: {"x", "y"}, {"x", "y", "crs"}, {"x", "y", "z"}, {"x", "y", "z", "crs"}
+            cartesian_2d = {"x", "y"}
+            cartesian_2d_crs = {"x", "y", "crs"}
+            cartesian_3d = {"x", "y", "z"}
+            cartesian_3d_crs = {"x", "y", "z", "crs"}
+
+            if keys in (cartesian_2d, cartesian_2d_crs, cartesian_3d, cartesian_3d_crs):
+                try:
+                    return CypherPoint(value)
+                except (ValueError, TypeError):
+                    # Invalid coordinates (out of range or non-numeric), fall through to CypherMap
+                    pass
+
+            # Detect Geographic coordinates: {latitude, longitude}, optionally with crs
+            # Valid: {"latitude", "longitude"}, {"latitude", "longitude", "crs"}
+            geographic = {"latitude", "longitude"}
+            geographic_crs = {"latitude", "longitude", "crs"}
+
+            if keys in (geographic, geographic_crs):
+                try:
+                    return CypherPoint(value)
+                except (ValueError, TypeError):
+                    # Invalid coordinates (out of range or non-numeric), fall through to CypherMap
+                    pass
+
+            # Default to CypherMap (recursively convert values)
             return CypherMap({key: self._to_cypher_value(val) for key, val in value.items()})
 
         # Unsupported type

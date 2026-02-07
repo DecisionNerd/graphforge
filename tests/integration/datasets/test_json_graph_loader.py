@@ -7,7 +7,7 @@ import pytest
 
 from graphforge import GraphForge
 from graphforge.datasets.loaders.json_graph import JSONGraphLoader
-from graphforge.types.values import CypherDate, CypherList, CypherMap
+from graphforge.types.values import CypherDate, CypherList, CypherPoint
 
 
 @pytest.mark.integration
@@ -202,16 +202,16 @@ class TestJSONGraphLoader:
         loader = JSONGraphLoader()
         loader.load(gf, json_file)
 
-        # Verify spatial properties (currently stored as CypherMap, not CypherPoint)
+        # Verify spatial properties are now stored as CypherPoint (Issue #97)
         results = gf.execute("MATCH (n:Place) RETURN n.location AS location")
         assert len(results) == 1
-        # Note: Location is CypherMap because API doesn't support Point directly
-        assert isinstance(results[0]["location"], CypherMap)
-        # But it has the correct coordinate data
+        # Location is now CypherPoint thanks to spatial API support
+        assert isinstance(results[0]["location"], CypherPoint)
+        # Verify coordinate data
         location = results[0]["location"].value
-        assert location["x"].value == 1.0
-        assert location["y"].value == 2.0
-        assert location["crs"].value == "cartesian"
+        assert location["x"] == 1.0
+        assert location["y"] == 2.0
+        assert location["crs"] == "cartesian"
 
     def test_load_collection_properties(self, tmp_path):
         """Test loading nodes with collection properties."""

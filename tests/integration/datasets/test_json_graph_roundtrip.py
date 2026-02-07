@@ -8,6 +8,7 @@ import pytest
 from graphforge import GraphForge
 from graphforge.datasets.exporters.json_graph import JSONGraphExporter
 from graphforge.datasets.loaders.json_graph import JSONGraphLoader
+from graphforge.types.values import CypherPoint
 
 
 @pytest.mark.integration
@@ -118,11 +119,12 @@ class TestJSONGraphRoundtrip:
 
         assert len(results) == 1
         location = results[0]["location"]
-        # NOTE: Due to Issue #97, spatial properties are stored as CypherMap
-        # so values are CypherFloat/CypherString, not plain Python types
-        assert location.value["x"].value == 1.0
-        assert location.value["y"].value == 2.0
-        assert location.value["crs"].value == "cartesian"
+        # Issue #97 resolved: spatial properties are now CypherPoint
+        # CypherPoint.value is a dict with plain Python values
+        assert isinstance(location, CypherPoint)
+        assert location.value["x"] == 1.0
+        assert location.value["y"] == 2.0
+        assert location.value["crs"] == "cartesian"
 
     def test_roundtrip_with_edges(self, tmp_path):
         """Test round-trip with edges and their properties."""
@@ -241,9 +243,10 @@ class TestJSONGraphRoundtrip:
             RETURN c.name AS city, c.location AS location
         """)
         assert alice_results[0]["city"].value == "San Francisco"
+        # Issue #97 resolved: location is now CypherPoint with plain Python values
         # NOTE: Using cartesian coordinates (x, y) instead of geographic (latitude, longitude)
-        # and values are CypherFloat due to Issue #97
-        assert alice_results[0]["location"].value["x"].value == 37.7749
+        assert isinstance(alice_results[0]["location"], CypherPoint)
+        assert alice_results[0]["location"].value["x"] == 37.7749
 
     def test_roundtrip_empty_graph(self, tmp_path):
         """Test round-trip with empty graph."""
