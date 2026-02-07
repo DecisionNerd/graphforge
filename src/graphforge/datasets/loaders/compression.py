@@ -25,8 +25,7 @@ except ImportError:
 
 
 # Regex patterns for Windows path detection
-_WINDOWS_DRIVE_RE = re.compile(r"^[a-zA-Z]:[\\/]")
-_UNC_RE = re.compile(r"^[\\/]{2}[^\\/]+[\\/]+[^\\/]+")  # \\server\share or //server/share
+_DRIVE_ABS_RE = re.compile(r"^[a-zA-Z]:[\\/].*")
 
 
 def _validate_archive_member(name: str) -> None:
@@ -38,24 +37,25 @@ def _validate_archive_member(name: str) -> None:
     Raises:
         ValueError: If the name is unsafe (absolute path or contains parent traversal)
     """
-    # TAR member names are POSIX-ish, but can contain backslashes.
-    # Convert backslashes to forward slashes for consistent checks.
+    # Reject Windows rooted / UNC paths (check BEFORE normalization)
+    if name.startswith(("\\\\", "/")):
+        raise ValueError("Absolute path not allowed")
+
+    # Important: on Windows, tar member names like "\Windows\System32\..." may appear
+    if name.startswith("\\"):
+        raise ValueError("Absolute path not allowed")
+
+    # Reject drive-letter absolute paths
+    if _DRIVE_ABS_RE.match(name):
+        raise ValueError("Absolute path not allowed")
+
+    # Normalize separators for traversal detection
     normalized = name.replace("\\", "/")
 
-    # Reject Windows absolute path variants + Unix absolute paths
-    if normalized.startswith("/"):
-        raise ValueError(f"Absolute path not allowed: '{name}'")
-    if name.startswith("\\"):  # Critical for Windows backslash-absolute paths
-        raise ValueError(f"Absolute path not allowed: '{name}'")
-    if _WINDOWS_DRIVE_RE.match(name):
-        raise ValueError(f"Absolute path not allowed: '{name}'")
-    if _UNC_RE.match(name):
-        raise ValueError(f"Absolute path not allowed: '{name}'")
-
-    # Reject parent traversal
+    # Parent directory traversal
     parts = PurePosixPath(normalized).parts
     if ".." in parts:
-        raise ValueError(f"Parent directory reference not allowed: '{name}'")
+        raise ValueError("Parent directory reference not allowed")
 
 
 def safe_extract_tar(tar: tarfile.TarFile, extract_to: Path) -> None:
