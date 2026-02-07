@@ -196,6 +196,30 @@ class TestSpatialTypeConversion:
         result = gf._to_cypher_value(data)
         assert isinstance(result, CypherMap)
 
+    def test_dict_with_x_y_and_extra_keys_to_cypher_map(self):
+        """Test dict with both x and y plus extra keys converts to CypherMap.
+
+        With strict key matching, a dict must have EXACTLY the allowed coordinate
+        keys to become a CypherPoint. Extra keys cause it to fall through to CypherMap,
+        preserving all keys and preventing data loss.
+
+        Expected: CypherMap with all keys preserved (x, y, and name).
+        Not: CypherPoint with extra keys dropped.
+        """
+        gf = GraphForge()
+        data = {"x": 1.0, "y": 2.0, "name": "test"}
+        result = gf._to_cypher_value(data)
+
+        # Should be CypherMap because of extra "name" key (strict key matching)
+        assert isinstance(result, CypherMap), (
+            "Dict with coordinate keys plus extra keys should be CypherMap, not CypherPoint"
+        )
+
+        # Verify all keys are preserved (no data loss)
+        assert result.value["x"].value == 1.0
+        assert result.value["y"].value == 2.0
+        assert result.value["name"].value == "test"
+
     def test_regular_dict_to_cypher_map(self):
         """Test regular dict (no coordinates) converts to CypherMap."""
         gf = GraphForge()
