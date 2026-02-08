@@ -253,3 +253,37 @@ class SubqueryExpression(BaseModel):
         return v
 
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
+class QuantifierExpression(BaseModel):
+    """List quantifier expression for all(), any(), none(), single().
+
+    Examples:
+        all(x IN [1,2,3] WHERE x > 0)
+        any(x IN [1,2,3] WHERE x > 2)
+        none(x IN [1,2,3] WHERE x < 0)
+        single(x IN [1,2,3] WHERE x = 2)
+    """
+
+    quantifier: str = Field(..., description="Quantifier type: ALL, ANY, NONE, or SINGLE")
+    variable: str = Field(..., min_length=1, description="Loop variable name")
+    list_expr: Any = Field(..., description="Expression that evaluates to a list")
+    predicate: Any = Field(..., description="Boolean predicate expression")
+
+    @field_validator("quantifier")
+    @classmethod
+    def validate_quantifier(cls, v: str) -> str:
+        """Validate quantifier type."""
+        if v not in ("ALL", "ANY", "NONE", "SINGLE"):
+            raise ValueError(f"Quantifier must be ALL, ANY, NONE, or SINGLE, got {v}")
+        return v
+
+    @field_validator("variable")
+    @classmethod
+    def validate_variable(cls, v: str) -> str:
+        """Validate variable name."""
+        if not v[0].isalpha() and v[0] != "_":
+            raise ValueError(f"Variable must start with letter or underscore: {v}")
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}

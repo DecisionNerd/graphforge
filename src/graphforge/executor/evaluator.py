@@ -14,6 +14,7 @@ from graphforge.ast.expression import (
     ListComprehension,
     Literal,
     PropertyAccess,
+    QuantifierExpression,
     SubqueryExpression,
     UnaryOp,
     Variable,
@@ -429,6 +430,49 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
             result.append(result_val)
 
         return CypherList(result)
+
+    # Quantifier expressions (ALL, ANY, NONE, SINGLE)
+    if isinstance(expr, QuantifierExpression):
+        # Evaluate the list expression
+        list_val = evaluate_expression(expr.list_expr, ctx, executor)
+
+        # Must be a list
+        if not isinstance(list_val, CypherList):
+            raise TypeError(f"Quantifier requires a list, got {type(list_val).__name__}")
+
+        # Count how many items satisfy the predicate
+        satisfied_count = 0
+        for item in list_val.value:
+            # Create new context with loop variable bound
+            new_ctx = ExecutionContext()
+            new_ctx.bindings = dict(ctx.bindings)
+            new_ctx.bind(expr.variable, item)
+
+            # Evaluate predicate
+            predicate_val = evaluate_expression(expr.predicate, new_ctx, executor)
+
+            # Check if predicate is true (NULL counts as false)
+            if isinstance(predicate_val, CypherBool) and predicate_val.value:
+                satisfied_count += 1
+
+        # Apply quantifier logic
+        list_length = len(list_val.value)
+        if expr.quantifier == "ALL":
+            # All items must satisfy (empty list returns true - vacuous truth)
+            if list_length == 0:
+                return CypherBool(True)
+            return CypherBool(satisfied_count == list_length)
+        elif expr.quantifier == "ANY":
+            # At least one item must satisfy
+            return CypherBool(satisfied_count > 0)
+        elif expr.quantifier == "NONE":
+            # No items should satisfy
+            return CypherBool(satisfied_count == 0)
+        elif expr.quantifier == "SINGLE":
+            # Exactly one item must satisfy
+            return CypherBool(satisfied_count == 1)
+        else:
+            raise ValueError(f"Unknown quantifier: {expr.quantifier}")
 
     # Subquery expressions (EXISTS, COUNT)
     if isinstance(expr, SubqueryExpression):

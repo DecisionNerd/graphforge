@@ -653,6 +653,55 @@ class ASTTransformer(Transformer):
         # items[0] is the nested query
         return SubqueryExpression(type="COUNT", query=items[0])
 
+    def all_quantifier(self, items):
+        """Transform ALL quantifier expression.
+
+        Syntax: ALL(x IN list WHERE predicate)
+        """
+        from graphforge.ast.expression import QuantifierExpression
+
+        # items[0] = variable, items[1] = list_expr, items[2] = predicate
+        variable = items[0].name if hasattr(items[0], "name") else str(items[0])
+        return QuantifierExpression(
+            quantifier="ALL", variable=variable, list_expr=items[1], predicate=items[2]
+        )
+
+    def any_quantifier(self, items):
+        """Transform ANY quantifier expression.
+
+        Syntax: ANY(x IN list WHERE predicate)
+        """
+        from graphforge.ast.expression import QuantifierExpression
+
+        variable = items[0].name if hasattr(items[0], "name") else str(items[0])
+        return QuantifierExpression(
+            quantifier="ANY", variable=variable, list_expr=items[1], predicate=items[2]
+        )
+
+    def none_quantifier(self, items):
+        """Transform NONE quantifier expression.
+
+        Syntax: NONE(x IN list WHERE predicate)
+        """
+        from graphforge.ast.expression import QuantifierExpression
+
+        variable = items[0].name if hasattr(items[0], "name") else str(items[0])
+        return QuantifierExpression(
+            quantifier="NONE", variable=variable, list_expr=items[1], predicate=items[2]
+        )
+
+    def single_quantifier(self, items):
+        """Transform SINGLE quantifier expression.
+
+        Syntax: SINGLE(x IN list WHERE predicate)
+        """
+        from graphforge.ast.expression import QuantifierExpression
+
+        variable = items[0].name if hasattr(items[0], "name") else str(items[0])
+        return QuantifierExpression(
+            quantifier="SINGLE", variable=variable, list_expr=items[1], predicate=items[2]
+        )
+
     def variable(self, items):
         """Transform variable reference."""
         return Variable(name=self._get_token_value(items[0]))
@@ -703,10 +752,14 @@ class ASTTransformer(Transformer):
         if len(items) == 1 and isinstance(items[0], ListComprehension):
             return items[0]
 
+        # Filter out None values from optional expressions
+        # Empty list [] comes through as [None] from Lark
+        filtered_items = [item for item in items if item is not None]
+
         # items contains the expressions in the list
         # We return a Literal with a list of expressions
         # The executor will evaluate these expressions later
-        return Literal(value=list(items))
+        return Literal(value=filtered_items)
 
     def list_comprehension(self, items):
         """Transform list comprehension.

@@ -152,12 +152,18 @@ MULT_OP: "*" | "/" | "%"
              | case_expr
              | exists_expr
              | count_expr
+             | quantifier_expr
              | literal
              | variable
              | "(" expression ")"
 
 exists_expr: "EXISTS"i "{" single_part_query "}"
 count_expr: "COUNT"i "{" single_part_query "}"
+
+quantifier_expr: "ALL"i "(" variable "IN"i expression "WHERE"i expression ")"     -> all_quantifier
+               | "ANY"i "(" variable "IN"i expression "WHERE"i expression ")"     -> any_quantifier
+               | "NONE"i "(" variable "IN"i expression "WHERE"i expression ")"    -> none_quantifier
+               | "SINGLE"i "(" variable "IN"i expression "WHERE"i expression ")"  -> single_quantifier
 
 function_call: FUNCTION_NAME "(" function_args? ")"
 
