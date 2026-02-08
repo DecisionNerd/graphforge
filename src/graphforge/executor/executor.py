@@ -17,12 +17,15 @@ from graphforge.planner.operators import (
     Filter,
     Limit,
     Merge,
+    OptionalExpandEdges,
     Project,
     Remove,
     ScanNodes,
     Set,
     Skip,
     Sort,
+    Subquery,
+    Union,
     Unwind,
     With,
 )
@@ -127,6 +130,9 @@ class QueryExecutor:
         if isinstance(op, ExpandEdges):
             return self._execute_expand(op, input_rows)
 
+        if isinstance(op, OptionalExpandEdges):
+            return self._execute_optional_expand(op, input_rows)
+
         if isinstance(op, Filter):
             return self._execute_filter(op, input_rows)
 
@@ -171,6 +177,12 @@ class QueryExecutor:
 
         if isinstance(op, Distinct):
             return self._execute_distinct(op, input_rows)
+
+        if isinstance(op, Union):
+            return self._execute_union(op, input_rows)
+
+        if isinstance(op, Subquery):
+            return self._execute_subquery(op, input_rows)
 
         raise TypeError(f"Unknown operator type: {type(op).__name__}")
 
@@ -1390,3 +1402,150 @@ class QueryExecutor:
                 result.append(new_ctx)
 
         return result
+
+    def _execute_optional_expand(
+        self, op: OptionalExpandEdges, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute OptionalExpandEdges operator (left outer join).
+
+        Like ExpandEdges, but preserves rows with NULL bindings when no matches found.
+        This implements OPTIONAL MATCH semantics.
+
+        Args:
+            op: OptionalExpandEdges operator
+            input_rows: Input execution contexts
+
+        Returns:
+            Execution contexts with expanded relationships or NULL bindings
+        """
+        from graphforge.types.graph import NodeRef
+
+        result = []
+
+        for ctx in input_rows:
+            # Get source node
+            if op.src_var not in ctx.bindings:
+                # Source variable not bound - skip this row
+                continue
+
+            src_node = ctx.get(op.src_var)
+            if not isinstance(src_node, NodeRef):
+                # Source is not a node - skip this row
+                continue
+
+            # Get edges based on direction
+            if op.direction == "OUT":
+                edges = self.graph.get_outgoing_edges(src_node.id)
+            elif op.direction == "IN":
+                edges = self.graph.get_incoming_edges(src_node.id)
+            else:  # UNDIRECTED
+                edges = self.graph.get_outgoing_edges(src_node.id) + self.graph.get_incoming_edges(
+                    src_node.id
+                )
+
+            # Filter by edge types if specified
+            if op.edge_types:
+                edges = [e for e in edges if e.type in op.edge_types]
+
+            # LEFT JOIN behavior
+            if not edges:
+                # No edges found - preserve row with NULL bindings
+                new_ctx = ExecutionContext()
+                new_ctx.bindings = dict(ctx.bindings)
+                new_ctx.bind(op.dst_var, CypherNull())
+                if op.edge_var:
+                    new_ctx.bind(op.edge_var, CypherNull())
+                result.append(new_ctx)
+            else:
+                # INNER JOIN behavior - bind actual values
+                for edge in edges:
+                    new_ctx = ExecutionContext()
+                    new_ctx.bindings = dict(ctx.bindings)
+
+                    # Bind edge if variable specified
+                    if op.edge_var:
+                        new_ctx.bind(op.edge_var, edge)
+
+                    # Determine destination node based on direction
+                    if op.direction == "OUT":
+                        dst_node = edge.dst
+                    elif op.direction == "IN":
+                        dst_node = edge.src
+                    else:  # UNDIRECTED - check which end is the source
+                        dst_node = edge.dst if edge.src.id == src_node.id else edge.src
+
+                    new_ctx.bind(op.dst_var, dst_node)
+                    result.append(new_ctx)
+
+        return result
+
+    def _execute_union(self, op: Union, input_rows: list[ExecutionContext]) -> list[Any]:
+        """Execute Union operator.
+
+        Combines results from multiple query branches. Each branch is executed
+        independently and results are merged.
+
+        Args:
+            op: Union operator with branches
+            input_rows: Input execution contexts (typically empty for UNION at query level)
+
+        Returns:
+            Combined results from all branches (list of dicts or ExecutionContexts)
+        """
+        all_results: list[Any] = []
+
+        # Execute each branch independently
+        for branch in op.branches:
+            # Execute this branch's pipeline
+            branch_results: list[Any] = input_rows if input_rows else [ExecutionContext()]
+            for branch_op in branch:
+                branch_results = self._execute_operator(branch_op, branch_results, 0, len(branch))
+            all_results.extend(branch_results)
+
+        # UNION (not UNION ALL) requires deduplication
+        if not op.all:
+            # Convert to hashable representations for deduplication
+            seen: set[tuple[Any, ...]] = set()
+            deduplicated: list[Any] = []
+            for row in all_results:
+                key: tuple[Any, ...]
+                if isinstance(row, ExecutionContext):
+                    # Hash based on bindings
+                    key = tuple(
+                        sorted((k, self._value_to_hashable(v)) for k, v in row.bindings.items())
+                    )
+                else:
+                    # Dict result (from RETURN)
+                    key = tuple(sorted((k, self._value_to_hashable(v)) for k, v in row.items()))
+
+                if key not in seen:
+                    seen.add(key)
+                    deduplicated.append(row)
+            return deduplicated
+
+        return all_results
+
+    def _execute_subquery(
+        self, op: Subquery, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute Subquery operator.
+
+        Executes a nested query pipeline for each input row, typically for
+        EXISTS or COUNT subquery expressions.
+
+        Args:
+            op: Subquery operator with nested pipeline
+            input_rows: Input execution contexts (outer query context)
+
+        Returns:
+            Input contexts unchanged (subquery results are evaluated in expression context)
+        """
+        # NOTE: This is a placeholder implementation.
+        # In practice, subqueries are typically evaluated as part of expressions
+        # (e.g., WHERE EXISTS {...}) rather than as standalone operators.
+        # The actual evaluation logic should be in evaluator.py when processing
+        # subquery expressions.
+
+        # For now, just pass through input rows
+        # Real implementation will be in evaluator.py when we add subquery expression support
+        return input_rows

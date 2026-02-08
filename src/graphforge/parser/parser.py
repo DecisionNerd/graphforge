@@ -14,6 +14,7 @@ from graphforge.ast.clause import (
     LimitClause,
     MatchClause,
     MergeClause,
+    OptionalMatchClause,
     OrderByClause,
     OrderByItem,
     RemoveClause,
@@ -125,6 +126,11 @@ class ASTTransformer(Transformer):
         """Transform MATCH clause."""
         patterns = [item for item in items if not isinstance(item, str)]
         return MatchClause(patterns=patterns)
+
+    def optional_match_clause(self, items):
+        """Transform OPTIONAL MATCH clause."""
+        patterns = [item for item in items if not isinstance(item, str)]
+        return OptionalMatchClause(patterns=patterns)
 
     def create_clause(self, items):
         """Transform CREATE clause."""

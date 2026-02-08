@@ -3,6 +3,7 @@
 This module defines the operators used in logical query plans:
 - ScanNodes: Scan nodes by label
 - ExpandEdges: Traverse relationships
+- OptionalExpandEdges: Optional relationship expansion (left outer join)
 - Filter: Apply predicates
 - Project: Select return items
 - With: Pipeline boundary for query chaining
@@ -14,6 +15,8 @@ This module defines the operators used in logical query plans:
 - Delete: Delete nodes and relationships
 - Merge: Create or match patterns
 - Unwind: Expand lists into rows
+- Union: Combine results from multiple queries
+- Subquery: Nested query expressions (EXISTS, COUNT)
 """
 
 from typing import Any
@@ -321,3 +324,102 @@ class Unwind(BaseModel):
         return v
 
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
+class Union(BaseModel):
+    """Operator for UNION/UNION ALL query combination.
+
+    Combines results from multiple query branches. Each branch is a complete
+    execution pipeline (list of operators).
+
+    Example:
+        MATCH (p:Person) RETURN p.name
+        UNION
+        MATCH (c:Company) RETURN c.name
+
+    Attributes:
+        branches: List of operator pipelines (each branch is a list of operators)
+        all: False for UNION (deduplicate), True for UNION ALL (keep duplicates)
+    """
+
+    branches: list[list[Any]] = Field(..., min_length=2, description="List of operator pipelines")
+    all: bool = Field(default=False, description="True for UNION ALL, False for UNION")
+
+    @field_validator("branches")
+    @classmethod
+    def validate_branches(cls, v: list[list[Any]]) -> list[list[Any]]:
+        """Validate that we have at least 2 branches."""
+        if len(v) < 2:
+            raise ValueError("Union must have at least 2 branches")
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
+class Subquery(BaseModel):
+    """Operator for subquery expressions (EXISTS, COUNT, etc.).
+
+    Executes a nested query pipeline and returns a result for use in expressions.
+
+    Example:
+        WHERE EXISTS { MATCH (n)-[:KNOWS]->(m) WHERE m.age > 30 }
+
+    Attributes:
+        operators: List of operators in the subquery pipeline
+        expression_type: Type of subquery expression ("EXISTS", "COUNT")
+        correlated_vars: Variables from outer scope that the subquery references
+    """
+
+    operators: list[Any] = Field(..., min_length=1, description="Subquery pipeline")
+    expression_type: str = Field(..., description="Subquery type (EXISTS, COUNT)")
+    correlated_vars: list[str] = Field(
+        default_factory=list, description="Variables from outer scope"
+    )
+
+    @field_validator("expression_type")
+    @classmethod
+    def validate_expression_type(cls, v: str) -> str:
+        """Validate expression type."""
+        valid_types = {"EXISTS", "COUNT"}
+        if v not in valid_types:
+            raise ValueError(f"Subquery expression type must be one of {valid_types}, got {v}")
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
+class OptionalExpandEdges(BaseModel):
+    """Operator for optional relationship expansion (left outer join).
+
+    Like ExpandEdges, but preserves rows with NULL bindings when no matches found.
+    Used to implement OPTIONAL MATCH.
+
+    Example:
+        MATCH (p:Person)
+        OPTIONAL MATCH (p)-[:KNOWS]->(f)
+        -> If p has no KNOWS edges, returns (p, f=NULL)
+
+    Attributes:
+        src_var: Variable name for source nodes
+        edge_var: Variable name to bind edges to (None if not specified)
+        dst_var: Variable name to bind destination nodes to
+        edge_types: List of edge types to match (empty = all types)
+        direction: Direction to traverse ('OUT', 'IN', 'UNDIRECTED')
+    """
+
+    src_var: str = Field(..., min_length=1, description="Source variable name")
+    edge_var: str | None = Field(default=None, description="Edge variable name")
+    dst_var: str = Field(..., min_length=1, description="Destination variable name")
+    edge_types: list[str] = Field(..., description="Edge types to match")
+    direction: str = Field(..., description="Traversal direction")
+
+    @field_validator("direction")
+    @classmethod
+    def validate_direction(cls, v: str) -> str:
+        """Validate direction is valid."""
+        valid_dirs = {"OUT", "IN", "UNDIRECTED"}
+        if v not in valid_dirs:
+            raise ValueError(f"Direction must be one of {valid_dirs}, got {v}")
+        return v
+
+    model_config = {"frozen": True}

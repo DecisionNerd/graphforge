@@ -20,7 +20,8 @@ final_query_part: read_query
 
 return_only_query: return_clause order_by_clause? skip_clause? limit_clause?
 
-read_query: match_clause where_clause? return_clause order_by_clause? skip_clause? limit_clause?
+read_query: match_clause where_clause? optional_match_clause* where_clause? return_clause order_by_clause? skip_clause? limit_clause?
+          | optional_match_clause where_clause? return_clause order_by_clause? skip_clause? limit_clause?
 
 write_query: create_clause return_clause?
            | merge_clause return_clause?
@@ -34,6 +35,7 @@ unwind_query: unwind_clause+ where_clause? return_clause? order_by_clause? skip_
 
 // Reading clauses that can precede WITH
 reading_clause: match_clause where_clause?
+              | optional_match_clause where_clause?
               | unwind_clause
 
 // WITH clause
@@ -41,6 +43,9 @@ with_clause: "WITH"i DISTINCT_KW? return_item ("," return_item)* where_clause? o
 
 // MATCH clause
 match_clause: "MATCH"i pattern ("," pattern)*
+
+// OPTIONAL MATCH clause
+optional_match_clause: "OPTIONAL"i "MATCH"i pattern ("," pattern)*
 
 // CREATE clause
 create_clause: "CREATE"i pattern ("," pattern)*
