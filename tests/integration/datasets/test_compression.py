@@ -337,9 +337,23 @@ class TestTarSecurityValidation:
         test_file = test_dir / "test.txt"
         test_file.write_text("content")
 
-        # Create TAR with Windows-style absolute path
+        # Create TAR with Windows-style absolute path using TarInfo
+        # This bypasses platform-specific path normalization
         with tarfile.open(archive_path, "w:gz") as tar:
-            tar.add(test_file, arcname="\\Windows\\System32\\evil.dll")
+            # Manually create TarInfo to force the exact name we want
+            tarinfo = tar.gettarinfo(str(test_file))
+            tarinfo.name = "\\Windows\\System32\\evil.dll"  # Force this exact name
+            with open(test_file, "rb") as f:
+                tar.addfile(tarinfo, f)
+
+        # Verify what was stored
+        with tarfile.open(archive_path, "r:gz") as tar:
+            members = tar.getmembers()
+            stored_name = members[0].name
+            # Should be the exact name we set, regardless of platform
+            assert stored_name == "\\Windows\\System32\\evil.dll", (
+                f"Expected TAR to store exact name, got {stored_name!r}"
+            )
 
         # Extract should raise ValueError
         with pytest.raises(ValueError, match="Absolute path not allowed"):
