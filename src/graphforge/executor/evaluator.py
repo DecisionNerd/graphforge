@@ -464,7 +464,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
 
 # Function categories
 STRING_FUNCTIONS = {"LENGTH", "SUBSTRING", "UPPER", "LOWER", "TRIM"}
-TYPE_FUNCTIONS = {"TOINTEGER", "TOFLOAT", "TOSTRING", "TYPE"}
+TYPE_FUNCTIONS = {"TOBOOLEAN", "TOINTEGER", "TOFLOAT", "TOSTRING", "TYPE"}
 TEMPORAL_FUNCTIONS = {
     "DATE",
     "DATETIME",
@@ -613,7 +613,25 @@ def _evaluate_type_function(func_name: str, args: list[CypherValue]) -> CypherVa
     if isinstance(args[0], CypherNull):
         return CypherNull()
 
-    if func_name == "TOINTEGER":
+    if func_name == "TOBOOLEAN":
+        try:
+            if isinstance(args[0], CypherBool):
+                return args[0]
+            elif isinstance(args[0], CypherString):
+                # Only "true" and "false" (case-insensitive) convert to boolean
+                value_lower = args[0].value.lower()
+                if value_lower == "true":
+                    return CypherBool(True)
+                elif value_lower == "false":
+                    return CypherBool(False)
+                else:
+                    return CypherNull()  # Invalid string
+            else:
+                return CypherNull()  # Cannot convert other types
+        except (ValueError, TypeError):
+            return CypherNull()
+
+    elif func_name == "TOINTEGER":
         try:
             if isinstance(args[0], CypherInt):
                 return args[0]
