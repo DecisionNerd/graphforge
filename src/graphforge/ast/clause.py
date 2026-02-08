@@ -2,6 +2,7 @@
 
 This module defines the major query clauses:
 - MatchClause: MATCH patterns
+- OptionalMatchClause: OPTIONAL MATCH patterns
 - CreateClause: CREATE patterns
 - SetClause: SET property updates
 - RemoveClause: REMOVE properties and labels
@@ -26,6 +27,21 @@ class MatchClause(BaseModel):
     Examples:
         MATCH (n:Person)
         MATCH (a)-[r:KNOWS]->(b)
+    """
+
+    patterns: list[Any] = Field(..., min_length=1, description="List of patterns")
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
+class OptionalMatchClause(BaseModel):
+    """OPTIONAL MATCH clause for optional pattern matching (left outer join).
+
+    Like MATCH, but preserves rows with NULL bindings when patterns don't match.
+
+    Examples:
+        OPTIONAL MATCH (p)-[:KNOWS]->(f)
+        OPTIONAL MATCH (a)-[r:LIKES]->(b)
     """
 
     patterns: list[Any] = Field(..., min_length=1, description="List of patterns")

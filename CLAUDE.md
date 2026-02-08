@@ -246,6 +246,11 @@ pytest tests/unit/parser/test_parser.py -v
 # Run single test function
 pytest tests/unit/parser/test_parser.py::TestMatchParsing::test_simple_match -v
 
+# Run tests in parallel (much faster for large test suites)
+pytest tests/ -n auto          # Auto-detect CPU count
+pytest tests/tck/ -n 8          # Use 8 workers
+# Note: TCK tests run ~4x faster with parallel execution (54s vs 3.5min)
+
 # Run with coverage
 make coverage
 

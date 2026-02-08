@@ -66,18 +66,27 @@ class RelationshipPattern(BaseModel):
     """AST node for matching relationships.
 
     Represents a relationship pattern like: -[r:KNOWS {since: 2020}]->
+    Or variable-length: -[r:KNOWS*1..3]->
 
     Attributes:
         variable: Variable name to bind the relationship (None for anonymous)
         types: List of relationship types to match
         direction: Direction of the relationship
         properties: Dict of property constraints (property_name -> Expression)
+        min_hops: Minimum hops for variable-length (None for single-hop)
+        max_hops: Maximum hops for variable-length (None for unbounded)
     """
 
     variable: str | None = Field(default=None, description="Variable name (None for anonymous)")
     types: list[str] = Field(default_factory=list, description="Relationship types")
     direction: Direction = Field(..., description="Relationship direction")
     properties: dict[str, Any] = Field(default_factory=dict, description="Property constraints")
+    min_hops: int | None = Field(
+        default=None, description="Minimum hops for variable-length (None = single-hop)"
+    )
+    max_hops: int | None = Field(
+        default=None, description="Maximum hops for variable-length (None = unbounded)"
+    )
 
     @field_validator("variable")
     @classmethod
@@ -101,6 +110,22 @@ class RelationshipPattern(BaseModel):
         for typ in v:
             if not typ or not typ[0].isalpha():
                 raise ValueError(f"Relationship type must start with a letter: {typ}")
+        return v
+
+    @field_validator("min_hops")
+    @classmethod
+    def validate_min_hops(cls, v: int | None) -> int | None:
+        """Validate minimum hops."""
+        if v is not None and v < 0:
+            raise ValueError(f"Minimum hops must be non-negative, got {v}")
+        return v
+
+    @field_validator("max_hops")
+    @classmethod
+    def validate_max_hops(cls, v: int | None) -> int | None:
+        """Validate maximum hops."""
+        if v is not None and v < 1:
+            raise ValueError(f"Maximum hops must be positive, got {v}")
         return v
 
     model_config = {"frozen": True, "arbitrary_types_allowed": True}

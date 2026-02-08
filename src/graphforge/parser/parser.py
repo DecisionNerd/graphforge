@@ -14,6 +14,7 @@ from graphforge.ast.clause import (
     LimitClause,
     MatchClause,
     MergeClause,
+    OptionalMatchClause,
     OrderByClause,
     OrderByItem,
     RemoveClause,
@@ -51,8 +52,40 @@ class ASTTransformer(Transformer):
     # Query
     def query(self, items):
         """Transform query rule."""
-        # Items can be single_part_query or multi_part_query
-        return items[0] if len(items) == 1 else CypherQuery(clauses=list(items))
+        # Items can be single_part_query, multi_part_query, or union_query
+        return items[0]
+
+    def union_query(self, items):
+        """Transform UNION query.
+
+        Returns a dict with 'type': 'union', 'branches': [...], 'all': bool.
+        """
+        # items structure: [query1, union_clause, query2, union_clause, query3, ...]
+        # union_clause is either "UNION" or "UNION ALL"
+        branches = []
+        union_all = False
+
+        i = 0
+        while i < len(items):
+            if isinstance(items[i], str):
+                # This is a union clause indicator
+                union_all = items[i] == "UNION ALL"
+                i += 1
+            else:
+                # This is a query (CypherQuery object)
+                branches.append(items[i])
+                i += 1
+
+        # For simplicity, use the last UNION type seen
+        return {"type": "union", "branches": branches, "all": union_all}
+
+    def union_distinct(self, items):
+        """Transform UNION (without ALL)."""
+        return "UNION"
+
+    def union_all(self, items):
+        """Transform UNION ALL."""
+        return "UNION ALL"
 
     def single_part_query(self, items):
         """Transform single-part query (without WITH)."""
@@ -120,11 +153,27 @@ class ASTTransformer(Transformer):
         """Transform unwind query (UNWIND with optional clauses)."""
         return CypherQuery(clauses=list(items))
 
+    def reading_only_query(self, items):
+        """Transform reading-only query (multiple reading clauses + RETURN)."""
+        # Flatten reading_clause lists
+        flat_clauses = []
+        for item in items:
+            if isinstance(item, list):
+                flat_clauses.extend(item)
+            else:
+                flat_clauses.append(item)
+        return CypherQuery(clauses=flat_clauses)
+
     # Clauses
     def match_clause(self, items):
         """Transform MATCH clause."""
         patterns = [item for item in items if not isinstance(item, str)]
         return MatchClause(patterns=patterns)
+
+    def optional_match_clause(self, items):
+        """Transform OPTIONAL MATCH clause."""
+        patterns = [item for item in items if not isinstance(item, str)]
+        return OptionalMatchClause(patterns=patterns)
 
     def create_clause(self, items):
         """Transform CREATE clause."""
@@ -318,39 +367,47 @@ class ASTTransformer(Transformer):
 
     def right_arrow_rel(self, items):
         """Transform outgoing relationship."""
-        variable, types, properties = self._parse_rel_parts(items)
+        variable, types, properties, min_hops, max_hops = self._parse_rel_parts(items)
         return RelationshipPattern(
             variable=variable,
             types=types,
             direction=Direction.OUT,
             properties=properties,
+            min_hops=min_hops,
+            max_hops=max_hops,
         )
 
     def left_arrow_rel(self, items):
         """Transform incoming relationship."""
-        variable, types, properties = self._parse_rel_parts(items)
+        variable, types, properties, min_hops, max_hops = self._parse_rel_parts(items)
         return RelationshipPattern(
             variable=variable,
             types=types,
             direction=Direction.IN,
             properties=properties,
+            min_hops=min_hops,
+            max_hops=max_hops,
         )
 
     def undirected_rel(self, items):
         """Transform undirected relationship."""
-        variable, types, properties = self._parse_rel_parts(items)
+        variable, types, properties, min_hops, max_hops = self._parse_rel_parts(items)
         return RelationshipPattern(
             variable=variable,
             types=types,
             direction=Direction.UNDIRECTED,
             properties=properties,
+            min_hops=min_hops,
+            max_hops=max_hops,
         )
 
     def _parse_rel_parts(self, items):
-        """Parse relationship variable, types, and properties."""
+        """Parse relationship variable, types, properties, and variable-length range."""
         variable = None
         types = []
         properties = {}
+        min_hops = None
+        max_hops = None
 
         for item in items:
             if isinstance(item, Variable):
@@ -359,8 +416,32 @@ class ASTTransformer(Transformer):
                 types = item
             elif isinstance(item, dict):
                 properties = item
+            elif isinstance(item, tuple) and len(item) == 2:
+                # Variable-length range: (min_hops, max_hops)
+                min_hops, max_hops = item
 
-        return variable, types, properties
+        return variable, types, properties, min_hops, max_hops
+
+    def var_length_unbounded(self, items):
+        """Transform unbounded variable-length: *"""
+        # * means 1 or more hops (unbounded)
+        return (1, None)
+
+    def var_length_min_max(self, items):
+        """Transform variable-length with min and max: *1..3"""
+        min_val = int(items[0])
+        max_val = int(items[1])
+        return (min_val, max_val)
+
+    def var_length_min_only(self, items):
+        """Transform variable-length with only min: *2.."""
+        min_val = int(items[0])
+        return (min_val, None)
+
+    def var_length_max_only(self, items):
+        """Transform variable-length with only max: *..3"""
+        max_val = int(items[0])
+        return (1, max_val)
 
     # Labels and types
     def labels(self, items):
@@ -435,6 +516,11 @@ class ASTTransformer(Transformer):
         """Transform comparison expression."""
         if len(items) == 1:
             return items[0]
+        # Check if it's a NULL check (IS NULL or IS NOT NULL)
+        if len(items) == 2 and isinstance(items[1], str) and items[1] in ("IS NULL", "IS NOT NULL"):
+            # Items: [left, "IS NULL" or "IS NOT NULL"]
+            # Represent as unary operation to distinguish from = NULL
+            return UnaryOp(op=items[1], operand=items[0])
         # Items: [left, op, right]
         # op can be either a Token (COMP_OP) or a string from string_match_op
         op = items[1] if isinstance(items[1], str) else self._get_token_value(items[1])
@@ -451,6 +537,14 @@ class ASTTransformer(Transformer):
     def contains(self, items):
         """Transform CONTAINS operator."""
         return "CONTAINS"
+
+    def is_null(self, items):
+        """Transform IS NULL operator."""
+        return "IS NULL"
+
+    def is_not_null(self, items):
+        """Transform IS NOT NULL operator."""
+        return "IS NOT NULL"
 
     def add_expr(self, items):
         """Transform addition/subtraction expression."""
@@ -550,6 +644,75 @@ class ASTTransformer(Transformer):
         result = items[1]
         return (condition, result)
 
+    def exists_expr(self, items):
+        """Transform EXISTS subquery expression.
+
+        Syntax: EXISTS { MATCH ... }
+        """
+        from graphforge.ast.expression import SubqueryExpression
+
+        # items[0] is the nested query
+        return SubqueryExpression(type="EXISTS", query=items[0])
+
+    def count_expr(self, items):
+        """Transform COUNT subquery expression.
+
+        Syntax: COUNT { MATCH ... }
+        """
+        from graphforge.ast.expression import SubqueryExpression
+
+        # items[0] is the nested query
+        return SubqueryExpression(type="COUNT", query=items[0])
+
+    def all_quantifier(self, items):
+        """Transform ALL quantifier expression.
+
+        Syntax: ALL(x IN list WHERE predicate)
+        """
+        from graphforge.ast.expression import QuantifierExpression
+
+        # items[0] = variable, items[1] = list_expr, items[2] = predicate
+        variable = items[0].name if hasattr(items[0], "name") else str(items[0])
+        return QuantifierExpression(
+            quantifier="ALL", variable=variable, list_expr=items[1], predicate=items[2]
+        )
+
+    def any_quantifier(self, items):
+        """Transform ANY quantifier expression.
+
+        Syntax: ANY(x IN list WHERE predicate)
+        """
+        from graphforge.ast.expression import QuantifierExpression
+
+        variable = items[0].name if hasattr(items[0], "name") else str(items[0])
+        return QuantifierExpression(
+            quantifier="ANY", variable=variable, list_expr=items[1], predicate=items[2]
+        )
+
+    def none_quantifier(self, items):
+        """Transform NONE quantifier expression.
+
+        Syntax: NONE(x IN list WHERE predicate)
+        """
+        from graphforge.ast.expression import QuantifierExpression
+
+        variable = items[0].name if hasattr(items[0], "name") else str(items[0])
+        return QuantifierExpression(
+            quantifier="NONE", variable=variable, list_expr=items[1], predicate=items[2]
+        )
+
+    def single_quantifier(self, items):
+        """Transform SINGLE quantifier expression.
+
+        Syntax: SINGLE(x IN list WHERE predicate)
+        """
+        from graphforge.ast.expression import QuantifierExpression
+
+        variable = items[0].name if hasattr(items[0], "name") else str(items[0])
+        return QuantifierExpression(
+            quantifier="SINGLE", variable=variable, list_expr=items[1], predicate=items[2]
+        )
+
     def variable(self, items):
         """Transform variable reference."""
         return Variable(name=self._get_token_value(items[0]))
@@ -592,12 +755,58 @@ class ASTTransformer(Transformer):
         """Transform list literal.
 
         items can be empty (for []) or contain expressions.
-        Returns a Literal containing a Python list.
+        Returns a Literal containing a Python list, or a ListComprehension if that's what was parsed.
         """
+        from graphforge.ast.expression import ListComprehension
+
+        # Check if this is actually a list comprehension (alternative rule)
+        if len(items) == 1 and isinstance(items[0], ListComprehension):
+            return items[0]
+
+        # Filter out None values from optional expressions
+        # Empty list [] comes through as [None] from Lark
+        filtered_items = [item for item in items if item is not None]
+
         # items contains the expressions in the list
         # We return a Literal with a list of expressions
         # The executor will evaluate these expressions later
-        return Literal(value=list(items))
+        return Literal(value=filtered_items)
+
+    def list_comprehension(self, items):
+        """Transform list comprehension.
+
+        Syntax: [x IN list WHERE x > 5 | x * 2]
+        items: [variable, list_expr, optional_where, optional_map]
+        """
+        from graphforge.ast.expression import ListComprehension
+
+        # items[0] is a Variable object, extract the name
+        variable = (
+            items[0].name if isinstance(items[0], Variable) else self._get_token_value(items[0])
+        )
+        list_expr = items[1]
+        filter_expr = None
+        map_expr = None
+
+        # items[2] can be WHERE expression or | expression or neither
+        # items[3] can be | expression if items[2] was WHERE
+        if len(items) > 2:
+            # Check if this is a filter or map expression
+            # The grammar ensures WHERE comes before |
+            if len(items) == 3:
+                # Could be WHERE expr or | expr
+                # We need to check context - for now assume if 3 items, it's filter
+                # Actually, the grammar will give us items in order: var, list, [where], [map]
+                # So items[2] is either WHERE or |
+                filter_expr = items[2]
+            elif len(items) == 4:
+                # Both WHERE and |
+                filter_expr = items[2]
+                map_expr = items[3]
+
+        return ListComprehension(
+            variable=variable, list_expr=list_expr, filter_expr=filter_expr, map_expr=map_expr
+        )
 
     def map_literal(self, items):
         """Transform map literal.
