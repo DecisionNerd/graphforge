@@ -153,6 +153,17 @@ class ASTTransformer(Transformer):
         """Transform unwind query (UNWIND with optional clauses)."""
         return CypherQuery(clauses=list(items))
 
+    def reading_only_query(self, items):
+        """Transform reading-only query (multiple reading clauses + RETURN)."""
+        # Flatten reading_clause lists
+        flat_clauses = []
+        for item in items:
+            if isinstance(item, list):
+                flat_clauses.extend(item)
+            else:
+                flat_clauses.append(item)
+        return CypherQuery(clauses=flat_clauses)
+
     # Clauses
     def match_clause(self, items):
         """Transform MATCH clause."""

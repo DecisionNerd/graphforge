@@ -139,17 +139,15 @@ class QueryPlanner:
         # Build operators in execution order
         operators = []
 
-        # 1. MATCH
-        for match in match_clauses:
-            operators.extend(self._plan_match(match))
-
-        # 1b. OPTIONAL MATCH
-        for optional_match in optional_match_clauses:
-            operators.extend(self._plan_optional_match(optional_match))
-
-        # 2. UNWIND
-        for unwind in unwind_clauses:
-            operators.append(Unwind(expression=unwind.expression, variable=unwind.variable))
+        # 1. Process reading clauses (MATCH, OPTIONAL MATCH, UNWIND) in order
+        # This is important because UNWIND may depend on variables from MATCH, or vice versa
+        for clause in clauses:
+            if isinstance(clause, MatchClause):
+                operators.extend(self._plan_match(clause))
+            elif isinstance(clause, OptionalMatchClause):
+                operators.extend(self._plan_optional_match(clause))
+            elif isinstance(clause, UnwindClause):
+                operators.append(Unwind(expression=clause.expression, variable=clause.variable))
 
         # 3. CREATE
         for create in create_clauses:

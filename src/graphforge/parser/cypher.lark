@@ -15,7 +15,10 @@ union_clause: "UNION"i "ALL"i  -> union_all
 multi_part_query: reading_clause+ with_clause+ final_query_part
 
 // Single-part queries (without WITH)
-single_part_query: read_query | write_query | update_query | unwind_query | return_only_query
+single_part_query: read_query | write_query | update_query | unwind_query | return_only_query | reading_only_query
+
+// Reading-only query: multiple reading clauses followed by RETURN
+reading_only_query: reading_clause reading_clause+ where_clause? return_clause order_by_clause? skip_clause? limit_clause?
 
 // Final part of multi-part query (allows RETURN without MATCH)
 final_query_part: read_query
