@@ -441,6 +441,11 @@ class ASTTransformer(Transformer):
         """Transform comparison expression."""
         if len(items) == 1:
             return items[0]
+        # Check if it's a NULL check (IS NULL or IS NOT NULL)
+        if len(items) == 2 and isinstance(items[1], str) and items[1] in ("IS NULL", "IS NOT NULL"):
+            # Items: [left, "IS NULL" or "IS NOT NULL"]
+            # Represent as unary operation to distinguish from = NULL
+            return UnaryOp(op=items[1], operand=items[0])
         # Items: [left, op, right]
         # op can be either a Token (COMP_OP) or a string from string_match_op
         op = items[1] if isinstance(items[1], str) else self._get_token_value(items[1])
@@ -457,6 +462,14 @@ class ASTTransformer(Transformer):
     def contains(self, items):
         """Transform CONTAINS operator."""
         return "CONTAINS"
+
+    def is_null(self, items):
+        """Transform IS NULL operator."""
+        return "IS NULL"
+
+    def is_not_null(self, items):
+        """Transform IS NOT NULL operator."""
+        return "IS NOT NULL"
 
     def add_expr(self, items):
         """Transform addition/subtraction expression."""

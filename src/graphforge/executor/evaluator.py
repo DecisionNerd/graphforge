@@ -137,6 +137,10 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
     if isinstance(expr, PropertyAccess):
         obj = ctx.get(expr.variable)
 
+        # Handle NULL: accessing property on NULL returns NULL
+        if isinstance(obj, CypherNull):
+            return CypherNull()
+
         # Handle NodeRef/EdgeRef
         if isinstance(obj, (NodeRef, EdgeRef)):
             if expr.property in obj.properties:
@@ -148,6 +152,14 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
     # Unary operations
     if isinstance(expr, UnaryOp):
         operand_val = evaluate_expression(expr.operand, ctx)
+
+        # IS NULL operator
+        if expr.op == "IS NULL":
+            return CypherBool(isinstance(operand_val, CypherNull))
+
+        # IS NOT NULL operator
+        if expr.op == "IS NOT NULL":
+            return CypherBool(not isinstance(operand_val, CypherNull))
 
         # NOT operator
         if expr.op == "NOT":

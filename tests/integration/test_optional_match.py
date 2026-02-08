@@ -125,15 +125,20 @@ class TestOptionalMatchNullHandling:
         )
 
         # Get people who don't have friends (NULL from OPTIONAL MATCH)
+        # Both Alice (no friends) and Charlie (no friends) should be returned
         results = gf.execute("""
             MATCH (p:Person)
             OPTIONAL MATCH (p)-[:KNOWS]->(f)
             WHERE f IS NULL
             RETURN p.name AS person
+            ORDER BY p.name
         """)
 
-        assert len(results) == 1
+        # Alice has no outgoing KNOWS, Charlie has no outgoing KNOWS
+        # Bob has outgoing KNOWS to Charlie, so Bob should not be in results
+        assert len(results) == 2
         assert results[0]["person"].value == "Alice"
+        assert results[1]["person"].value == "Charlie"
 
     def test_optional_match_null_in_aggregation(self):
         """Test that NULL from OPTIONAL MATCH is excluded from aggregation."""

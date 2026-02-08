@@ -116,7 +116,10 @@ and_expr: not_expr ("AND"i not_expr)*
 not_expr: "NOT"i not_expr     -> not_operation
         | comparison_expr     -> not_passthrough
 
-comparison_expr: add_expr (COMP_OP add_expr | string_match_op add_expr)?
+comparison_expr: add_expr (COMP_OP add_expr | string_match_op add_expr | null_check_op)?
+
+null_check_op: "IS"i "NOT"i "NULL"i  -> is_not_null
+             | "IS"i "NULL"i          -> is_null
 
 string_match_op: "STARTS"i "WITH"i -> starts_with
                | "ENDS"i "WITH"i   -> ends_with
