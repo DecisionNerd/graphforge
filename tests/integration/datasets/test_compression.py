@@ -290,8 +290,44 @@ class TestTarSecurityValidation:
         ):
             extract_archive(archive_path, extract_to)
 
+    def test_tarfile_windows_path_normalization(self, tmp_path):
+        """Document how tarfile handles Windows paths on different platforms.
+
+        This diagnostic test helps understand platform-specific behavior.
+        """
+        import sys
+
+        archive_path = tmp_path / "diagnostic.tar.gz"
+        test_dir = tmp_path / "test_data"
+        test_dir.mkdir()
+        test_file = test_dir / "test.txt"
+        test_file.write_text("content")
+
+        # Create TAR with Windows-style path
+        with tarfile.open(archive_path, "w:gz") as tar:
+            tar.add(test_file, arcname="\\Windows\\System32\\evil.dll")
+
+        # Read back and document what tarfile stores
+        with tarfile.open(archive_path, "r:gz") as tar:
+            members = tar.getmembers()
+            assert len(members) == 1
+            member_name = members[0].name
+
+            # Print for CI visibility
+            print(f"\nPlatform: {sys.platform}")
+            print(f"Stored member.name: {member_name!r}")
+            print(f"Starts with backslash: {member_name.startswith(chr(92))}")
+
+            # Document expected behavior
+            # Note: This may differ between platforms
+
     def test_reject_backslash_absolute_path_tar(self, tmp_path):
         """Test that Windows-style absolute paths in TAR are rejected."""
+        import logging
+
+        # Enable logging for test diagnostics
+        logging.basicConfig(level=logging.DEBUG, format="%(name)s - %(levelname)s - %(message)s")
+
         archive_path = tmp_path / "malicious.tar.gz"
         extract_to = tmp_path / "extracted"
 

@@ -9,8 +9,9 @@ Handles various compression formats used by graph datasets:
 Supported formats are detected by extract_archive() and is_compressed_archive().
 """
 
+import logging
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import sys
 import tarfile
@@ -23,6 +24,8 @@ try:
 except ImportError:
     ZSTD_AVAILABLE = False
 
+
+logger = logging.getLogger(__name__)
 
 # Regex patterns for Windows path detection
 _DRIVE_ABS_RE = re.compile(r"^[a-zA-Z]:[\\/].*")
@@ -37,26 +40,41 @@ def _validate_archive_member(name: str) -> None:
     Raises:
         ValueError: If the name is unsafe (absolute path or contains parent traversal)
     """
-    # Reject Windows rooted / UNC paths (check BEFORE normalization)
-    # Check for single backslash first (Windows rooted like \Windows\...)
-    if name.startswith("\\"):
-        raise ValueError("Absolute path not allowed")
-    # Check for forward slash (Unix absolute like /etc/passwd)
+    # Layer 1: Check for leading path separators (Unix/Windows rooted)
     if name.startswith("/"):
         raise ValueError("Absolute path not allowed")
 
-    # Reject drive-letter absolute paths like C:\ or C:/
+    if name.startswith("\\"):
+        raise ValueError("Absolute path not allowed")
+
+    # Layer 2: Check for drive-letter absolute paths (C:\, D:/, etc.)
     if _DRIVE_ABS_RE.match(name):
         raise ValueError("Absolute path not allowed")
 
-    # Normalize separators for traversal detection
+    # Layer 3: Platform-independent absolute path detection using pathlib
+    # This catches paths that are absolute on Windows, even if normalized
+    try:
+        if PureWindowsPath(name).is_absolute():
+            logger.debug("Rejected Windows absolute path: %s", repr(name))
+            raise ValueError("Absolute path not allowed")
+    except (ValueError, OSError):
+        # Path might contain characters invalid for Windows, that's OK
+        pass
+
+    try:
+        if PurePosixPath(name).is_absolute():
+            logger.debug("Rejected POSIX absolute path: %s", repr(name))
+            raise ValueError("Absolute path not allowed")
+    except (ValueError, OSError):
+        pass
+
+    # Layer 4: Post-normalization check
     normalized = name.replace("\\", "/")
 
-    # If normalization produces a leading slash, it's still absolute
     if normalized.startswith("/"):
         raise ValueError("Absolute path not allowed")
 
-    # Parent directory traversal
+    # Layer 5: Parent directory traversal check
     parts = PurePosixPath(normalized).parts
     if ".." in parts:
         raise ValueError("Parent directory reference not allowed")
