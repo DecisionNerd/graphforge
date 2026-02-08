@@ -356,39 +356,47 @@ class ASTTransformer(Transformer):
 
     def right_arrow_rel(self, items):
         """Transform outgoing relationship."""
-        variable, types, properties = self._parse_rel_parts(items)
+        variable, types, properties, min_hops, max_hops = self._parse_rel_parts(items)
         return RelationshipPattern(
             variable=variable,
             types=types,
             direction=Direction.OUT,
             properties=properties,
+            min_hops=min_hops,
+            max_hops=max_hops,
         )
 
     def left_arrow_rel(self, items):
         """Transform incoming relationship."""
-        variable, types, properties = self._parse_rel_parts(items)
+        variable, types, properties, min_hops, max_hops = self._parse_rel_parts(items)
         return RelationshipPattern(
             variable=variable,
             types=types,
             direction=Direction.IN,
             properties=properties,
+            min_hops=min_hops,
+            max_hops=max_hops,
         )
 
     def undirected_rel(self, items):
         """Transform undirected relationship."""
-        variable, types, properties = self._parse_rel_parts(items)
+        variable, types, properties, min_hops, max_hops = self._parse_rel_parts(items)
         return RelationshipPattern(
             variable=variable,
             types=types,
             direction=Direction.UNDIRECTED,
             properties=properties,
+            min_hops=min_hops,
+            max_hops=max_hops,
         )
 
     def _parse_rel_parts(self, items):
-        """Parse relationship variable, types, and properties."""
+        """Parse relationship variable, types, properties, and variable-length range."""
         variable = None
         types = []
         properties = {}
+        min_hops = None
+        max_hops = None
 
         for item in items:
             if isinstance(item, Variable):
@@ -397,8 +405,32 @@ class ASTTransformer(Transformer):
                 types = item
             elif isinstance(item, dict):
                 properties = item
+            elif isinstance(item, tuple) and len(item) == 2:
+                # Variable-length range: (min_hops, max_hops)
+                min_hops, max_hops = item
 
-        return variable, types, properties
+        return variable, types, properties, min_hops, max_hops
+
+    def var_length_unbounded(self, items):
+        """Transform unbounded variable-length: *"""
+        # * means 1 or more hops (unbounded)
+        return (1, None)
+
+    def var_length_min_max(self, items):
+        """Transform variable-length with min and max: *1..3"""
+        min_val = int(items[0])
+        max_val = int(items[1])
+        return (min_val, max_val)
+
+    def var_length_min_only(self, items):
+        """Transform variable-length with only min: *2.."""
+        min_val = int(items[0])
+        return (min_val, None)
+
+    def var_length_max_only(self, items):
+        """Transform variable-length with only max: *..3"""
+        max_val = int(items[0])
+        return (1, max_val)
 
     # Labels and types
     def labels(self, items):

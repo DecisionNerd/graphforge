@@ -134,6 +134,11 @@ class QueryExecutor:
         if isinstance(op, ExpandEdges):
             return self._execute_expand(op, input_rows)
 
+        from graphforge.planner.operators import ExpandVariableLength
+
+        if isinstance(op, ExpandVariableLength):
+            return self._execute_variable_expand(op, input_rows)
+
         if isinstance(op, OptionalExpandEdges):
             return self._execute_optional_expand(op, input_rows)
 
@@ -284,6 +289,72 @@ class QueryExecutor:
 
                 new_ctx.bind(op.dst_var, dst_node)
                 result.append(new_ctx)
+
+        return result
+
+    def _execute_variable_expand(
+        self, op: "ExpandVariableLength", input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute ExpandVariableLength operator with recursive traversal and cycle detection."""
+        from graphforge.planner.operators import ExpandVariableLength
+        from graphforge.types.values import CypherList
+
+        result = []
+
+        for ctx in input_rows:
+            src_node = ctx.get(op.src_var)
+
+            # Perform depth-first search with cycle detection
+            visited_in_path = set()
+            stack = [(src_node, [], 0)]  # (current_node, edge_path, depth)
+
+            while stack:
+                current_node, edge_path, depth = stack.pop()
+
+                # Check if we've reached valid depth range
+                if op.min_hops <= depth <= (op.max_hops if op.max_hops else float("inf")):
+                    # Yield this path
+                    new_ctx = ExecutionContext()
+                    new_ctx.bindings = dict(ctx.bindings)
+
+                    new_ctx.bind(op.dst_var, current_node)
+
+                    # Bind edge list if variable provided
+                    if op.edge_var:
+                        new_ctx.bind(op.edge_var, CypherList(edge_path))
+
+                    result.append(new_ctx)
+
+                # Continue exploration if we haven't exceeded max depth
+                if op.max_hops is None or depth < op.max_hops:
+                    # Get edges based on direction
+                    if op.direction == "OUT":
+                        edges = self.graph.get_outgoing_edges(current_node.id)
+                    elif op.direction == "IN":
+                        edges = self.graph.get_incoming_edges(current_node.id)
+                    else:  # UNDIRECTED
+                        edges = self.graph.get_outgoing_edges(
+                            current_node.id
+                        ) + self.graph.get_incoming_edges(current_node.id)
+
+                    # Filter by type if specified
+                    if op.edge_types:
+                        edges = [e for e in edges if e.type in op.edge_types]
+
+                    # Add edges to stack for exploration
+                    for edge in edges:
+                        # Determine next node
+                        if op.direction == "OUT":
+                            next_node = edge.dst
+                        elif op.direction == "IN":
+                            next_node = edge.src
+                        else:  # UNDIRECTED
+                            next_node = edge.dst if edge.src.id == current_node.id else edge.src
+
+                        # Cycle detection - don't revisit nodes in current path
+                        if next_node.id not in visited_in_path:
+                            new_visited = visited_in_path | {current_node.id}
+                            stack.append((next_node, edge_path + [edge], depth + 1))
 
         return result
 

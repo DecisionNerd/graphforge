@@ -29,6 +29,7 @@ from graphforge.planner.operators import (
     Create,
     Delete,
     ExpandEdges,
+    ExpandVariableLength,
     Filter,
     Limit,
     Merge,
@@ -412,15 +413,35 @@ class QueryPlanner:
                         Direction.UNDIRECTED: "UNDIRECTED",
                     }
 
-                    operators.append(
-                        ExpandEdges(
-                            src_var=src_var,
-                            edge_var=rel_var,
-                            dst_var=dst_var,
-                            edge_types=rel_pattern.types if rel_pattern.types else [],
-                            direction=direction_map[rel_pattern.direction],
+                    # Check if this is a variable-length pattern
+                    if rel_pattern.min_hops is not None or rel_pattern.max_hops is not None:
+                        # Variable-length expansion
+                        from graphforge.planner.operators import ExpandVariableLength
+
+                        operators.append(
+                            ExpandVariableLength(
+                                src_var=src_var,
+                                edge_var=rel_var,
+                                dst_var=dst_var,
+                                edge_types=rel_pattern.types if rel_pattern.types else [],
+                                direction=direction_map[rel_pattern.direction],
+                                min_hops=rel_pattern.min_hops
+                                if rel_pattern.min_hops is not None
+                                else 1,
+                                max_hops=rel_pattern.max_hops,
+                            )
                         )
-                    )
+                    else:
+                        # Single-hop expansion
+                        operators.append(
+                            ExpandEdges(
+                                src_var=src_var,
+                                edge_var=rel_var,
+                                dst_var=dst_var,
+                                edge_types=rel_pattern.types if rel_pattern.types else [],
+                                direction=direction_map[rel_pattern.direction],
+                            )
+                        )
 
         return operators
 
