@@ -52,8 +52,40 @@ class ASTTransformer(Transformer):
     # Query
     def query(self, items):
         """Transform query rule."""
-        # Items can be single_part_query or multi_part_query
-        return items[0] if len(items) == 1 else CypherQuery(clauses=list(items))
+        # Items can be single_part_query, multi_part_query, or union_query
+        return items[0]
+
+    def union_query(self, items):
+        """Transform UNION query.
+
+        Returns a dict with 'type': 'union', 'branches': [...], 'all': bool.
+        """
+        # items structure: [query1, union_clause, query2, union_clause, query3, ...]
+        # union_clause is either "UNION" or "UNION ALL"
+        branches = []
+        union_all = False
+
+        i = 0
+        while i < len(items):
+            if isinstance(items[i], str):
+                # This is a union clause indicator
+                union_all = items[i] == "UNION ALL"
+                i += 1
+            else:
+                # This is a query (CypherQuery object)
+                branches.append(items[i])
+                i += 1
+
+        # For simplicity, use the last UNION type seen
+        return {"type": "union", "branches": branches, "all": union_all}
+
+    def union_distinct(self, items):
+        """Transform UNION (without ALL)."""
+        return "UNION"
+
+    def union_all(self, items):
+        """Transform UNION ALL."""
+        return "UNION ALL"
 
     def single_part_query(self, items):
         """Transform single-part query (without WITH)."""

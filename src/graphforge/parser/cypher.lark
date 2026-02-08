@@ -3,7 +3,13 @@
 
 ?start: query
 
-query: single_part_query | multi_part_query
+query: union_query | single_part_query | multi_part_query
+
+// UNION queries - combines multiple query results
+union_query: (single_part_query | multi_part_query) (union_clause (single_part_query | multi_part_query))+
+
+union_clause: "UNION"i "ALL"i  -> union_all
+            | "UNION"i          -> union_distinct
 
 // Multi-part queries with WITH clause
 multi_part_query: reading_clause+ with_clause+ final_query_part

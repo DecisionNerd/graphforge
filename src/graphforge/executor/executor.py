@@ -100,10 +100,12 @@ class QueryExecutor:
 
         # If there's no Project or Aggregate operator in the pipeline (no RETURN clause),
         # return empty results (Cypher semantics: queries without RETURN produce no output)
-        if operators and not any(isinstance(op, (Project, Aggregate)) for op in operators):
+        # Exception: Union operators contain their own RETURN clauses in branches
+        if operators and not any(isinstance(op, (Project, Aggregate, Union)) for op in operators):
             return []
 
         # At this point, rows has been converted to list[dict] by Project/Aggregate operator
+        # (or Union operator which also returns list[dict])
         return rows
 
     def _execute_operator(
