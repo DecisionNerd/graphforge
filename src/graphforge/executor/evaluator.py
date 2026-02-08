@@ -14,6 +14,7 @@ from graphforge.ast.expression import (
     ListComprehension,
     Literal,
     PropertyAccess,
+    SubqueryExpression,
     UnaryOp,
     Variable,
 )
@@ -85,12 +86,13 @@ class ExecutionContext:
         return name in self.bindings
 
 
-def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
+def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) -> CypherValue:
     """Evaluate an AST expression in a context.
 
     Args:
         expr: AST expression node
         ctx: Execution context with variable bindings
+        executor: Optional QueryExecutor instance for subquery evaluation
 
     Returns:
         CypherValue result
@@ -106,7 +108,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
         if isinstance(value, list):
             # Evaluate each item in the list
             evaluated_items = [
-                evaluate_expression(item, ctx)
+                evaluate_expression(item, ctx, executor)
                 if isinstance(
                     item,
                     (
@@ -117,6 +119,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
                         FunctionCall,
                         CaseExpression,
                         ListComprehension,
+                        SubqueryExpression,
                     ),
                 )
                 else from_python(item)
@@ -137,9 +140,10 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
                         FunctionCall,
                         CaseExpression,
                         ListComprehension,
+                        SubqueryExpression,
                     ),
                 ):
-                    evaluated_dict[key] = evaluate_expression(val, ctx)
+                    evaluated_dict[key] = evaluate_expression(val, ctx, executor)
                 else:
                     evaluated_dict[key] = from_python(val)
             return CypherMap(evaluated_dict)
@@ -169,7 +173,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
 
     # Unary operations
     if isinstance(expr, UnaryOp):
-        operand_val = evaluate_expression(expr.operand, ctx)
+        operand_val = evaluate_expression(expr.operand, ctx, executor)
 
         # IS NULL operator
         if expr.op == "IS NULL":
@@ -207,8 +211,8 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
 
     # Binary operations
     if isinstance(expr, BinaryOp):
-        left_val = evaluate_expression(expr.left, ctx)
-        right_val = evaluate_expression(expr.right, ctx)
+        left_val = evaluate_expression(expr.left, ctx, executor)
+        right_val = evaluate_expression(expr.right, ctx, executor)
 
         # Comparison operators
         if expr.op == ">":
@@ -381,22 +385,22 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
     if isinstance(expr, CaseExpression):
         # Evaluate WHEN clauses in order until one matches
         for condition_expr, result_expr in expr.when_clauses:
-            condition_val = evaluate_expression(condition_expr, ctx)
+            condition_val = evaluate_expression(condition_expr, ctx, executor)
 
             # NULL is treated as false, not propagated
             if isinstance(condition_val, CypherBool) and condition_val.value:
-                return evaluate_expression(result_expr, ctx)
+                return evaluate_expression(result_expr, ctx, executor)
 
         # No WHEN matched - return ELSE or NULL
         if expr.else_expr is not None:
-            return evaluate_expression(expr.else_expr, ctx)
+            return evaluate_expression(expr.else_expr, ctx, executor)
 
         return CypherNull()
 
     # List comprehensions
     if isinstance(expr, ListComprehension):
         # Evaluate the list expression
-        list_val = evaluate_expression(expr.list_expr, ctx)
+        list_val = evaluate_expression(expr.list_expr, ctx, executor)
 
         # Must be a list
         if not isinstance(list_val, CypherList):
@@ -411,14 +415,14 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
 
             # Apply filter if present
             if expr.filter_expr is not None:
-                filter_val = evaluate_expression(expr.filter_expr, new_ctx)
+                filter_val = evaluate_expression(expr.filter_expr, new_ctx, executor)
                 # Skip if filter is false or NULL
                 if not (isinstance(filter_val, CypherBool) and filter_val.value):
                     continue
 
             # Apply map transformation if present, otherwise use item as-is
             if expr.map_expr is not None:
-                result_val = evaluate_expression(expr.map_expr, new_ctx)
+                result_val = evaluate_expression(expr.map_expr, new_ctx, executor)
             else:
                 result_val = item
 
@@ -426,9 +430,34 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
 
         return CypherList(result)
 
+    # Subquery expressions (EXISTS, COUNT)
+    if isinstance(expr, SubqueryExpression):
+        if executor is None:
+            raise TypeError("Subquery expressions require executor parameter")
+
+        # Plan the nested query
+        operators = executor.planner.plan(expr.query)
+
+        # Create a new execution context with current bindings (correlated subquery)
+        subquery_ctx = ExecutionContext()
+        subquery_ctx.bindings = dict(ctx.bindings)
+
+        # Execute the subquery
+        subquery_rows = [subquery_ctx]
+        for op in operators:
+            subquery_rows = executor._execute_operator(op, subquery_rows, 0, len(operators))
+
+        # Return result based on subquery type
+        if expr.type == "EXISTS":
+            return CypherBool(len(subquery_rows) > 0)
+        elif expr.type == "COUNT":
+            return CypherInt(len(subquery_rows))
+        else:
+            raise ValueError(f"Unknown subquery type: {expr.type}")
+
     # Function calls
     if isinstance(expr, FunctionCall):
-        return _evaluate_function(expr, ctx)
+        return _evaluate_function(expr, ctx, executor)
 
     raise TypeError(f"Cannot evaluate expression type: {type(expr).__name__}")
 
@@ -452,7 +481,9 @@ SPATIAL_FUNCTIONS = {"POINT", "DISTANCE"}
 GRAPH_FUNCTIONS = {"ID", "LABELS"}
 
 
-def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> CypherValue:
+def _evaluate_function(
+    func_call: FunctionCall, ctx: ExecutionContext, executor: Any = None
+) -> CypherValue:
     """Evaluate scalar function calls.
 
     Args:
@@ -470,7 +501,7 @@ def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> Cypher
 
     # COALESCE is special - it doesn't propagate NULL, returns first non-NULL value
     if func_name == "COALESCE":
-        args = [evaluate_expression(arg, ctx) for arg in func_call.args]
+        args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
         for arg in args:
             if not isinstance(arg, CypherNull):
                 return arg
@@ -478,11 +509,11 @@ def _evaluate_function(func_call: FunctionCall, ctx: ExecutionContext) -> Cypher
 
     # Graph functions need special handling for NodeRef/EdgeRef arguments
     if func_name in GRAPH_FUNCTIONS:
-        args = [evaluate_expression(arg, ctx) for arg in func_call.args]
+        args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
         return _evaluate_graph_function(func_name, args)
 
     # Evaluate arguments
-    args = [evaluate_expression(arg, ctx) for arg in func_call.args]
+    args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
 
     # NULL propagation: if any arg is NULL, return NULL (for most functions)
     if any(isinstance(arg, CypherNull) for arg in args):

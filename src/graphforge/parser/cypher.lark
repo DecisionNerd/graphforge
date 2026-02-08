@@ -145,9 +145,14 @@ MULT_OP: "*" | "/" | "%"
 ?primary_expr: function_call
              | property_access
              | case_expr
+             | exists_expr
+             | count_expr
              | literal
              | variable
              | "(" expression ")"
+
+exists_expr: "EXISTS"i "{" single_part_query "}"
+count_expr: "COUNT"i "{" single_part_query "}"
 
 function_call: FUNCTION_NAME "(" function_args? ")"
 

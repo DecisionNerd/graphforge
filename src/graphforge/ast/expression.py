@@ -231,3 +231,25 @@ class ListComprehension(BaseModel):
         return v
 
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
+class SubqueryExpression(BaseModel):
+    """Subquery expression for EXISTS and COUNT.
+
+    Examples:
+        EXISTS { MATCH (p)-[:KNOWS]->() }
+        COUNT { MATCH (p)-[:KNOWS]->() }
+    """
+
+    type: str = Field(..., description="Subquery type: EXISTS or COUNT")
+    query: Any = Field(..., description="Nested query (CypherQuery AST)")
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        """Validate subquery type."""
+        if v not in ("EXISTS", "COUNT"):
+            raise ValueError(f"Subquery type must be EXISTS or COUNT, got {v}")
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}

@@ -72,15 +72,17 @@ class QueryExecutor:
     each stage of the query.
     """
 
-    def __init__(self, graph: Graph, graphforge=None):
+    def __init__(self, graph: Graph, graphforge=None, planner=None):
         """Initialize executor with a graph.
 
         Args:
             graph: The graph to query
             graphforge: Optional GraphForge instance for CREATE operations
+            planner: Optional QueryPlanner instance for subquery execution
         """
         self.graph = graph
         self.graphforge = graphforge
+        self.planner = planner
 
     def execute(self, operators: list) -> list[dict]:
         """Execute a pipeline of operators.
@@ -293,7 +295,7 @@ class QueryExecutor:
 
         for ctx in input_rows:
             # Evaluate predicate
-            value = evaluate_expression(op.predicate, ctx)
+            value = evaluate_expression(op.predicate, ctx, self)
 
             # Keep row if predicate is true
             if isinstance(value, CypherBool) and value.value:
@@ -309,7 +311,7 @@ class QueryExecutor:
             row = {}
             for i, return_item in enumerate(op.items):
                 # Extract expression and alias from ReturnItem
-                value = evaluate_expression(return_item.expression, ctx)
+                value = evaluate_expression(return_item.expression, ctx, self)
 
                 # Determine column name
                 if return_item.alias:
@@ -354,7 +356,7 @@ class QueryExecutor:
 
             for return_item in op.items:
                 # Evaluate expression
-                value = evaluate_expression(return_item.expression, ctx)
+                value = evaluate_expression(return_item.expression, ctx, self)
 
                 # Determine variable name to bind
                 if return_item.alias:
@@ -377,7 +379,7 @@ class QueryExecutor:
         if op.predicate:
             filtered = []
             for ctx in result:
-                value = evaluate_expression(op.predicate, ctx)
+                value = evaluate_expression(op.predicate, ctx, self)
                 if isinstance(value, CypherBool) and value.value:
                     filtered.append(ctx)
             result = filtered
@@ -414,8 +416,8 @@ class QueryExecutor:
             def compare_rows(ctx1, ctx2):
                 """Compare two contexts by evaluating sort expressions."""
                 for sort_item in op.sort_items:  # type: ignore[union-attr]
-                    val1 = evaluate_expression(sort_item.expression, ctx1)
-                    val2 = evaluate_expression(sort_item.expression, ctx2)
+                    val1 = evaluate_expression(sort_item.expression, ctx1, self)
+                    val2 = evaluate_expression(sort_item.expression, ctx2, self)
                     cmp = compare_values(val1, val2, sort_item.ascending)
                     if cmp != 0:
                         return cmp
@@ -505,7 +507,7 @@ class QueryExecutor:
             try:
                 # Try to evaluate all ORDER BY expressions from first context
                 for order_item in op.items:
-                    evaluate_expression(order_item.expression, input_rows[0])
+                    evaluate_expression(order_item.expression, input_rows[0], self)
                 # If we got here, all ORDER BY expressions are available - skip return_items eval
                 skip_return_items_eval = True
             except (KeyError, AttributeError):
@@ -527,7 +529,7 @@ class QueryExecutor:
                         # They must be evaluated by the Aggregate operator
                         if not isinstance(return_item.expression, FunctionCall):
                             # Evaluate the expression and bind it with the alias name
-                            value = evaluate_expression(return_item.expression, ctx)
+                            value = evaluate_expression(return_item.expression, ctx, self)
                             extended_ctx.bind(return_item.alias, value)
 
             extended_rows.append(extended_ctx)
@@ -563,8 +565,8 @@ class QueryExecutor:
         def multi_key_compare(ctx1, ctx2):
             """Compare two contexts by all sort keys."""
             for order_item in op.items:
-                val1 = evaluate_expression(order_item.expression, ctx1)
-                val2 = evaluate_expression(order_item.expression, ctx2)
+                val1 = evaluate_expression(order_item.expression, ctx1, self)
+                val2 = evaluate_expression(order_item.expression, ctx2, self)
                 cmp_result = compare_values(val1, val2, order_item.ascending)
                 if cmp_result != 0:
                     return cmp_result
@@ -669,7 +671,7 @@ class QueryExecutor:
             for ctx in input_rows:
                 # Compute grouping key
                 key_values = tuple(
-                    self._value_to_hashable(evaluate_expression(expr, ctx))
+                    self._value_to_hashable(evaluate_expression(expr, ctx, self))
                     for expr in op.grouping_exprs
                 )
                 groups[key_values].append(ctx)
@@ -843,7 +845,7 @@ class QueryExecutor:
             seen: set[Any] | None = set() if func_call.distinct else None
 
             for ctx in group_rows:
-                value = evaluate_expression(func_call.args[0], ctx)
+                value = evaluate_expression(func_call.args[0], ctx, self)
                 if not isinstance(value, CypherNull):
                     if func_call.distinct and seen is not None:
                         hashable = self._value_to_hashable(value)
@@ -863,7 +865,7 @@ class QueryExecutor:
             seen_hashes: set[Any] = set()
 
             for ctx in group_rows:
-                value = evaluate_expression(func_call.args[0], ctx)
+                value = evaluate_expression(func_call.args[0], ctx, self)
                 # Skip NULL values
                 if not isinstance(value, CypherNull):
                     if func_call.distinct:
@@ -879,7 +881,7 @@ class QueryExecutor:
         # SUM, AVG, MIN, MAX require evaluating the expression
         values: list[Any] = []
         for ctx in group_rows:
-            value = evaluate_expression(func_call.args[0], ctx)
+            value = evaluate_expression(func_call.args[0], ctx, self)
             if not isinstance(value, CypherNull):
                 if func_call.distinct:
                     hashable = self._value_to_hashable(value)
@@ -1026,7 +1028,7 @@ class QueryExecutor:
         if node_pattern.properties:
             for key, value_expr in node_pattern.properties.items():
                 # Evaluate the expression to get the value
-                cypher_value = evaluate_expression(value_expr, ctx)
+                cypher_value = evaluate_expression(value_expr, ctx, self)
                 # Convert CypherValue to Python value (handles nested lists/maps)
                 properties[key] = _cypher_to_python(cypher_value)
 
@@ -1054,7 +1056,7 @@ class QueryExecutor:
         if hasattr(rel_pattern, "properties") and rel_pattern.properties:
             for key, value_expr in rel_pattern.properties.items():
                 # Evaluate the expression to get the value
-                cypher_value = evaluate_expression(value_expr, ctx)
+                cypher_value = evaluate_expression(value_expr, ctx, self)
                 # Convert CypherValue to Python value (handles nested lists/maps)
                 properties[key] = _cypher_to_python(cypher_value)
 
@@ -1287,7 +1289,7 @@ class QueryExecutor:
                             if node_pattern.properties:
                                 match = True
                                 for key, value_expr in node_pattern.properties.items():
-                                    expected_value = evaluate_expression(value_expr, new_ctx)
+                                    expected_value = evaluate_expression(value_expr, new_ctx, self)
                                     if key not in node.properties:
                                         match = False
                                         break
@@ -1355,7 +1357,7 @@ class QueryExecutor:
                     element = ctx.bindings[var_name]
 
                     # Evaluate the new value
-                    new_value = evaluate_expression(value_expr, ctx)
+                    new_value = evaluate_expression(value_expr, ctx, self)
 
                     # Update the property on the element
                     element.properties[prop_name] = new_value
@@ -1382,7 +1384,7 @@ class QueryExecutor:
 
         for ctx in input_rows:
             # Evaluate the list expression
-            value = evaluate_expression(op.expression, ctx)
+            value = evaluate_expression(op.expression, ctx, self)
 
             # Handle NULL - treated as empty list (produces no rows)
             if isinstance(value, CypherNull):

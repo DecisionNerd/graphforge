@@ -175,7 +175,7 @@ class GraphForge:
         # Initialize query execution components
         self.parser = CypherParser()
         self.planner = QueryPlanner()
-        self.executor = QueryExecutor(self.graph, graphforge=self)
+        self.executor = QueryExecutor(self.graph, graphforge=self, planner=self.planner)
 
     @classmethod
     def from_dataset(cls, name: str, path: str | Path | None = None) -> "GraphForge":

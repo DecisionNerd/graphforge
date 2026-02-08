@@ -601,6 +601,26 @@ class ASTTransformer(Transformer):
         result = items[1]
         return (condition, result)
 
+    def exists_expr(self, items):
+        """Transform EXISTS subquery expression.
+
+        Syntax: EXISTS { MATCH ... }
+        """
+        from graphforge.ast.expression import SubqueryExpression
+
+        # items[0] is the nested query
+        return SubqueryExpression(type="EXISTS", query=items[0])
+
+    def count_expr(self, items):
+        """Transform COUNT subquery expression.
+
+        Syntax: COUNT { MATCH ... }
+        """
+        from graphforge.ast.expression import SubqueryExpression
+
+        # items[0] is the nested query
+        return SubqueryExpression(type="COUNT", query=items[0])
+
     def variable(self, items):
         """Transform variable reference."""
         return Variable(name=self._get_token_value(items[0]))
