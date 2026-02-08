@@ -306,7 +306,7 @@ class QueryExecutor:
             from graphforge.types.graph import EdgeRef, NodeRef
 
             stack: list[tuple[NodeRef, list[EdgeRef], int, set[str | int]]] = [
-                (src_node, [], 0, set())
+                (src_node, [], 0, {src_node.id})
             ]
 
             while stack:
@@ -357,7 +357,7 @@ class QueryExecutor:
 
                         # Cycle detection - don't revisit nodes in current path
                         if next_node.id not in visited_in_path:
-                            new_visited = visited_in_path | {current_node.id}
+                            new_visited = visited_in_path | {next_node.id}
                             stack.append((next_node, [*edge_path, edge], depth + 1, new_visited))
 
         return result
@@ -1580,8 +1580,10 @@ class QueryExecutor:
         for branch in op.branches:
             # Execute this branch's pipeline
             branch_results: list[Any] = input_rows if input_rows else [ExecutionContext()]
-            for branch_op in branch:
-                branch_results = self._execute_operator(branch_op, branch_results, 0, len(branch))
+            for op_index, branch_op in enumerate(branch):
+                branch_results = self._execute_operator(
+                    branch_op, branch_results, op_index, len(branch)
+                )
             all_results.extend(branch_results)
 
         # UNION (not UNION ALL) requires deduplication

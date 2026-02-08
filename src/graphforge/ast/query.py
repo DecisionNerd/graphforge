@@ -26,3 +26,22 @@ class CypherQuery:
     """
 
     clauses: list[Any]  # List of Clause nodes
+
+
+@dataclass
+class UnionQuery:
+    """AST node for UNION queries.
+
+    Combines results from multiple query branches using UNION or UNION ALL.
+
+    Attributes:
+        branches: List of CypherQuery objects representing each branch
+        all: True for UNION ALL (keeps duplicates), False for UNION (removes duplicates)
+
+    Examples:
+        MATCH (n:Person) RETURN n UNION MATCH (m:Company) RETURN m
+        MATCH (n) RETURN n.name UNION ALL MATCH (m) RETURN m.name
+    """
+
+    branches: list[CypherQuery]
+    all: bool

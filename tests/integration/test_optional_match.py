@@ -1,8 +1,11 @@
 """Integration tests for OPTIONAL MATCH clause."""
 
+import pytest
+
 from graphforge import GraphForge
 
 
+@pytest.mark.integration
 class TestOptionalMatchBasic:
     """Test basic OPTIONAL MATCH functionality."""
 
@@ -109,6 +112,7 @@ class TestOptionalMatchBasic:
         assert results[1]["friend"].value == "Charlie"
 
 
+@pytest.mark.integration
 class TestOptionalMatchNullHandling:
     """Test NULL propagation in OPTIONAL MATCH."""
 

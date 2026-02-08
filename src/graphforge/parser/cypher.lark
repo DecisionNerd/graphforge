@@ -204,7 +204,10 @@ property: IDENTIFIER ":" expression
 list_literal: "[" [expression ("," expression)*] "]"
             | list_comprehension
 
-list_comprehension: "[" variable "IN"i expression ["WHERE"i expression] ["|" expression] "]"
+list_comprehension: "[" variable "IN"i expression comp_where_clause? comp_map_clause? "]"
+
+comp_where_clause: "WHERE"i expression
+comp_map_clause: "|" expression
 map_literal: "{" [map_pair ("," map_pair)*] "}"
 map_pair: (IDENTIFIER | STRING) ":" expression
 

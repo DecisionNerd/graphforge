@@ -1,8 +1,11 @@
 """Integration tests for EXISTS and COUNT subquery expressions."""
 
+import pytest
+
 from graphforge import GraphForge
 
 
+@pytest.mark.integration
 class TestExistsSubquery:
     """Test EXISTS subquery expressions."""
 
@@ -78,6 +81,7 @@ class TestExistsSubquery:
         assert results_sorted[2]["has_friends"].value is False
 
 
+@pytest.mark.integration
 class TestCountSubquery:
     """Test COUNT subquery expressions."""
 
@@ -175,6 +179,7 @@ class TestCountSubquery:
         assert results_sorted[1]["friend_count"].value == 1
 
 
+@pytest.mark.integration
 class TestSubqueryEdgeCases:
     """Test edge cases for subquery expressions."""
 

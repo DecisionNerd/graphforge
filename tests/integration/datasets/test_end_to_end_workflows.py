@@ -10,6 +10,7 @@ from graphforge import GraphForge
 from graphforge.datasets import get_dataset_info, list_datasets, load_dataset
 
 
+@pytest.mark.integration
 class TestDatasetDiscovery:
     """Test dataset discovery and metadata access."""
 
@@ -54,6 +55,8 @@ class TestDatasetDiscovery:
         assert info.edges == 14496
 
 
+@pytest.mark.integration
+@pytest.mark.slow
 class TestSmallDatasetLoading:
     """Test loading and querying small datasets (<5MB)."""
 
@@ -118,6 +121,8 @@ class TestSmallDatasetLoading:
             assert row["degree"].value > 10
 
 
+@pytest.mark.integration
+@pytest.mark.slow
 class TestComplexQueries:
     """Test complex query patterns on real datasets."""
 
@@ -222,11 +227,13 @@ class TestComplexQueries:
             RETURN p.name AS name
         """)
 
-        assert len(results) > 0
-        names = [r["name"].value for r in results]
-        assert "Alice" in names or "Carol" in names
+        assert len(results) == 2
+        names = {r["name"].value for r in results}
+        assert names == {"Alice", "Carol"}, f"Expected Alice and Carol, got {names}"
+        assert "Bob" not in names
 
 
+@pytest.mark.integration
 class TestDataExportWorkflow:
     """Test data export workflows."""
 
@@ -267,6 +274,7 @@ class TestDataExportWorkflow:
         assert edge_count == 1
 
 
+@pytest.mark.integration
 class TestRealWorldUseCases:
     """Test real-world use case scenarios."""
 

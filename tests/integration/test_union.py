@@ -162,13 +162,13 @@ class TestUnionEdgeCases:
         # Should have 0 results
         assert len(results) == 0
 
-    def test_union_different_column_count(self):
-        """Test UNION requires same number of columns."""
+    def test_union_different_value_types(self):
+        """Test UNION with same column count but differing value types."""
         gf = GraphForge()
 
         gf.execute("CREATE (p:Person {name: 'Alice', age: 30})")
 
-        # This should work - both return single column
+        # This should work - both return single column with same name but different types
         results = gf.execute("""
             MATCH (p:Person) RETURN p.name AS name
             UNION
@@ -176,3 +176,23 @@ class TestUnionEdgeCases:
         """)
 
         assert len(results) == 2  # 'Alice' and 30 (deduplicated)
+
+    def test_union_mismatched_column_count(self):
+        """Test UNION behavior with different numbers of columns.
+
+        Note: Current implementation does not validate column count mismatch.
+        This test documents the current behavior (no error raised).
+        """
+        gf = GraphForge()
+
+        gf.execute("CREATE (p:Person {name: 'Alice', age: 30})")
+
+        # Different column counts - currently allowed but may produce unexpected results
+        results = gf.execute("""
+            MATCH (p:Person) RETURN p.name AS name
+            UNION
+            MATCH (p:Person) RETURN p.name AS name, p.age AS age
+        """)
+
+        # Current behavior: both branches execute, results merged without validation
+        assert len(results) == 2

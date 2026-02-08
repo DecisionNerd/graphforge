@@ -234,17 +234,19 @@ class GraphForge:
         ast = self.parser.parse(query)
 
         # Check if this is a UNION query
-        if isinstance(ast, dict) and ast.get("type") == "union":
+        from graphforge.ast.query import UnionQuery
+
+        if isinstance(ast, UnionQuery):
             # Handle UNION query: plan each branch separately
             branch_operators = []
-            for branch_ast in ast["branches"]:
+            for branch_ast in ast.branches:
                 branch_ops = self.planner.plan(branch_ast)
                 branch_operators.append(branch_ops)
 
             # Create Union operator
             from graphforge.planner.operators import Union
 
-            union_op = Union(branches=branch_operators, all=ast["all"])
+            union_op = Union(branches=branch_operators, all=ast.all)
             operators = [union_op]
         else:
             # Regular query

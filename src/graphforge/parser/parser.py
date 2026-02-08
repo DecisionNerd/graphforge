@@ -58,26 +58,40 @@ class ASTTransformer(Transformer):
     def union_query(self, items):
         """Transform UNION query.
 
-        Returns a dict with 'type': 'union', 'branches': [...], 'all': bool.
+        Returns a UnionQuery AST node with branches and union type.
+        Validates that all UNION clauses are consistent (all UNION or all UNION ALL).
         """
+        from graphforge.ast.query import UnionQuery
+
         # items structure: [query1, union_clause, query2, union_clause, query3, ...]
         # union_clause is either "UNION" or "UNION ALL"
         branches = []
-        union_all = False
+        union_types = []
 
         i = 0
         while i < len(items):
             if isinstance(items[i], str):
                 # This is a union clause indicator
-                union_all = items[i] == "UNION ALL"
+                union_types.append(items[i])
                 i += 1
             else:
                 # This is a query (CypherQuery object)
                 branches.append(items[i])
                 i += 1
 
-        # For simplicity, use the last UNION type seen
-        return {"type": "union", "branches": branches, "all": union_all}
+        # Validate consistency: all UNION or all UNION ALL
+        if union_types:
+            first_type = union_types[0]
+            if not all(ut == first_type for ut in union_types):
+                raise ValueError(
+                    "Mixed UNION and UNION ALL in same query. "
+                    "Use either UNION or UNION ALL consistently."
+                )
+            union_all = first_type == "UNION ALL"
+        else:
+            union_all = False
+
+        return UnionQuery(branches=branches, all=union_all)
 
     def union_distinct(self, items):
         """Transform UNION (without ALL)."""
@@ -773,11 +787,25 @@ class ASTTransformer(Transformer):
         # The executor will evaluate these expressions later
         return Literal(value=filtered_items)
 
+    def comp_where_clause(self, items):
+        """Transform WHERE clause in list comprehension.
+
+        Returns the filter expression.
+        """
+        return ("WHERE", items[0])
+
+    def comp_map_clause(self, items):
+        """Transform map clause (|) in list comprehension.
+
+        Returns the map expression.
+        """
+        return ("MAP", items[0])
+
     def list_comprehension(self, items):
         """Transform list comprehension.
 
         Syntax: [x IN list WHERE x > 5 | x * 2]
-        items: [variable, list_expr, optional_where, optional_map]
+        items: [variable, list_expr, optional_where_clause, optional_map_clause]
         """
         from graphforge.ast.expression import ListComprehension
 
@@ -789,21 +817,14 @@ class ASTTransformer(Transformer):
         filter_expr = None
         map_expr = None
 
-        # items[2] can be WHERE expression or | expression or neither
-        # items[3] can be | expression if items[2] was WHERE
-        if len(items) > 2:
-            # Check if this is a filter or map expression
-            # The grammar ensures WHERE comes before |
-            if len(items) == 3:
-                # Could be WHERE expr or | expr
-                # We need to check context - for now assume if 3 items, it's filter
-                # Actually, the grammar will give us items in order: var, list, [where], [map]
-                # So items[2] is either WHERE or |
-                filter_expr = items[2]
-            elif len(items) == 4:
-                # Both WHERE and |
-                filter_expr = items[2]
-                map_expr = items[3]
+        # Process optional WHERE and MAP clauses (tagged tuples from sub-rules)
+        for item in items[2:]:
+            if isinstance(item, tuple):
+                tag, expr = item
+                if tag == "WHERE":
+                    filter_expr = expr
+                elif tag == "MAP":
+                    map_expr = expr
 
         return ListComprehension(
             variable=variable, list_expr=list_expr, filter_expr=filter_expr, map_expr=map_expr
