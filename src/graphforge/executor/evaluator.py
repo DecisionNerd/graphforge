@@ -407,7 +407,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
         if not isinstance(list_val, CypherList):
             raise TypeError(f"IN requires a list, got {type(list_val).__name__}")
 
-        result = []
+        items: list[CypherValue] = []
         for item in list_val.value:
             # Create new context with loop variable bound
             new_ctx = ExecutionContext()
@@ -427,9 +427,9 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
             else:
                 result_val = item
 
-            result.append(result_val)
+            items.append(result_val)
 
-        return CypherList(result)
+        return CypherList(items)
 
     # Quantifier expressions (ALL, ANY, NONE, SINGLE)
     if isinstance(expr, QuantifierExpression):

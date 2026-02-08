@@ -14,6 +14,7 @@ from graphforge.planner.operators import (
     Delete,
     Distinct,
     ExpandEdges,
+    ExpandVariableLength,
     Filter,
     Limit,
     Merge,
@@ -293,23 +294,23 @@ class QueryExecutor:
         return result
 
     def _execute_variable_expand(
-        self, op: "ExpandVariableLength", input_rows: list[ExecutionContext]
+        self, op: ExpandVariableLength, input_rows: list[ExecutionContext]
     ) -> list[ExecutionContext]:
         """Execute ExpandVariableLength operator with recursive traversal and cycle detection."""
-        from graphforge.planner.operators import ExpandVariableLength
-        from graphforge.types.values import CypherList
-
         result = []
 
         for ctx in input_rows:
             src_node = ctx.get(op.src_var)
 
             # Perform depth-first search with cycle detection
-            visited_in_path = set()
-            stack = [(src_node, [], 0)]  # (current_node, edge_path, depth)
+            from graphforge.types.graph import EdgeRef, NodeRef
+
+            stack: list[tuple[NodeRef, list[EdgeRef], int, set[str | int]]] = [
+                (src_node, [], 0, set())
+            ]
 
             while stack:
-                current_node, edge_path, depth = stack.pop()
+                current_node, edge_path, depth, visited_in_path = stack.pop()
 
                 # Check if we've reached valid depth range
                 if op.min_hops <= depth <= (op.max_hops if op.max_hops else float("inf")):
@@ -321,7 +322,10 @@ class QueryExecutor:
 
                     # Bind edge list if variable provided
                     if op.edge_var:
-                        new_ctx.bind(op.edge_var, CypherList(edge_path))
+                        # EdgeRef objects can be stored in CypherList
+                        from typing import cast
+
+                        new_ctx.bind(op.edge_var, CypherList(cast(list[CypherValue], edge_path)))
 
                     result.append(new_ctx)
 
@@ -354,7 +358,7 @@ class QueryExecutor:
                         # Cycle detection - don't revisit nodes in current path
                         if next_node.id not in visited_in_path:
                             new_visited = visited_in_path | {current_node.id}
-                            stack.append((next_node, edge_path + [edge], depth + 1))
+                            stack.append((next_node, [*edge_path, edge], depth + 1, new_visited))
 
         return result
 

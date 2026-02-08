@@ -605,11 +605,11 @@ class TestFunctionCalls:
         """Unknown type function raises ValueError."""
         ctx = ExecutionContext()
         expr = FunctionCall(
-            name="toBoolean",  # Not implemented
+            name="toUnknown",  # Not implemented
             args=[Literal(value="true")],
         )
 
-        with pytest.raises(ValueError, match="Unknown function: TOBOOLEAN"):
+        with pytest.raises(ValueError, match="Unknown function: TOUNKNOWN"):
             evaluate_expression(expr, ctx)
 
     def test_to_integer_unsupported_type_returns_null(self):

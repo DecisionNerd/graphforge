@@ -755,7 +755,8 @@ class ASTTransformer(Transformer):
         """Transform list literal.
 
         items can be empty (for []) or contain expressions.
-        Returns a Literal containing a Python list, or a ListComprehension if that's what was parsed.
+        Returns a Literal containing a Python list, or a ListComprehension if that's what was
+        parsed.
         """
         from graphforge.ast.expression import ListComprehension
 

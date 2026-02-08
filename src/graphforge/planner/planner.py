@@ -29,7 +29,6 @@ from graphforge.planner.operators import (
     Create,
     Delete,
     ExpandEdges,
-    ExpandVariableLength,
     Filter,
     Limit,
     Merge,

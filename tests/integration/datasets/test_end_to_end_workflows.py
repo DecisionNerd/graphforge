@@ -20,19 +20,19 @@ class TestDatasetDiscovery:
 
         # Verify each dataset has required metadata
         for ds_info in datasets:
-            assert hasattr(ds_info, 'name')
-            assert hasattr(ds_info, 'nodes')
-            assert hasattr(ds_info, 'edges')
-            assert hasattr(ds_info, 'category')
+            assert hasattr(ds_info, "name")
+            assert hasattr(ds_info, "nodes")
+            assert hasattr(ds_info, "edges")
+            assert hasattr(ds_info, "category")
 
     def test_filter_by_category(self):
         """Filter datasets by category."""
-        social_datasets = list_datasets(category='social')
+        social_datasets = list_datasets(category="social")
         assert len(social_datasets) > 0
 
         # Verify all are social category
         for ds in social_datasets:
-            assert ds.category == 'social'
+            assert ds.category == "social"
 
     def test_filter_by_size(self):
         """Filter datasets by maximum size."""
@@ -41,15 +41,15 @@ class TestDatasetDiscovery:
 
         # Verify all are within size limit
         for ds in small_datasets:
-            if hasattr(ds, 'size_mb') and ds.size_mb is not None:
+            if hasattr(ds, "size_mb") and ds.size_mb is not None:
                 assert ds.size_mb <= 5.0
 
     def test_get_dataset_info_by_name(self):
         """Get specific dataset metadata by name."""
         # Use a known small dataset
-        info = get_dataset_info('snap-ca-grqc')
-        assert info.name == 'snap-ca-grqc'
-        assert info.category == 'collaboration'
+        info = get_dataset_info("snap-ca-grqc")
+        assert info.name == "snap-ca-grqc"
+        assert info.category == "collaboration"
         assert info.nodes == 5242
         assert info.edges == 14496
 
@@ -62,22 +62,22 @@ class TestSmallDatasetLoading:
         gf = GraphForge()
 
         # Load small collaboration dataset (General Relativity)
-        load_dataset(gf, 'snap-ca-grqc')
+        load_dataset(gf, "snap-ca-grqc")
 
         # Verify data loaded
-        node_count = gf.execute("MATCH (n) RETURN count(n) AS count")[0]['count'].value
+        node_count = gf.execute("MATCH (n) RETURN count(n) AS count")[0]["count"].value
         assert node_count == 5242
 
         # SNAP datasets are undirected, so edges are stored bidirectionally
         # (approximately 2x the listed edge count, accounting for any self-loops)
-        edge_count = gf.execute("MATCH ()-[r]->() RETURN count(r) AS count")[0]['count'].value
+        edge_count = gf.execute("MATCH ()-[r]->() RETURN count(r) AS count")[0]["count"].value
         assert edge_count > 28000 and edge_count < 30000  # ~2x edges for undirected
 
     @pytest.mark.skip(reason="size() with list comprehension in WITH not yet supported")
     def test_query_degree_distribution(self):
         """Query degree distribution of a network."""
         gf = GraphForge()
-        load_dataset(gf, 'snap-ca-grqc')
+        load_dataset(gf, "snap-ca-grqc")
 
         # Get degree distribution
         results = gf.execute("""
@@ -90,9 +90,9 @@ class TestSmallDatasetLoading:
 
         assert len(results) > 0
         # Verify results are sorted by degree descending
-        prev_degree = float('inf')
+        prev_degree = float("inf")
         for row in results:
-            degree = row['out_degree'].value
+            degree = row["out_degree"].value
             assert degree <= prev_degree
             prev_degree = degree
 
@@ -100,7 +100,7 @@ class TestSmallDatasetLoading:
     def test_find_high_degree_nodes(self):
         """Find nodes with highest connectivity."""
         gf = GraphForge()
-        load_dataset(gf, 'snap-ca-grqc')
+        load_dataset(gf, "snap-ca-grqc")
 
         # Find top 10 most connected nodes
         results = gf.execute("""
@@ -115,7 +115,7 @@ class TestSmallDatasetLoading:
         assert len(results) > 0
         # Verify all have degree > 10
         for row in results:
-            assert row['degree'].value > 10
+            assert row["degree"].value > 10
 
 
 class TestComplexQueries:
@@ -125,7 +125,7 @@ class TestComplexQueries:
     def test_optional_match_pattern(self):
         """Use OPTIONAL MATCH to find nodes with optional relationships."""
         gf = GraphForge()
-        load_dataset(gf, 'snap-ca-grqc')
+        load_dataset(gf, "snap-ca-grqc")
 
         # Find nodes and their optional connections to high-degree nodes
         results = gf.execute("""
@@ -144,7 +144,7 @@ class TestComplexQueries:
     def test_union_query_pattern(self):
         """Use UNION to combine results from different patterns."""
         gf = GraphForge()
-        load_dataset(gf, 'snap-ca-grqc')
+        load_dataset(gf, "snap-ca-grqc")
 
         # Get high and low degree nodes separately, then combine
         results = gf.execute("""
@@ -160,8 +160,8 @@ class TestComplexQueries:
         """)
 
         assert len(results) == 2
-        categories = {r['category'].value for r in results}
-        assert categories == {'high', 'low'}
+        categories = {r["category"].value for r in results}
+        assert categories == {"high", "low"}
 
     @pytest.mark.skip(reason="size() function in WHERE not parsing correctly")
     def test_list_comprehension_pattern(self):
@@ -186,12 +186,12 @@ class TestComplexQueries:
 
         assert len(results) > 0
         for row in results:
-            assert row['count_high_scores'].value > 2
+            assert row["count_high_scores"].value > 2
 
     def test_exists_subquery_pattern(self):
         """Use EXISTS to check for pattern existence."""
         gf = GraphForge()
-        load_dataset(gf, 'snap-ca-grqc')
+        load_dataset(gf, "snap-ca-grqc")
 
         # Find nodes that have outgoing connections
         results = gf.execute("""
@@ -201,7 +201,7 @@ class TestComplexQueries:
         """)
 
         assert len(results) == 1
-        count = results[0]['nodes_with_outgoing'].value
+        count = results[0]["nodes_with_outgoing"].value
         assert count > 0
 
     def test_quantifier_pattern(self):
@@ -223,8 +223,8 @@ class TestComplexQueries:
         """)
 
         assert len(results) > 0
-        names = [r['name'].value for r in results]
-        assert 'Alice' in names or 'Carol' in names
+        names = [r["name"].value for r in results]
+        assert "Alice" in names or "Carol" in names
 
 
 class TestDataExportWorkflow:
@@ -233,6 +233,7 @@ class TestDataExportWorkflow:
     def test_export_to_json(self, tmp_path):
         """Export graph data to JSON format."""
         from pathlib import Path
+
         from graphforge.datasets.exporters import JSONGraphExporter
         from graphforge.datasets.loaders import JSONGraphLoader
 
@@ -259,10 +260,10 @@ class TestDataExportWorkflow:
         loader.load(gf2, output_file)
 
         # Verify data
-        node_count = gf2.execute("MATCH (n) RETURN count(n) AS count")[0]['count'].value
+        node_count = gf2.execute("MATCH (n) RETURN count(n) AS count")[0]["count"].value
         assert node_count == 2
 
-        edge_count = gf2.execute("MATCH ()-[r]->() RETURN count(r) AS count")[0]['count'].value
+        edge_count = gf2.execute("MATCH ()-[r]->() RETURN count(r) AS count")[0]["count"].value
         assert edge_count == 1
 
 
@@ -293,8 +294,8 @@ class TestRealWorldUseCases:
         """)
 
         assert len(results) == 2
-        names = [r['common_friend'].value for r in results]
-        assert names == ['Carol', 'Dave']
+        names = [r["common_friend"].value for r in results]
+        assert names == ["Carol", "Dave"]
 
     def test_variable_length_paths(self):
         """Find variable-length paths between nodes."""
@@ -320,8 +321,8 @@ class TestRealWorldUseCases:
 
         # Should find B (1 hop), C (2 hops), and D (3 hops)
         assert len(results) == 3
-        destinations = [r['destination'].value for r in results]
-        assert destinations == ['B', 'C', 'D']
+        destinations = [r["destination"].value for r in results]
+        assert destinations == ["B", "C", "D"]
 
     def test_aggregation_with_grouping(self):
         """Aggregate data with grouping."""
@@ -343,9 +344,9 @@ class TestRealWorldUseCases:
         """)
 
         assert len(results) == 2
-        results_dict = {r['category'].value: r['avg_price'].value for r in results}
-        assert results_dict['A'] == 15.0
-        assert results_dict['B'] == 20.0
+        results_dict = {r["category"].value: r["avg_price"].value for r in results}
+        assert results_dict["A"] == 15.0
+        assert results_dict["B"] == 20.0
 
     def test_filtering_with_multiple_conditions(self):
         """Complex filtering with multiple WHERE conditions."""
@@ -368,6 +369,6 @@ class TestRealWorldUseCases:
         """)
 
         assert len(results) == 2
-        names = [r['name'].value for r in results]
-        assert 'Alice' in names
-        assert 'Carol' in names
+        names = [r["name"].value for r in results]
+        assert "Alice" in names
+        assert "Carol" in names
