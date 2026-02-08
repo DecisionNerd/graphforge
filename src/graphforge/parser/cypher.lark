@@ -183,6 +183,9 @@ property: IDENTIFIER ":" expression
         | map_literal
 
 list_literal: "[" [expression ("," expression)*] "]"
+            | list_comprehension
+
+list_comprehension: "[" variable "IN"i expression ["WHERE"i expression] ["|" expression] "]"
 map_literal: "{" [map_pair ("," map_pair)*] "}"
 map_pair: (IDENTIFIER | STRING) ":" expression
 

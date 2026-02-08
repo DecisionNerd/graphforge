@@ -643,12 +643,54 @@ class ASTTransformer(Transformer):
         """Transform list literal.
 
         items can be empty (for []) or contain expressions.
-        Returns a Literal containing a Python list.
+        Returns a Literal containing a Python list, or a ListComprehension if that's what was parsed.
         """
+        from graphforge.ast.expression import ListComprehension
+
+        # Check if this is actually a list comprehension (alternative rule)
+        if len(items) == 1 and isinstance(items[0], ListComprehension):
+            return items[0]
+
         # items contains the expressions in the list
         # We return a Literal with a list of expressions
         # The executor will evaluate these expressions later
         return Literal(value=list(items))
+
+    def list_comprehension(self, items):
+        """Transform list comprehension.
+
+        Syntax: [x IN list WHERE x > 5 | x * 2]
+        items: [variable, list_expr, optional_where, optional_map]
+        """
+        from graphforge.ast.expression import ListComprehension
+
+        # items[0] is a Variable object, extract the name
+        variable = (
+            items[0].name if isinstance(items[0], Variable) else self._get_token_value(items[0])
+        )
+        list_expr = items[1]
+        filter_expr = None
+        map_expr = None
+
+        # items[2] can be WHERE expression or | expression or neither
+        # items[3] can be | expression if items[2] was WHERE
+        if len(items) > 2:
+            # Check if this is a filter or map expression
+            # The grammar ensures WHERE comes before |
+            if len(items) == 3:
+                # Could be WHERE expr or | expr
+                # We need to check context - for now assume if 3 items, it's filter
+                # Actually, the grammar will give us items in order: var, list, [where], [map]
+                # So items[2] is either WHERE or |
+                filter_expr = items[2]
+            elif len(items) == 4:
+                # Both WHERE and |
+                filter_expr = items[2]
+                map_expr = items[3]
+
+        return ListComprehension(
+            variable=variable, list_expr=list_expr, filter_expr=filter_expr, map_expr=map_expr
+        )
 
     def map_literal(self, items):
         """Transform map literal.

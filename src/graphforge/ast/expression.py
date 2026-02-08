@@ -204,3 +204,30 @@ class CaseExpression(BaseModel):
         return v
 
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
+class ListComprehension(BaseModel):
+    """List comprehension expression for filtering and transforming lists.
+
+    Examples:
+        [x IN [1,2,3] WHERE x > 1] → [2, 3]
+        [x IN [1,2,3] | x * 2] → [2, 4, 6]
+        [x IN [1,2,3] WHERE x > 1 | x * 2] → [4, 6]
+    """
+
+    variable: str = Field(..., min_length=1, description="Loop variable name")
+    list_expr: Any = Field(..., description="Expression that evaluates to a list")
+    filter_expr: Any | None = Field(default=None, description="Optional WHERE filter expression")
+    map_expr: Any | None = Field(
+        default=None, description="Optional transformation expression (after |)"
+    )
+
+    @field_validator("variable")
+    @classmethod
+    def validate_variable(cls, v: str) -> str:
+        """Validate variable name."""
+        if not v[0].isalpha() and v[0] != "_":
+            raise ValueError(f"Variable must start with letter or underscore: {v}")
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}

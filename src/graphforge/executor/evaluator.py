@@ -11,6 +11,7 @@ from graphforge.ast.expression import (
     BinaryOp,
     CaseExpression,
     FunctionCall,
+    ListComprehension,
     Literal,
     PropertyAccess,
     UnaryOp,
@@ -108,7 +109,15 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
                 evaluate_expression(item, ctx)
                 if isinstance(
                     item,
-                    (Literal, Variable, PropertyAccess, BinaryOp, FunctionCall, CaseExpression),
+                    (
+                        Literal,
+                        Variable,
+                        PropertyAccess,
+                        BinaryOp,
+                        FunctionCall,
+                        CaseExpression,
+                        ListComprehension,
+                    ),
                 )
                 else from_python(item)
                 for item in value
@@ -119,7 +128,16 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
             evaluated_dict = {}
             for key, val in value.items():
                 if isinstance(
-                    val, (Literal, Variable, PropertyAccess, BinaryOp, FunctionCall, CaseExpression)
+                    val,
+                    (
+                        Literal,
+                        Variable,
+                        PropertyAccess,
+                        BinaryOp,
+                        FunctionCall,
+                        CaseExpression,
+                        ListComprehension,
+                    ),
                 ):
                     evaluated_dict[key] = evaluate_expression(val, ctx)
                 else:
@@ -374,6 +392,39 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext) -> CypherValue:
             return evaluate_expression(expr.else_expr, ctx)
 
         return CypherNull()
+
+    # List comprehensions
+    if isinstance(expr, ListComprehension):
+        # Evaluate the list expression
+        list_val = evaluate_expression(expr.list_expr, ctx)
+
+        # Must be a list
+        if not isinstance(list_val, CypherList):
+            raise TypeError(f"IN requires a list, got {type(list_val).__name__}")
+
+        result = []
+        for item in list_val.value:
+            # Create new context with loop variable bound
+            new_ctx = ExecutionContext()
+            new_ctx.bindings = dict(ctx.bindings)
+            new_ctx.bind(expr.variable, item)
+
+            # Apply filter if present
+            if expr.filter_expr is not None:
+                filter_val = evaluate_expression(expr.filter_expr, new_ctx)
+                # Skip if filter is false or NULL
+                if not (isinstance(filter_val, CypherBool) and filter_val.value):
+                    continue
+
+            # Apply map transformation if present, otherwise use item as-is
+            if expr.map_expr is not None:
+                result_val = evaluate_expression(expr.map_expr, new_ctx)
+            else:
+                result_val = item
+
+            result.append(result_val)
+
+        return CypherList(result)
 
     # Function calls
     if isinstance(expr, FunctionCall):
