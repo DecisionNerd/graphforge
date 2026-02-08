@@ -6,7 +6,7 @@ against a graph store.
 
 from typing import Any
 
-from graphforge.ast.expression import FunctionCall, Variable
+from graphforge.ast.expression import FunctionCall, PropertyAccess, Variable
 from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
 from graphforge.planner.operators import (
     Aggregate,
@@ -392,6 +392,9 @@ class QueryExecutor:
                     # Simple variable reference - use variable name as column name
                     # This preserves names from WITH clauses
                     key = return_item.expression.name
+                elif isinstance(return_item.expression, PropertyAccess):
+                    # Property access - use dotted notation (e.g., "p.name")
+                    key = f"{return_item.expression.variable}.{return_item.expression.property}"
                 else:
                     # Complex expression without alias - use default column naming
                     key = f"col_{i}"
