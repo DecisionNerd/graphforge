@@ -358,9 +358,9 @@ class TestReturnAliasing:
         # First item has alias
         assert "name" in results[0]
         assert results[0]["name"].value == "Bob"
-        # Second item has default column name
-        assert "col_1" in results[0]
-        assert results[0]["col_1"].value == 25
+        # Second item uses property access notation
+        assert "n.age" in results[0]
+        assert results[0]["n.age"].value == 25
 
     def test_return_relationship_with_aliases(self, simple_graph):
         """Test RETURN relationship items with aliases."""

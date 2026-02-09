@@ -175,7 +175,7 @@ class GraphForge:
         # Initialize query execution components
         self.parser = CypherParser()
         self.planner = QueryPlanner()
-        self.executor = QueryExecutor(self.graph, graphforge=self)
+        self.executor = QueryExecutor(self.graph, graphforge=self, planner=self.planner)
 
     @classmethod
     def from_dataset(cls, name: str, path: str | Path | None = None) -> "GraphForge":
@@ -233,8 +233,24 @@ class GraphForge:
         # Parse query
         ast = self.parser.parse(query)
 
-        # Plan execution
-        operators = self.planner.plan(ast)
+        # Check if this is a UNION query
+        from graphforge.ast.query import UnionQuery
+
+        if isinstance(ast, UnionQuery):
+            # Handle UNION query: plan each branch separately
+            branch_operators = []
+            for branch_ast in ast.branches:
+                branch_ops = self.planner.plan(branch_ast)
+                branch_operators.append(branch_ops)
+
+            # Create Union operator
+            from graphforge.planner.operators import Union
+
+            union_op = Union(branches=branch_operators, all=ast.all)
+            operators = [union_op]
+        else:
+            # Regular query
+            operators = self.planner.plan(ast)
 
         # Execute
         results = self.executor.execute(operators)

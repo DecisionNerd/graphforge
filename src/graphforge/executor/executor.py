@@ -6,7 +6,7 @@ against a graph store.
 
 from typing import Any
 
-from graphforge.ast.expression import FunctionCall, Variable
+from graphforge.ast.expression import FunctionCall, PropertyAccess, Variable
 from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
 from graphforge.planner.operators import (
     Aggregate,
@@ -14,15 +14,20 @@ from graphforge.planner.operators import (
     Delete,
     Distinct,
     ExpandEdges,
+    ExpandVariableLength,
     Filter,
     Limit,
     Merge,
+    OptionalExpandEdges,
+    OptionalScanNodes,
     Project,
     Remove,
     ScanNodes,
     Set,
     Skip,
     Sort,
+    Subquery,
+    Union,
     Unwind,
     With,
 )
@@ -69,15 +74,17 @@ class QueryExecutor:
     each stage of the query.
     """
 
-    def __init__(self, graph: Graph, graphforge=None):
+    def __init__(self, graph: Graph, graphforge=None, planner=None):
         """Initialize executor with a graph.
 
         Args:
             graph: The graph to query
             graphforge: Optional GraphForge instance for CREATE operations
+            planner: Optional QueryPlanner instance for subquery execution
         """
         self.graph = graph
         self.graphforge = graphforge
+        self.planner = planner
 
     def execute(self, operators: list) -> list[dict]:
         """Execute a pipeline of operators.
@@ -97,10 +104,12 @@ class QueryExecutor:
 
         # If there's no Project or Aggregate operator in the pipeline (no RETURN clause),
         # return empty results (Cypher semantics: queries without RETURN produce no output)
-        if operators and not any(isinstance(op, (Project, Aggregate)) for op in operators):
+        # Exception: Union operators contain their own RETURN clauses in branches
+        if operators and not any(isinstance(op, (Project, Aggregate, Union)) for op in operators):
             return []
 
         # At this point, rows has been converted to list[dict] by Project/Aggregate operator
+        # (or Union operator which also returns list[dict])
         return rows
 
     def _execute_operator(
@@ -124,8 +133,19 @@ class QueryExecutor:
         if isinstance(op, ScanNodes):
             return self._execute_scan(op, input_rows)
 
+        if isinstance(op, OptionalScanNodes):
+            return self._execute_optional_scan(op, input_rows)
+
         if isinstance(op, ExpandEdges):
             return self._execute_expand(op, input_rows)
+
+        from graphforge.planner.operators import ExpandVariableLength
+
+        if isinstance(op, ExpandVariableLength):
+            return self._execute_variable_expand(op, input_rows)
+
+        if isinstance(op, OptionalExpandEdges):
+            return self._execute_optional_expand(op, input_rows)
 
         if isinstance(op, Filter):
             return self._execute_filter(op, input_rows)
@@ -171,6 +191,12 @@ class QueryExecutor:
 
         if isinstance(op, Distinct):
             return self._execute_distinct(op, input_rows)
+
+        if isinstance(op, Union):
+            return self._execute_union(op, input_rows)
+
+        if isinstance(op, Subquery):
+            return self._execute_subquery(op, input_rows)
 
         raise TypeError(f"Unknown operator type: {type(op).__name__}")
 
@@ -227,6 +253,69 @@ class QueryExecutor:
 
         return result
 
+    def _execute_optional_scan(
+        self, op: OptionalScanNodes, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute OptionalScanNodes operator with LEFT JOIN semantics.
+
+        Like ScanNodes but preserves input rows with NULL binding when no match found.
+        """
+        result = []
+
+        # For each input row
+        for ctx in input_rows:
+            # Check if variable is already bound (e.g., from WITH clause)
+            if op.variable in ctx.bindings:
+                # Variable already bound - validate it matches the pattern
+                bound_node = ctx.get(op.variable)
+
+                # Check if bound node has required labels
+                if op.labels:
+                    if all(label in bound_node.labels for label in op.labels):
+                        # Node matches pattern - keep the context
+                        result.append(ctx)
+                    else:
+                        # Node doesn't match - OPTIONAL preserves row with NULL
+                        new_ctx = ExecutionContext()
+                        new_ctx.bindings = dict(ctx.bindings)
+                        new_ctx.bind(op.variable, CypherNull())
+                        result.append(new_ctx)
+                else:
+                    # No label requirements - keep the context
+                    result.append(ctx)
+            else:
+                # Variable not bound - do normal scan
+                if op.labels:
+                    # Scan by first label for efficiency
+                    nodes = self.graph.get_nodes_by_label(op.labels[0])
+
+                    # Filter to only nodes with ALL required labels
+                    if len(op.labels) > 1:
+                        nodes = [
+                            node
+                            for node in nodes
+                            if all(label in node.labels for label in op.labels)
+                        ]
+                else:
+                    # Scan all nodes
+                    nodes = self.graph.get_all_nodes()
+
+                if nodes:
+                    # Bind each node
+                    for node in nodes:
+                        new_ctx = ExecutionContext()
+                        new_ctx.bindings = dict(ctx.bindings)
+                        new_ctx.bind(op.variable, node)
+                        result.append(new_ctx)
+                else:
+                    # OPTIONAL semantics: No nodes found - preserve row with NULL
+                    new_ctx = ExecutionContext()
+                    new_ctx.bindings = dict(ctx.bindings)
+                    new_ctx.bind(op.variable, CypherNull())
+                    result.append(new_ctx)
+
+        return result
+
     def _execute_expand(
         self, op: ExpandEdges, input_rows: list[ExecutionContext]
     ) -> list[ExecutionContext]:
@@ -271,6 +360,74 @@ class QueryExecutor:
 
         return result
 
+    def _execute_variable_expand(
+        self, op: ExpandVariableLength, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute ExpandVariableLength operator with recursive traversal and cycle detection."""
+        result = []
+
+        for ctx in input_rows:
+            src_node = ctx.get(op.src_var)
+
+            # Perform depth-first search with cycle detection
+            from graphforge.types.graph import EdgeRef, NodeRef
+
+            stack: list[tuple[NodeRef, list[EdgeRef], int, set[str | int]]] = [
+                (src_node, [], 0, {src_node.id})
+            ]
+
+            while stack:
+                current_node, edge_path, depth, visited_in_path = stack.pop()
+
+                # Check if we've reached valid depth range
+                if op.min_hops <= depth <= (op.max_hops if op.max_hops else float("inf")):
+                    # Yield this path
+                    new_ctx = ExecutionContext()
+                    new_ctx.bindings = dict(ctx.bindings)
+
+                    new_ctx.bind(op.dst_var, current_node)
+
+                    # Bind edge list if variable provided
+                    # Note: Binding raw list of EdgeRef objects (not wrapped in CypherList)
+                    # since EdgeRef is not a CypherValue and individual edges are bound directly
+                    if op.edge_var:
+                        new_ctx.bind(op.edge_var, edge_path)
+
+                    result.append(new_ctx)
+
+                # Continue exploration if we haven't exceeded max depth
+                if op.max_hops is None or depth < op.max_hops:
+                    # Get edges based on direction
+                    if op.direction == "OUT":
+                        edges = self.graph.get_outgoing_edges(current_node.id)
+                    elif op.direction == "IN":
+                        edges = self.graph.get_incoming_edges(current_node.id)
+                    else:  # UNDIRECTED
+                        edges = self.graph.get_outgoing_edges(
+                            current_node.id
+                        ) + self.graph.get_incoming_edges(current_node.id)
+
+                    # Filter by type if specified
+                    if op.edge_types:
+                        edges = [e for e in edges if e.type in op.edge_types]
+
+                    # Add edges to stack for exploration
+                    for edge in edges:
+                        # Determine next node
+                        if op.direction == "OUT":
+                            next_node = edge.dst
+                        elif op.direction == "IN":
+                            next_node = edge.src
+                        else:  # UNDIRECTED
+                            next_node = edge.dst if edge.src.id == current_node.id else edge.src
+
+                        # Cycle detection - don't revisit nodes in current path
+                        if next_node.id not in visited_in_path:
+                            new_visited = visited_in_path | {next_node.id}
+                            stack.append((next_node, [*edge_path, edge], depth + 1, new_visited))
+
+        return result
+
     def _execute_filter(
         self, op: Filter, input_rows: list[ExecutionContext]
     ) -> list[ExecutionContext]:
@@ -279,7 +436,7 @@ class QueryExecutor:
 
         for ctx in input_rows:
             # Evaluate predicate
-            value = evaluate_expression(op.predicate, ctx)
+            value = evaluate_expression(op.predicate, ctx, self)
 
             # Keep row if predicate is true
             if isinstance(value, CypherBool) and value.value:
@@ -295,7 +452,7 @@ class QueryExecutor:
             row = {}
             for i, return_item in enumerate(op.items):
                 # Extract expression and alias from ReturnItem
-                value = evaluate_expression(return_item.expression, ctx)
+                value = evaluate_expression(return_item.expression, ctx, self)
 
                 # Determine column name
                 if return_item.alias:
@@ -305,6 +462,9 @@ class QueryExecutor:
                     # Simple variable reference - use variable name as column name
                     # This preserves names from WITH clauses
                     key = return_item.expression.name
+                elif isinstance(return_item.expression, PropertyAccess):
+                    # Property access - use dotted notation (e.g., "p.name")
+                    key = f"{return_item.expression.variable}.{return_item.expression.property}"
                 else:
                     # Complex expression without alias - use default column naming
                     key = f"col_{i}"
@@ -340,7 +500,7 @@ class QueryExecutor:
 
             for return_item in op.items:
                 # Evaluate expression
-                value = evaluate_expression(return_item.expression, ctx)
+                value = evaluate_expression(return_item.expression, ctx, self)
 
                 # Determine variable name to bind
                 if return_item.alias:
@@ -363,7 +523,7 @@ class QueryExecutor:
         if op.predicate:
             filtered = []
             for ctx in result:
-                value = evaluate_expression(op.predicate, ctx)
+                value = evaluate_expression(op.predicate, ctx, self)
                 if isinstance(value, CypherBool) and value.value:
                     filtered.append(ctx)
             result = filtered
@@ -400,8 +560,8 @@ class QueryExecutor:
             def compare_rows(ctx1, ctx2):
                 """Compare two contexts by evaluating sort expressions."""
                 for sort_item in op.sort_items:  # type: ignore[union-attr]
-                    val1 = evaluate_expression(sort_item.expression, ctx1)
-                    val2 = evaluate_expression(sort_item.expression, ctx2)
+                    val1 = evaluate_expression(sort_item.expression, ctx1, self)
+                    val2 = evaluate_expression(sort_item.expression, ctx2, self)
                     cmp = compare_values(val1, val2, sort_item.ascending)
                     if cmp != 0:
                         return cmp
@@ -491,7 +651,7 @@ class QueryExecutor:
             try:
                 # Try to evaluate all ORDER BY expressions from first context
                 for order_item in op.items:
-                    evaluate_expression(order_item.expression, input_rows[0])
+                    evaluate_expression(order_item.expression, input_rows[0], self)
                 # If we got here, all ORDER BY expressions are available - skip return_items eval
                 skip_return_items_eval = True
             except (KeyError, AttributeError):
@@ -513,7 +673,7 @@ class QueryExecutor:
                         # They must be evaluated by the Aggregate operator
                         if not isinstance(return_item.expression, FunctionCall):
                             # Evaluate the expression and bind it with the alias name
-                            value = evaluate_expression(return_item.expression, ctx)
+                            value = evaluate_expression(return_item.expression, ctx, self)
                             extended_ctx.bind(return_item.alias, value)
 
             extended_rows.append(extended_ctx)
@@ -549,8 +709,8 @@ class QueryExecutor:
         def multi_key_compare(ctx1, ctx2):
             """Compare two contexts by all sort keys."""
             for order_item in op.items:
-                val1 = evaluate_expression(order_item.expression, ctx1)
-                val2 = evaluate_expression(order_item.expression, ctx2)
+                val1 = evaluate_expression(order_item.expression, ctx1, self)
+                val2 = evaluate_expression(order_item.expression, ctx2, self)
                 cmp_result = compare_values(val1, val2, order_item.ascending)
                 if cmp_result != 0:
                     return cmp_result
@@ -655,7 +815,7 @@ class QueryExecutor:
             for ctx in input_rows:
                 # Compute grouping key
                 key_values = tuple(
-                    self._value_to_hashable(evaluate_expression(expr, ctx))
+                    self._value_to_hashable(evaluate_expression(expr, ctx, self))
                     for expr in op.grouping_exprs
                 )
                 groups[key_values].append(ctx)
@@ -829,7 +989,7 @@ class QueryExecutor:
             seen: set[Any] | None = set() if func_call.distinct else None
 
             for ctx in group_rows:
-                value = evaluate_expression(func_call.args[0], ctx)
+                value = evaluate_expression(func_call.args[0], ctx, self)
                 if not isinstance(value, CypherNull):
                     if func_call.distinct and seen is not None:
                         hashable = self._value_to_hashable(value)
@@ -849,7 +1009,7 @@ class QueryExecutor:
             seen_hashes: set[Any] = set()
 
             for ctx in group_rows:
-                value = evaluate_expression(func_call.args[0], ctx)
+                value = evaluate_expression(func_call.args[0], ctx, self)
                 # Skip NULL values
                 if not isinstance(value, CypherNull):
                     if func_call.distinct:
@@ -865,7 +1025,7 @@ class QueryExecutor:
         # SUM, AVG, MIN, MAX require evaluating the expression
         values: list[Any] = []
         for ctx in group_rows:
-            value = evaluate_expression(func_call.args[0], ctx)
+            value = evaluate_expression(func_call.args[0], ctx, self)
             if not isinstance(value, CypherNull):
                 if func_call.distinct:
                     hashable = self._value_to_hashable(value)
@@ -1012,7 +1172,7 @@ class QueryExecutor:
         if node_pattern.properties:
             for key, value_expr in node_pattern.properties.items():
                 # Evaluate the expression to get the value
-                cypher_value = evaluate_expression(value_expr, ctx)
+                cypher_value = evaluate_expression(value_expr, ctx, self)
                 # Convert CypherValue to Python value (handles nested lists/maps)
                 properties[key] = _cypher_to_python(cypher_value)
 
@@ -1040,7 +1200,7 @@ class QueryExecutor:
         if hasattr(rel_pattern, "properties") and rel_pattern.properties:
             for key, value_expr in rel_pattern.properties.items():
                 # Evaluate the expression to get the value
-                cypher_value = evaluate_expression(value_expr, ctx)
+                cypher_value = evaluate_expression(value_expr, ctx, self)
                 # Convert CypherValue to Python value (handles nested lists/maps)
                 properties[key] = _cypher_to_python(cypher_value)
 
@@ -1273,7 +1433,7 @@ class QueryExecutor:
                             if node_pattern.properties:
                                 match = True
                                 for key, value_expr in node_pattern.properties.items():
-                                    expected_value = evaluate_expression(value_expr, new_ctx)
+                                    expected_value = evaluate_expression(value_expr, new_ctx, self)
                                     if key not in node.properties:
                                         match = False
                                         break
@@ -1341,7 +1501,7 @@ class QueryExecutor:
                     element = ctx.bindings[var_name]
 
                     # Evaluate the new value
-                    new_value = evaluate_expression(value_expr, ctx)
+                    new_value = evaluate_expression(value_expr, ctx, self)
 
                     # Update the property on the element
                     element.properties[prop_name] = new_value
@@ -1368,7 +1528,7 @@ class QueryExecutor:
 
         for ctx in input_rows:
             # Evaluate the list expression
-            value = evaluate_expression(op.expression, ctx)
+            value = evaluate_expression(op.expression, ctx, self)
 
             # Handle NULL - treated as empty list (produces no rows)
             if isinstance(value, CypherNull):
@@ -1390,3 +1550,164 @@ class QueryExecutor:
                 result.append(new_ctx)
 
         return result
+
+    def _execute_optional_expand(
+        self, op: OptionalExpandEdges, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute OptionalExpandEdges operator (left outer join).
+
+        Like ExpandEdges, but preserves rows with NULL bindings when no matches found.
+        This implements OPTIONAL MATCH semantics.
+
+        Args:
+            op: OptionalExpandEdges operator
+            input_rows: Input execution contexts
+
+        Returns:
+            Execution contexts with expanded relationships or NULL bindings
+        """
+        from graphforge.types.graph import NodeRef
+
+        result = []
+
+        for ctx in input_rows:
+            # Get source node
+            if op.src_var not in ctx.bindings:
+                # OPTIONAL MATCH: Source variable not bound - preserve row with NULL bindings
+                new_ctx = ExecutionContext()
+                new_ctx.bindings = dict(ctx.bindings)
+                new_ctx.bind(op.dst_var, CypherNull())
+                if op.edge_var:
+                    new_ctx.bind(op.edge_var, CypherNull())
+                result.append(new_ctx)
+                continue
+
+            src_node = ctx.get(op.src_var)
+            if not isinstance(src_node, NodeRef):
+                # OPTIONAL MATCH: Source is not a node - preserve row with NULL bindings
+                new_ctx = ExecutionContext()
+                new_ctx.bindings = dict(ctx.bindings)
+                new_ctx.bind(op.dst_var, CypherNull())
+                if op.edge_var:
+                    new_ctx.bind(op.edge_var, CypherNull())
+                result.append(new_ctx)
+                continue
+
+            # Get edges based on direction
+            if op.direction == "OUT":
+                edges = self.graph.get_outgoing_edges(src_node.id)
+            elif op.direction == "IN":
+                edges = self.graph.get_incoming_edges(src_node.id)
+            else:  # UNDIRECTED
+                edges = self.graph.get_outgoing_edges(src_node.id) + self.graph.get_incoming_edges(
+                    src_node.id
+                )
+
+            # Filter by edge types if specified
+            if op.edge_types:
+                edges = [e for e in edges if e.type in op.edge_types]
+
+            # LEFT JOIN behavior
+            if not edges:
+                # No edges found - preserve row with NULL bindings
+                new_ctx = ExecutionContext()
+                new_ctx.bindings = dict(ctx.bindings)
+                new_ctx.bind(op.dst_var, CypherNull())
+                if op.edge_var:
+                    new_ctx.bind(op.edge_var, CypherNull())
+                result.append(new_ctx)
+            else:
+                # INNER JOIN behavior - bind actual values
+                for edge in edges:
+                    new_ctx = ExecutionContext()
+                    new_ctx.bindings = dict(ctx.bindings)
+
+                    # Bind edge if variable specified
+                    if op.edge_var:
+                        new_ctx.bind(op.edge_var, edge)
+
+                    # Determine destination node based on direction
+                    if op.direction == "OUT":
+                        dst_node = edge.dst
+                    elif op.direction == "IN":
+                        dst_node = edge.src
+                    else:  # UNDIRECTED - check which end is the source
+                        dst_node = edge.dst if edge.src.id == src_node.id else edge.src
+
+                    new_ctx.bind(op.dst_var, dst_node)
+                    result.append(new_ctx)
+
+        return result
+
+    def _execute_union(self, op: Union, input_rows: list[ExecutionContext]) -> list[Any]:
+        """Execute Union operator.
+
+        Combines results from multiple query branches. Each branch is executed
+        independently and results are merged.
+
+        Args:
+            op: Union operator with branches
+            input_rows: Input execution contexts (typically empty for UNION at query level)
+
+        Returns:
+            Combined results from all branches (list of dicts or ExecutionContexts)
+        """
+        all_results: list[Any] = []
+
+        # Execute each branch independently
+        for branch in op.branches:
+            # Execute this branch's pipeline
+            branch_results: list[Any] = input_rows if input_rows else [ExecutionContext()]
+            for op_index, branch_op in enumerate(branch):
+                branch_results = self._execute_operator(
+                    branch_op, branch_results, op_index, len(branch)
+                )
+            all_results.extend(branch_results)
+
+        # UNION (not UNION ALL) requires deduplication
+        if not op.all:
+            # Convert to hashable representations for deduplication
+            seen: set[tuple[Any, ...]] = set()
+            deduplicated: list[Any] = []
+            for row in all_results:
+                key: tuple[Any, ...]
+                if isinstance(row, ExecutionContext):
+                    # Hash based on bindings
+                    key = tuple(
+                        sorted((k, self._value_to_hashable(v)) for k, v in row.bindings.items())
+                    )
+                else:
+                    # Dict result (from RETURN)
+                    key = tuple(sorted((k, self._value_to_hashable(v)) for k, v in row.items()))
+
+                if key not in seen:
+                    seen.add(key)
+                    deduplicated.append(row)
+            return deduplicated
+
+        return all_results
+
+    def _execute_subquery(
+        self, op: Subquery, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute Subquery operator.
+
+        Executes a nested query pipeline for each input row, typically for
+        EXISTS or COUNT subquery expressions.
+
+        Args:
+            op: Subquery operator with nested pipeline
+            input_rows: Input execution contexts (outer query context)
+
+        Returns:
+            Input contexts unchanged (subquery results are evaluated in expression context)
+        """
+        # NOTE: This is a placeholder implementation.
+        # In practice, subqueries are typically evaluated as part of expressions
+        # (e.g., WHERE EXISTS {...}) rather than as standalone operators.
+        # The actual evaluation logic should be in evaluator.py when processing
+        # subquery expressions.
+
+        # For now, just pass through input rows
+        # Real implementation will be in evaluator.py when we add subquery expression support
+        return input_rows

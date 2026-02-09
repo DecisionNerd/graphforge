@@ -3,13 +3,22 @@
 
 ?start: query
 
-query: single_part_query | multi_part_query
+query: union_query | single_part_query | multi_part_query
+
+// UNION queries - combines multiple query results
+union_query: (single_part_query | multi_part_query) (union_clause (single_part_query | multi_part_query))+
+
+union_clause: "UNION"i "ALL"i  -> union_all
+            | "UNION"i          -> union_distinct
 
 // Multi-part queries with WITH clause
 multi_part_query: reading_clause+ with_clause+ final_query_part
 
 // Single-part queries (without WITH)
-single_part_query: read_query | write_query | update_query | unwind_query | return_only_query
+single_part_query: read_query | write_query | update_query | unwind_query | return_only_query | reading_only_query
+
+// Reading-only query: multiple reading clauses followed by RETURN
+reading_only_query: reading_clause reading_clause+ where_clause? return_clause order_by_clause? skip_clause? limit_clause?
 
 // Final part of multi-part query (allows RETURN without MATCH)
 final_query_part: read_query
@@ -20,7 +29,9 @@ final_query_part: read_query
 
 return_only_query: return_clause order_by_clause? skip_clause? limit_clause?
 
-read_query: match_clause where_clause? return_clause order_by_clause? skip_clause? limit_clause?
+read_query: match_clause where_clause? optional_match_clause+ where_clause? return_clause order_by_clause? skip_clause? limit_clause?
+          | match_clause where_clause? return_clause order_by_clause? skip_clause? limit_clause?
+          | optional_match_clause where_clause? return_clause order_by_clause? skip_clause? limit_clause?
 
 write_query: create_clause return_clause?
            | merge_clause return_clause?
@@ -34,6 +45,7 @@ unwind_query: unwind_clause+ where_clause? return_clause? order_by_clause? skip_
 
 // Reading clauses that can precede WITH
 reading_clause: match_clause where_clause?
+              | optional_match_clause where_clause?
               | unwind_clause
 
 // WITH clause
@@ -41,6 +53,9 @@ with_clause: "WITH"i DISTINCT_KW? return_item ("," return_item)* where_clause? o
 
 // MATCH clause
 match_clause: "MATCH"i pattern ("," pattern)*
+
+// OPTIONAL MATCH clause
+optional_match_clause: "OPTIONAL"i "MATCH"i pattern ("," pattern)*
 
 // CREATE clause
 create_clause: "CREATE"i pattern ("," pattern)*
@@ -79,9 +94,14 @@ relationship_pattern: undirected_rel
                     | left_arrow_rel
                     | right_arrow_rel
 
-undirected_rel: "-" "[" variable? rel_types? properties? "]" "-"
-left_arrow_rel: "<-" "[" variable? rel_types? properties? "]" "-"
-right_arrow_rel: "-" "[" variable? rel_types? properties? "]" "->"
+undirected_rel: "-" "[" variable? rel_types? var_length_range? properties? "]" "-"
+left_arrow_rel: "<-" "[" variable? rel_types? var_length_range? properties? "]" "-"
+right_arrow_rel: "-" "[" variable? rel_types? var_length_range? properties? "]" "->"
+
+var_length_range: "*" INT ".." INT              -> var_length_min_max
+                | "*" INT ".."                   -> var_length_min_only
+                | "*" ".." INT                   -> var_length_max_only
+                | "*"                            -> var_length_unbounded
 
 // WHERE clause
 where_clause: "WHERE"i expression
@@ -111,7 +131,10 @@ and_expr: not_expr ("AND"i not_expr)*
 not_expr: "NOT"i not_expr     -> not_operation
         | comparison_expr     -> not_passthrough
 
-comparison_expr: add_expr (COMP_OP add_expr | string_match_op add_expr)?
+comparison_expr: add_expr (COMP_OP add_expr | string_match_op add_expr | null_check_op)?
+
+null_check_op: "IS"i "NOT"i "NULL"i  -> is_not_null
+             | "IS"i "NULL"i          -> is_null
 
 string_match_op: "STARTS"i "WITH"i -> starts_with
                | "ENDS"i "WITH"i   -> ends_with
@@ -131,9 +154,20 @@ MULT_OP: "*" | "/" | "%"
 ?primary_expr: function_call
              | property_access
              | case_expr
+             | exists_expr
+             | count_expr
+             | quantifier_expr
              | literal
              | variable
              | "(" expression ")"
+
+exists_expr: "EXISTS"i "{" single_part_query "}"
+count_expr: "COUNT"i "{" single_part_query "}"
+
+quantifier_expr: "ALL"i "(" variable "IN"i expression "WHERE"i expression ")"     -> all_quantifier
+               | "ANY"i "(" variable "IN"i expression "WHERE"i expression ")"     -> any_quantifier
+               | "NONE"i "(" variable "IN"i expression "WHERE"i expression ")"    -> none_quantifier
+               | "SINGLE"i "(" variable "IN"i expression "WHERE"i expression ")"  -> single_quantifier
 
 function_call: FUNCTION_NAME "(" function_args? ")"
 
@@ -169,6 +203,12 @@ property: IDENTIFIER ":" expression
         | map_literal
 
 list_literal: "[" [expression ("," expression)*] "]"
+            | list_comprehension
+
+list_comprehension: "[" variable "IN"i expression comp_where_clause? comp_map_clause? "]"
+
+comp_where_clause: "WHERE"i expression
+comp_map_clause: "|" expression
 map_literal: "{" [map_pair ("," map_pair)*] "}"
 map_pair: (IDENTIFIER | STRING) ":" expression
 
@@ -179,7 +219,7 @@ variable: IDENTIFIER
 TRUE: /true/i
 FALSE: /false/i
 NULL: /null/i
-FUNCTION_NAME: /substring|tointeger|tofloat|tostring|datetime|duration|distance|coalesce|collect|length|minute|second|count|month|lower|upper|point|trim|year|type|date|time|hour|day|sum|avg|min|max|labels|id/i
+FUNCTION_NAME: /substring|toboolean|tointeger|tofloat|tostring|datetime|duration|distance|coalesce|collect|length|minute|second|count|month|lower|upper|point|trim|year|type|date|time|hour|day|sum|avg|min|max|size|labels|id/i
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
 
 INT: /[0-9]+/

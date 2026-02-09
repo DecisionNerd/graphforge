@@ -3,6 +3,7 @@
 This module defines the operators used in logical query plans:
 - ScanNodes: Scan nodes by label
 - ExpandEdges: Traverse relationships
+- OptionalExpandEdges: Optional relationship expansion (left outer join)
 - Filter: Apply predicates
 - Project: Select return items
 - With: Pipeline boundary for query chaining
@@ -14,17 +15,44 @@ This module defines the operators used in logical query plans:
 - Delete: Delete nodes and relationships
 - Merge: Create or match patterns
 - Unwind: Expand lists into rows
+- Union: Combine results from multiple queries
+- Subquery: Nested query expressions (EXISTS, COUNT)
 """
 
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ScanNodes(BaseModel):
     """Operator for scanning nodes.
 
     Scans all nodes or filters by labels.
+
+    Attributes:
+        variable: Variable name to bind nodes to
+        labels: Optional list of labels to filter by (None = all nodes)
+    """
+
+    variable: str = Field(..., min_length=1, description="Variable name to bind nodes")
+    labels: list[str] | None = Field(default=None, description="Optional label filter")
+
+    @field_validator("variable")
+    @classmethod
+    def validate_variable(cls, v: str) -> str:
+        """Validate variable name."""
+        if not v[0].isalpha() and v[0] != "_":
+            raise ValueError(f"Variable must start with letter or underscore: {v}")
+        return v
+
+    model_config = {"frozen": True}
+
+
+class OptionalScanNodes(BaseModel):
+    """Operator for scanning nodes with OPTIONAL semantics.
+
+    Like ScanNodes but preserves input rows with NULL binding when no nodes match.
+    Used for single-node OPTIONAL MATCH patterns.
 
     Attributes:
         variable: Variable name to bind nodes to
@@ -72,6 +100,68 @@ class ExpandEdges(BaseModel):
         if v not in valid_dirs:
             raise ValueError(f"Direction must be one of {valid_dirs}, got {v}")
         return v
+
+    model_config = {"frozen": True}
+
+
+class ExpandVariableLength(BaseModel):
+    """Operator for variable-length path expansion.
+
+    Performs recursive traversal to find paths of varying lengths.
+
+    Attributes:
+        src_var: Variable name for source nodes
+        edge_var: Variable name to bind edge list to (None for anonymous)
+        dst_var: Variable name to bind destination nodes to
+        path_var: Variable name to bind full path to (None if not needed)
+        edge_types: List of edge types to match
+        direction: Direction to traverse ('OUT', 'IN', 'UNDIRECTED')
+        min_hops: Minimum number of hops (1 by default)
+        max_hops: Maximum number of hops (None for unbounded)
+    """
+
+    src_var: str = Field(..., min_length=1, description="Source variable name")
+    edge_var: str | None = Field(default=None, description="Edge variable name for list")
+    dst_var: str = Field(..., min_length=1, description="Destination variable name")
+    path_var: str | None = Field(default=None, description="Path variable name")
+    edge_types: list[str] = Field(..., description="Edge types to match")
+    direction: str = Field(..., description="Traversal direction")
+    min_hops: int = Field(default=1, description="Minimum hops")
+    max_hops: int | None = Field(default=None, description="Maximum hops (None=unbounded)")
+
+    @field_validator("direction")
+    @classmethod
+    def validate_direction(cls, v: str) -> str:
+        """Validate direction is valid."""
+        valid_dirs = {"OUT", "IN", "UNDIRECTED"}
+        if v not in valid_dirs:
+            raise ValueError(f"Direction must be one of {valid_dirs}, got {v}")
+        return v
+
+    @field_validator("min_hops")
+    @classmethod
+    def validate_min_hops(cls, v: int) -> int:
+        """Validate minimum hops."""
+        if v < 0:
+            raise ValueError(f"Minimum hops must be non-negative, got {v}")
+        return v
+
+    @field_validator("max_hops")
+    @classmethod
+    def validate_max_hops(cls, v: int | None) -> int | None:
+        """Validate maximum hops."""
+        if v is not None and v < 0:
+            raise ValueError(f"Maximum hops must be non-negative, got {v}")
+        return v
+
+    @model_validator(mode="after")
+    def validate_hop_range(self) -> "ExpandVariableLength":
+        """Validate that max_hops >= min_hops when both are specified."""
+        if self.max_hops is not None and self.max_hops < self.min_hops:
+            raise ValueError(
+                f"Maximum hops ({self.max_hops}) must be >= minimum hops ({self.min_hops})"
+            )
+        return self
 
     model_config = {"frozen": True}
 
@@ -321,3 +411,102 @@ class Unwind(BaseModel):
         return v
 
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
+class Union(BaseModel):
+    """Operator for UNION/UNION ALL query combination.
+
+    Combines results from multiple query branches. Each branch is a complete
+    execution pipeline (list of operators).
+
+    Example:
+        MATCH (p:Person) RETURN p.name
+        UNION
+        MATCH (c:Company) RETURN c.name
+
+    Attributes:
+        branches: List of operator pipelines (each branch is a list of operators)
+        all: False for UNION (deduplicate), True for UNION ALL (keep duplicates)
+    """
+
+    branches: list[list[Any]] = Field(..., min_length=2, description="List of operator pipelines")
+    all: bool = Field(default=False, description="True for UNION ALL, False for UNION")
+
+    @field_validator("branches")
+    @classmethod
+    def validate_branches(cls, v: list[list[Any]]) -> list[list[Any]]:
+        """Validate that we have at least 2 branches."""
+        if len(v) < 2:
+            raise ValueError("Union must have at least 2 branches")
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
+class Subquery(BaseModel):
+    """Operator for subquery expressions (EXISTS, COUNT, etc.).
+
+    Executes a nested query pipeline and returns a result for use in expressions.
+
+    Example:
+        WHERE EXISTS { MATCH (n)-[:KNOWS]->(m) WHERE m.age > 30 }
+
+    Attributes:
+        operators: List of operators in the subquery pipeline
+        expression_type: Type of subquery expression ("EXISTS", "COUNT")
+        correlated_vars: Variables from outer scope that the subquery references
+    """
+
+    operators: list[Any] = Field(..., min_length=1, description="Subquery pipeline")
+    expression_type: str = Field(..., description="Subquery type (EXISTS, COUNT)")
+    correlated_vars: list[str] = Field(
+        default_factory=list, description="Variables from outer scope"
+    )
+
+    @field_validator("expression_type")
+    @classmethod
+    def validate_expression_type(cls, v: str) -> str:
+        """Validate expression type."""
+        valid_types = {"EXISTS", "COUNT"}
+        if v not in valid_types:
+            raise ValueError(f"Subquery expression type must be one of {valid_types}, got {v}")
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
+class OptionalExpandEdges(BaseModel):
+    """Operator for optional relationship expansion (left outer join).
+
+    Like ExpandEdges, but preserves rows with NULL bindings when no matches found.
+    Used to implement OPTIONAL MATCH.
+
+    Example:
+        MATCH (p:Person)
+        OPTIONAL MATCH (p)-[:KNOWS]->(f)
+        -> If p has no KNOWS edges, returns (p, f=NULL)
+
+    Attributes:
+        src_var: Variable name for source nodes
+        edge_var: Variable name to bind edges to (None if not specified)
+        dst_var: Variable name to bind destination nodes to
+        edge_types: List of edge types to match (empty = all types)
+        direction: Direction to traverse ('OUT', 'IN', 'UNDIRECTED')
+    """
+
+    src_var: str = Field(..., min_length=1, description="Source variable name")
+    edge_var: str | None = Field(default=None, description="Edge variable name")
+    dst_var: str = Field(..., min_length=1, description="Destination variable name")
+    edge_types: list[str] = Field(..., description="Edge types to match")
+    direction: str = Field(..., description="Traversal direction")
+
+    @field_validator("direction")
+    @classmethod
+    def validate_direction(cls, v: str) -> str:
+        """Validate direction is valid."""
+        valid_dirs = {"OUT", "IN", "UNDIRECTED"}
+        if v not in valid_dirs:
+            raise ValueError(f"Direction must be one of {valid_dirs}, got {v}")
+        return v
+
+    model_config = {"frozen": True}

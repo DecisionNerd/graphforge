@@ -11,6 +11,7 @@ from graphforge.ast.clause import (
     LimitClause,
     MatchClause,
     MergeClause,
+    OptionalMatchClause,
     OrderByClause,
     RemoveClause,
     ReturnClause,
@@ -31,6 +32,7 @@ from graphforge.planner.operators import (
     Filter,
     Limit,
     Merge,
+    OptionalExpandEdges,
     Project,
     Remove,
     ScanNodes,
@@ -92,6 +94,7 @@ class QueryPlanner:
         """
         # Collect clauses by type
         match_clauses = []
+        optional_match_clauses = []
         unwind_clauses = []
         create_clauses = []
         merge_clauses = []
@@ -107,6 +110,8 @@ class QueryPlanner:
         for clause in clauses:
             if isinstance(clause, MatchClause):
                 match_clauses.append(clause)
+            elif isinstance(clause, OptionalMatchClause):
+                optional_match_clauses.append(clause)
             elif isinstance(clause, UnwindClause):
                 unwind_clauses.append(clause)
             elif isinstance(clause, CreateClause):
@@ -133,13 +138,15 @@ class QueryPlanner:
         # Build operators in execution order
         operators = []
 
-        # 1. MATCH
-        for match in match_clauses:
-            operators.extend(self._plan_match(match))
-
-        # 2. UNWIND
-        for unwind in unwind_clauses:
-            operators.append(Unwind(expression=unwind.expression, variable=unwind.variable))
+        # 1. Process reading clauses (MATCH, OPTIONAL MATCH, UNWIND) in order
+        # This is important because UNWIND may depend on variables from MATCH, or vice versa
+        for clause in clauses:
+            if isinstance(clause, MatchClause):
+                operators.extend(self._plan_match(clause))
+            elif isinstance(clause, OptionalMatchClause):
+                operators.extend(self._plan_optional_match(clause))
+            elif isinstance(clause, UnwindClause):
+                operators.append(Unwind(expression=clause.expression, variable=clause.variable))
 
         # 3. CREATE
         for create in create_clauses:
@@ -403,8 +410,128 @@ class QueryPlanner:
                         Direction.UNDIRECTED: "UNDIRECTED",
                     }
 
+                    # Check if this is a variable-length pattern
+                    if rel_pattern.min_hops is not None or rel_pattern.max_hops is not None:
+                        # Variable-length expansion
+                        from graphforge.planner.operators import ExpandVariableLength
+
+                        operators.append(
+                            ExpandVariableLength(
+                                src_var=src_var,
+                                edge_var=rel_var,
+                                dst_var=dst_var,
+                                edge_types=rel_pattern.types if rel_pattern.types else [],
+                                direction=direction_map[rel_pattern.direction],
+                                min_hops=rel_pattern.min_hops
+                                if rel_pattern.min_hops is not None
+                                else 1,
+                                max_hops=rel_pattern.max_hops,
+                            )
+                        )
+                    else:
+                        # Single-hop expansion
+                        operators.append(
+                            ExpandEdges(
+                                src_var=src_var,
+                                edge_var=rel_var,
+                                dst_var=dst_var,
+                                edge_types=rel_pattern.types if rel_pattern.types else [],
+                                direction=direction_map[rel_pattern.direction],
+                            )
+                        )
+
+        return operators
+
+    def _plan_optional_match(self, clause: OptionalMatchClause) -> list[Any]:
+        """Plan OPTIONAL MATCH clause into operators.
+
+        Similar to _plan_match, but uses OptionalExpandEdges for left outer join semantics.
+
+        Args:
+            clause: OPTIONAL MATCH clause from AST
+
+        Returns:
+            List of operators for the OPTIONAL MATCH pattern
+        """
+        operators: list[Any] = []
+
+        for pattern in clause.patterns:
+            if not pattern:
+                continue
+
+            # Handle simple node pattern
+            if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
+                # OPTIONAL MATCH on a single node uses OptionalScanNodes
+                # to preserve rows with NULL bindings when no match found
+                from graphforge.planner.operators import OptionalScanNodes
+
+                node_pattern = pattern[0]
+                operators.append(
+                    OptionalScanNodes(
+                        variable=node_pattern.variable,  # type: ignore[arg-type]
+                        labels=node_pattern.labels if node_pattern.labels else None,
+                    )
+                )
+
+                # Add Filter for inline property predicates
+                if node_pattern.properties:
+                    predicate = self._properties_to_predicate(
+                        node_pattern.variable,  # type: ignore[arg-type]
+                        node_pattern.properties,
+                    )
+                    operators.append(Filter(predicate=predicate))
+
+            # Handle node-relationship-node pattern
+            elif len(pattern) >= 3:
+                # First node
+                if isinstance(pattern[0], NodePattern):
+                    src_pattern = pattern[0]
+                    # Generate variable name for anonymous patterns
+                    src_var = (
+                        src_pattern.variable
+                        if src_pattern.variable
+                        else self._generate_anonymous_variable()
+                    )
                     operators.append(
-                        ExpandEdges(
+                        ScanNodes(
+                            variable=src_var,
+                            labels=src_pattern.labels if src_pattern.labels else None,
+                        )
+                    )
+
+                    # Add Filter for inline property predicates on src node
+                    if src_pattern.properties:
+                        predicate = self._properties_to_predicate(
+                            src_var,
+                            src_pattern.properties,
+                        )
+                        operators.append(Filter(predicate=predicate))
+
+                # Relationship - use OptionalExpandEdges instead of ExpandEdges
+                if isinstance(pattern[1], RelationshipPattern):
+                    rel_pattern = pattern[1]
+                    dst_pattern = pattern[2]
+
+                    # Generate variable names for anonymous patterns
+                    rel_var = (
+                        rel_pattern.variable
+                        if rel_pattern.variable
+                        else None  # Anonymous relationship variable
+                    )
+                    dst_var = (
+                        dst_pattern.variable
+                        if dst_pattern.variable
+                        else self._generate_anonymous_variable()
+                    )
+
+                    direction_map = {
+                        Direction.OUT: "OUT",
+                        Direction.IN: "IN",
+                        Direction.UNDIRECTED: "UNDIRECTED",
+                    }
+
+                    operators.append(
+                        OptionalExpandEdges(
                             src_var=src_var,
                             edge_var=rel_var,
                             dst_var=dst_var,
