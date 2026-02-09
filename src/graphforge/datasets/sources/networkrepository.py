@@ -41,21 +41,26 @@ def _load_networkrepository_metadata() -> list[DatasetInfo]:
     # Parse dataset entries
     datasets = []
     for entry in data.get("datasets", []):
-        dataset = DatasetInfo(
-            name=entry["name"],
-            description=entry["description"],
-            source=source,
-            url=entry["url"],
-            nodes=entry["nodes"],
-            edges=entry["edges"],
-            labels=entry["labels"],
-            relationship_types=entry["relationship_types"],
-            size_mb=entry["size_mb"],
-            license=entry["license"],
-            category=entry["category"],
-            loader_class=entry["loader_class"],
-        )
-        datasets.append(dataset)
+        try:
+            dataset = DatasetInfo(
+                name=entry["name"],
+                description=entry["description"],
+                source=source,
+                url=entry["url"],
+                nodes=entry["nodes"],
+                edges=entry["edges"],
+                labels=entry["labels"],
+                relationship_types=entry["relationship_types"],
+                size_mb=entry["size_mb"],
+                license=entry["license"],
+                category=entry["category"],
+                loader_class=entry["loader_class"],
+            )
+            datasets.append(dataset)
+        except KeyError as e:  # noqa: PERF203
+            raise ValueError(
+                f"Missing required key {e} in dataset entry: {entry.get('name', '<unknown>')}"
+            ) from e
 
     return datasets
 

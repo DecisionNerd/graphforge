@@ -89,27 +89,22 @@ class CSVLoader(DatasetLoader):
         """
         node_cache = {}  # Cache node IDs to avoid duplicate creates
         delimiter = None  # Auto-detect delimiter
-        skip_next_line = False  # Flag to skip MTX dimension line
+        skip_next_line = False  # Flag to skip MTX dimension line after comments
 
         for line_num, line in enumerate(file, start=1):
             stripped_line = line.strip()
 
             # Skip empty lines and comments (# for CSV/TXT, % for MTX format)
             if not stripped_line or stripped_line.startswith(("#", "%")):
-                # If this is the last comment line in MTX, skip the next line (dimensions)
+                # Set flag to skip the next non-comment line (MTX dimension header)
                 if stripped_line.startswith("%"):
-                    # Peek at next line to see if it's dimensions
                     skip_next_line = True
                 continue
 
-            # Skip MTX dimension line (comes right after comments)
+            # Skip MTX dimension line (first non-comment line after % comments)
             if skip_next_line:
-                parts = stripped_line.split()
-                # MTX dimension line has exactly 3 integers: rows cols entries
-                if len(parts) == 3 and all(p.isdigit() for p in parts):
-                    skip_next_line = False
-                    continue
                 skip_next_line = False
+                continue
 
             # Auto-detect delimiter from first data line
             if delimiter is None:

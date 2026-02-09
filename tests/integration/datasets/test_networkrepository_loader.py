@@ -157,17 +157,17 @@ class TestNetworkRepositoryRegistration:
         assert info.category == "biological"
 
     def test_filter_datasets_by_source(self):
-        """Test filtering datasets by NetworkRepository source."""
+        """Test filtering datasets by NetworkRepository source attribute."""
         register_networkrepository_datasets()
 
         all_datasets = list_datasets()
-        netrepo_datasets = [ds for ds in all_datasets if ds.name.startswith("netrepo-")]
+        netrepo_datasets = [ds for ds in all_datasets if ds.source == "networkrepository"]
 
         # Should have all 10 NetworkRepository datasets
         assert len(netrepo_datasets) == 10
 
-        # Verify they all start with netrepo- prefix
-        assert all(ds.name.startswith("netrepo-") for ds in netrepo_datasets)
+        # Verify they all have networkrepository as source
+        assert all(ds.source == "networkrepository" for ds in netrepo_datasets)
 
     def test_no_duplicate_registrations(self):
         """Test that calling register multiple times doesn't create duplicates."""
@@ -247,14 +247,16 @@ class TestNetworkRepositoryDatasetLoading:
         datasets = _load_networkrepository_metadata()
 
         for ds in datasets:
+            parsed_url = urlparse(ds.url)
+
             # URLs should be HTTPS
-            assert ds.url.startswith("https://")
+            assert parsed_url.scheme == "https"
 
             # URLs should point to nrvis.com (NetworkRepository download server)
-            assert "nrvis.com" in ds.url
+            assert parsed_url.netloc == "nrvis.com"
 
             # URLs should be ZIP files
-            assert ds.url.endswith(".zip")
+            assert parsed_url.path.endswith(".zip")
 
     def test_node_edge_ratios_are_reasonable(self):
         """Test that node/edge ratios are reasonable for network datasets."""
