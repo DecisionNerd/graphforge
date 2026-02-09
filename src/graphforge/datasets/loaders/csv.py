@@ -60,14 +60,14 @@ class CSVLoader(DatasetLoader):
         elif path.suffix == ".zip":
             # Extract and load first CSV/TXT file from zip
             with zipfile.ZipFile(path) as zf:
-                # Find first CSV or TXT file in the archive
+                # Find first CSV, TXT, or MTX file in the archive
                 csv_files = [
                     name
                     for name in zf.namelist()
-                    if name.endswith((".csv", ".txt", ".tsv")) and not name.startswith("__")
+                    if name.endswith((".csv", ".txt", ".tsv", ".mtx")) and not name.startswith("__")
                 ]
                 if not csv_files:
-                    raise ValueError(f"No CSV/TXT files found in zip archive: {path}")
+                    raise ValueError(f"No CSV/TXT/TSV/MTX files found in zip archive: {path}")
 
                 # Load the first CSV file found
                 with zf.open(csv_files[0], "r") as raw_f:
@@ -89,12 +89,21 @@ class CSVLoader(DatasetLoader):
         """
         node_cache = {}  # Cache node IDs to avoid duplicate creates
         delimiter = None  # Auto-detect delimiter
+        skip_next_line = False  # Flag to skip MTX dimension line after comments
 
         for line_num, line in enumerate(file, start=1):
             stripped_line = line.strip()
 
-            # Skip empty lines and comments
-            if not stripped_line or stripped_line.startswith("#"):
+            # Skip empty lines and comments (# for CSV/TXT, % for MTX format)
+            if not stripped_line or stripped_line.startswith(("#", "%")):
+                # Set flag to skip the next non-comment line (MTX dimension header)
+                if stripped_line.startswith("%"):
+                    skip_next_line = True
+                continue
+
+            # Skip MTX dimension line (first non-comment line after % comments)
+            if skip_next_line:
+                skip_next_line = False
                 continue
 
             # Auto-detect delimiter from first data line

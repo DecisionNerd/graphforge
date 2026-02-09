@@ -339,7 +339,47 @@ class TestCSVLoader:
             gf = GraphForge()
             loader = CSVLoader()
 
-            with pytest.raises(ValueError, match="No CSV/TXT files found in zip archive"):
+            with pytest.raises(ValueError, match="No CSV/TXT/TSV/MTX files found in zip archive"):
+                loader.load(gf, temp_path)
+        finally:
+            temp_path.unlink()
+
+    def test_load_mtx_file_with_comments(self):
+        """Test loading MTX file with % comments and dimension line."""
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".mtx") as f:
+            # Write MTX format with comments and dimension line
+            f.write("%%MatrixMarket matrix coordinate pattern symmetric\n")
+            f.write("% This is a comment\n")
+            f.write("% Another comment line\n")
+            f.write("3 3 2\n")  # Dimension line: rows cols entries
+            f.write("1 2\n")
+            f.write("2 3\n")
+            temp_path = Path(f.name)
+
+        try:
+            gf = GraphForge()
+            loader = CSVLoader()
+            loader.load(gf, temp_path)
+
+            # Check that only 2 edges were created (not 3 - dimension line skipped)
+            edges = gf.execute("MATCH ()-[r]->() RETURN count(r) as count")
+            assert edges[0]["count"].value == 2
+        finally:
+            temp_path.unlink()
+
+    def test_load_invalid_edge_format_raises_error(self):
+        """Test that loading file with invalid edge format raises error."""
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
+            # Write file with only one column (invalid)
+            f.write("1\n")
+            f.write("2\n")
+            temp_path = Path(f.name)
+
+        try:
+            gf = GraphForge()
+            loader = CSVLoader()
+
+            with pytest.raises(ValueError, match="Invalid edge format at line"):
                 loader.load(gf, temp_path)
         finally:
             temp_path.unlink()
