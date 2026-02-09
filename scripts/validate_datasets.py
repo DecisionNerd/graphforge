@@ -150,7 +150,7 @@ def validate_dataset(dataset_name: str, verbose: bool = True) -> dict:
         if verbose:
             print(f"\n✅ {dataset_name} validation PASSED")
 
-    except (OSError, RuntimeError, ValueError) as e:
+    except (OSError, RuntimeError, ValueError, IndexError, KeyError) as e:
         results["errors"].append(f"Fatal error: {e}")
         if verbose:
             print(f"\n❌ {dataset_name} validation FAILED: {e}")
