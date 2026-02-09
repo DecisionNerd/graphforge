@@ -4,8 +4,9 @@ Tests end-to-end loading of NetworkRepository datasets, metadata validation,
 and querying capabilities.
 """
 
-import pytest
 from urllib.parse import urlparse
+
+import pytest
 
 from graphforge.datasets.base import DatasetInfo
 from graphforge.datasets.registry import get_dataset_info, list_datasets
@@ -32,8 +33,8 @@ class TestNetworkRepositoryMetadata:
         # All should have networkrepository as source
         assert all(ds.source == "networkrepository" for ds in datasets)
 
-        # All should use graphml loader
-        assert all(ds.loader_class == "graphml" for ds in datasets)
+        # All should use CSV loader
+        assert all(ds.loader_class == "csv" for ds in datasets)
 
     def test_metadata_fields_are_valid(self):
         """Test that all metadata fields meet validation requirements."""
@@ -43,11 +44,11 @@ class TestNetworkRepositoryMetadata:
             # Name should start with netrepo- prefix
             assert ds.name.startswith("netrepo-")
 
-            # URL should point to networkrepository.com (or its subdomains)
+            # URL should point to nrvis.com (NetworkRepository's download server)
             parsed_url = urlparse(ds.url)
             host = parsed_url.hostname
             assert host is not None
-            assert host == "networkrepository.com" or host.endswith(".networkrepository.com")
+            assert host == "nrvis.com"
 
             # Nodes and edges should be positive
             assert ds.nodes > 0
@@ -140,7 +141,7 @@ class TestNetworkRepositoryRegistration:
         assert info.source == "networkrepository"
         assert info.nodes == 34
         assert info.edges == 78
-        assert info.loader_class == "graphml"
+        assert info.loader_class == "csv"
 
     def test_get_dolphins_dataset_info(self):
         """Test retrieving dolphins dataset info from registry."""
@@ -235,11 +236,11 @@ class TestNetworkRepositoryDatasetLoading:
     """Tests for loading NetworkRepository datasets (unit tests, no actual downloads)."""
 
     def test_dataset_info_has_correct_loader_class(self):
-        """Test that all NetworkRepository datasets use GraphML loader."""
+        """Test that all NetworkRepository datasets use CSV loader."""
         datasets = _load_networkrepository_metadata()
 
-        # All should use GraphML loader
-        assert all(ds.loader_class == "graphml" for ds in datasets)
+        # All should use CSV loader
+        assert all(ds.loader_class == "csv" for ds in datasets)
 
     def test_urls_are_well_formed(self):
         """Test that all dataset URLs are valid."""
@@ -249,11 +250,11 @@ class TestNetworkRepositoryDatasetLoading:
             # URLs should be HTTPS
             assert ds.url.startswith("https://")
 
-            # URLs should point to networkrepository.com
-            assert "networkrepository.com" in ds.url
+            # URLs should point to nrvis.com (NetworkRepository download server)
+            assert "nrvis.com" in ds.url
 
-            # URLs should have graphml.php endpoint
-            assert "graphml.php" in ds.url
+            # URLs should be ZIP files
+            assert ds.url.endswith(".zip")
 
     def test_node_edge_ratios_are_reasonable(self):
         """Test that node/edge ratios are reasonable for network datasets."""

@@ -62,11 +62,11 @@ def _load_networkrepository_metadata() -> list[DatasetInfo]:
 
 def register_networkrepository_datasets() -> None:
     """Register all NetworkRepository datasets in the global registry."""
-    # Register the GraphML loader (idempotent - ignore if already registered)
-    from graphforge.datasets.loaders.graphml import GraphMLLoader
+    # Register the CSV loader (idempotent - ignore if already registered)
+    from graphforge.datasets.loaders.csv import CSVLoader
 
     try:
-        register_loader("graphml", GraphMLLoader)
+        register_loader("csv", CSVLoader)
     except ValueError as e:
         # Loader already registered - this is fine, continue with dataset registration
         if "already registered" not in str(e):
