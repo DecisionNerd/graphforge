@@ -285,6 +285,93 @@ make type-check
 
 If patch coverage fails, run `make coverage-report` to see detailed line-by-line coverage.
 
+### Coverage Configuration
+
+Coverage is measured using `pytest-cov` with branch coverage enabled:
+
+```bash
+# Run tests with coverage
+pytest --cov=src/graphforge --cov-report=html --cov-report=term
+
+# Or use make target
+make coverage
+```
+
+**Branch coverage**: Ensures both `if` and `else` branches are tested:
+```python
+# This function requires 2 tests for 100% branch coverage:
+def absolute_value(x):
+    if x < 0:
+        return -x  # Branch 1
+    else:
+        return x   # Branch 2
+```
+
+**Excluding lines from coverage**:
+```python
+def debug_only():
+    if __name__ == "__main__":  # Excluded by pyproject.toml
+        print("Debug mode")
+    raise NotImplementedError  # Excluded by pyproject.toml
+```
+
+**Coverage thresholds**:
+- Total coverage: 85% minimum (`make check-coverage`)
+- Patch coverage: 90% minimum (`make check-patch-coverage`)
+- Both enforced by `make pre-push` (runs before every push)
+
+**CI/CD coverage**:
+- GitHub Actions runs coverage on all PRs
+- Results uploaded to CodeCov for patch analysis
+- PR blocked if patch coverage < 80% (CodeCov target)
+
+### Understanding Coverage Metrics
+
+GraphForge tracks **two types of coverage**:
+
+1. **Total Coverage** (~90% currently)
+   - Measures: All lines covered / All lines in source
+   - Reported by: Local pytest with `make coverage`
+   - Target: 85% minimum (enforced by `make pre-push`)
+   - Purpose: Ensure overall codebase health
+
+2. **Patch Coverage** (varies by PR)
+   - Measures: Covered lines in diff / Changed lines in diff
+   - Reported by: CodeCov on pull requests
+   - Target: 90% minimum (enforced by `make check-patch-coverage`)
+   - Purpose: Ensure new code is well-tested
+
+**Why they differ**:
+- New features may have 100% integration coverage but miss unit-level edge cases
+- Defensive error handling branches often lack explicit tests
+- Complex operator combinations may not exercise all code paths
+
+**How to improve patch coverage**:
+```bash
+# 1. Run coverage on your branch
+make coverage
+
+# 2. View HTML report to see uncovered lines
+make coverage-report
+# Opens htmlcov/index.html in browser
+
+# 3. Check patch coverage for changed files only
+make coverage-diff
+# Shows coverage for files modified in current branch
+
+# 4. Add unit tests for uncovered branches
+# Focus on:
+# - Error handling paths (missing variables, invalid types)
+# - Edge cases (empty lists, NULL values, cycle detection)
+# - Operator combinations (filter+map, ALL with mixed True/False/NULL)
+```
+
+**Best practices**:
+- Integration tests validate end-to-end behavior
+- Unit tests validate edge cases and error paths
+- Aim for 100% coverage on new code to satisfy both metrics
+- Use property-based tests (Hypothesis) for exhaustive edge case testing
+
 ## Architecture: 4-Layer System
 
 GraphForge is built as a pipeline with four distinct layers. **Understanding this flow is critical** for making changes:
@@ -782,6 +869,269 @@ Scenario: Match simple node
 Step definitions in `tests/tck/steps/` map Gherkin to pytest code.
 
 **Current status:** ~950/3,837 TCK scenarios passing (~25%)
+
+## Advanced Testing Patterns
+
+### Fixture Scoping & Dependencies
+
+**Function scope** (default) - Use for most fixtures:
+```python
+@pytest.fixture
+def empty_graph():
+    """Fresh GraphForge instance for each test."""
+    return GraphForge()
+```
+
+**Module scope** - Use for expensive setup shared across test class:
+```python
+@pytest.fixture(scope="module")
+def loaded_dataset():
+    """Load LDBC dataset once for all tests in module."""
+    gf = GraphForge()
+    load_dataset(gf, "ldbc-snb-sf0.1")
+    return gf
+```
+
+**Session scope** - Use for global resources (rare):
+```python
+@pytest.fixture(scope="session")
+def test_data_dir():
+    """Path to test data directory."""
+    return Path(__file__).parent / "data"
+```
+
+**Fixture dependencies**:
+```python
+@pytest.fixture
+def graph_with_person(empty_graph):
+    """Graph with a Person node (depends on empty_graph)."""
+    empty_graph.execute("CREATE (:Person {name: 'Alice'})")
+    return empty_graph
+```
+
+### Test Parametrization Patterns
+
+**Use parametrize for**:
+- Testing same logic with different inputs
+- Boundary conditions and edge cases
+- Operator variations (=, <>, <, >, etc.)
+
+```python
+@pytest.mark.parametrize("op,left,right,expected", [
+    ("=", 5, 5, True),
+    ("<>", 5, 10, True),
+    ("<", 5, 10, True),
+    ("<=", 5, 5, True),
+    (">", 10, 5, True),
+    (">=", 5, 5, True),
+])
+def test_comparison_operators(op, left, right, expected):
+    gf = GraphForge()
+    result = gf.execute(f"RETURN {left} {op} {right} AS result")
+    assert result[0]['result'].value == expected
+```
+
+**Use separate tests for**:
+- Different features or behaviors
+- Complex setup that doesn't share logic
+- Tests with different failure modes
+
+**Parametrize IDs for readability**:
+```python
+@pytest.mark.parametrize("query,expected", [
+    ("MATCH (n) RETURN n", []),
+    ("MATCH (n:Person) RETURN n", []),
+], ids=["match-all", "match-label"])
+def test_match_patterns(query, expected):
+    ...
+```
+
+### Property-Based Testing with Hypothesis
+
+Use Hypothesis (`tests/property/`) for testing invariants and edge cases:
+
+**When to use property tests**:
+- Testing mathematical properties (commutativity, associativity)
+- Serialization round-trips (serialize → deserialize → equal)
+- Parser fuzzing (generate random valid/invalid queries)
+- NULL handling across all operators
+
+**Example - Serialization round-trip**:
+```python
+from hypothesis import given
+from hypothesis import strategies as st
+
+@given(st.integers(), st.text(), st.booleans())
+def test_cypher_value_roundtrip(int_val, str_val, bool_val):
+    """CypherValues serialize and deserialize correctly."""
+    values = [
+        CypherInt(int_val),
+        CypherString(str_val),
+        CypherBool(bool_val),
+    ]
+    for val in values:
+        serialized = serialize_value(val)
+        deserialized = deserialize_value(serialized)
+        assert deserialized == val
+```
+
+**Example - NULL propagation property**:
+```python
+@given(st.sampled_from(["AND", "OR", "+", "-", "*", "/"]))
+def test_binary_op_null_propagation(op):
+    """Binary operators with NULL operand return NULL (except AND/OR)."""
+    gf = GraphForge()
+    result = gf.execute(f"RETURN null {op} 5 AS result")
+
+    if op in ["AND", "OR"]:
+        # Three-valued logic
+        assert result[0]['result'] in [CypherBool(False), CypherNull()]
+    else:
+        # NULL propagation
+        assert isinstance(result[0]['result'], CypherNull)
+```
+
+**Running property tests**:
+```bash
+# Run property tests with more examples
+pytest tests/property/ --hypothesis-show-statistics
+
+# Reproduce a failure
+pytest tests/property/ --hypothesis-seed=12345
+```
+
+### Test Isolation Best Practices
+
+**Always use fresh fixtures**:
+```python
+# ✅ Good - Each test gets fresh graph
+def test_create_node(empty_graph):
+    empty_graph.execute("CREATE (:Person)")
+    assert len(empty_graph.execute("MATCH (n) RETURN n")) == 1
+
+def test_create_another_node(empty_graph):
+    empty_graph.execute("CREATE (:Company)")
+    # Independent - starts with empty graph
+    assert len(empty_graph.execute("MATCH (n) RETURN n")) == 1
+
+# ❌ Bad - Shared mutable state
+graph = GraphForge()
+
+def test_create_node():
+    graph.execute("CREATE (:Person)")
+    assert len(graph.execute("MATCH (n) RETURN n")) == 1
+
+def test_create_another_node():
+    graph.execute("CREATE (:Company)")
+    # FAILS - sees node from previous test
+    assert len(graph.execute("MATCH (n) RETURN n")) == 1
+```
+
+**Transaction isolation**:
+```python
+@pytest.fixture
+def transactional_graph():
+    """Graph that rolls back after each test."""
+    gf = GraphForge("test.db")
+    gf.begin()
+    yield gf
+    gf.rollback()  # Undo all changes
+    gf.close()
+```
+
+**File system isolation**:
+```python
+@pytest.fixture
+def temp_db(tmp_path):
+    """Temporary database file."""
+    db_path = tmp_path / "test.db"
+    gf = GraphForge(str(db_path))
+    yield gf
+    gf.close()
+    # tmp_path automatically cleaned up by pytest
+```
+
+### TCK Testing with pytest-bdd
+
+GraphForge uses pytest-bdd for openCypher TCK compliance testing.
+
+**File structure**:
+```
+tests/tck/
+├── features/          # Gherkin scenarios (.feature files)
+│   ├── Match.feature
+│   └── Create.feature
+└── steps/            # Step definitions (.py files)
+    └── steps.py      # Shared step implementations
+```
+
+**Writing Gherkin scenarios**:
+```gherkin
+# tests/tck/features/Example.feature
+Feature: Example Feature
+
+  Scenario: Simple node creation
+    Given an empty graph
+    When executing query:
+      """
+      CREATE (n:Person {name: 'Alice'})
+      """
+    Then the result should be empty
+
+  Scenario: Match returns created node
+    Given an empty graph
+    And having executed:
+      """
+      CREATE (n:Person {name: 'Alice'})
+      """
+    When executing query:
+      """
+      MATCH (p:Person) RETURN p.name AS name
+      """
+    Then the result should be:
+      | name    |
+      | 'Alice' |
+```
+
+**Implementing step definitions**:
+```python
+# tests/tck/steps/steps.py
+from pytest_bdd import given, when, then, parsers
+
+@given("an empty graph")
+def empty_graph():
+    return GraphForge()
+
+@when(parsers.parse('executing query:\n{query}'))
+def execute_query(empty_graph, query):
+    empty_graph._last_result = empty_graph.execute(query)
+    return empty_graph
+
+@then("the result should be empty")
+def result_is_empty(empty_graph):
+    assert len(empty_graph._last_result) == 0
+```
+
+**Running TCK tests**:
+```bash
+# Run all TCK tests
+pytest tests/tck/ -v
+
+# Run specific feature
+pytest tests/tck/features/Match.feature
+
+# Run specific scenario
+pytest tests/tck/features/Match.feature -k "simple_node_creation"
+
+# Parallel execution
+pytest tests/tck/ -n auto
+```
+
+**TCK coverage reporting**:
+```bash
+# Count passing scenarios
+pytest tests/tck/ --tb=no -q | grep passed
+```
 
 ## Common Development Tasks
 
