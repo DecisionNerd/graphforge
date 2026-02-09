@@ -19,7 +19,7 @@
     {
       "name": "netrepo-dolphins",
       "description": "Dolphin social network - relationships between 62 dolphins in a community",
-      "url": "https://networkrepository.com/graphml.php?dataset=bio-diseasome",
+      "url": "https://networkrepository.com/graphml.php?dataset=soc-dolphins",
       "nodes": 62,
       "edges": 159,
       "labels": ["Node"],
@@ -32,7 +32,7 @@
     {
       "name": "netrepo-polbooks",
       "description": "Political books co-purchasing network - books about US politics sold on Amazon",
-      "url": "https://networkrepository.com/graphml.php?dataset=pol-books",
+      "url": "https://networkrepository.com/graphml.php?dataset=polbooks",
       "nodes": 105,
       "edges": 441,
       "labels": ["Node"],
@@ -45,7 +45,7 @@
     {
       "name": "netrepo-football",
       "description": "College football network - games between Division IA colleges in Fall 2000",
-      "url": "https://networkrepository.com/graphml.php?dataset=football",
+      "url": "https://networkrepository.com/graphml.php?dataset=misc-football",
       "nodes": 115,
       "edges": 613,
       "labels": ["Node"],
@@ -84,7 +84,7 @@
     {
       "name": "netrepo-netscience",
       "description": "Network science collaboration network - coauthorships in network science papers",
-      "url": "https://networkrepository.com/graphml.php?dataset=ca-netscience",
+      "url": "https://networkrepository.com/graphml.php?dataset=netscience",
       "nodes": 1589,
       "edges": 2742,
       "labels": ["Node"],
@@ -97,7 +97,7 @@
     {
       "name": "netrepo-jazz",
       "description": "Jazz musicians collaboration network - collaborations between jazz musicians",
-      "url": "https://networkrepository.com/graphml.php?dataset=jazz",
+      "url": "https://networkrepository.com/graphml.php?dataset=arenas-jazz",
       "nodes": 198,
       "edges": 2742,
       "labels": ["Node"],
@@ -110,7 +110,7 @@
     {
       "name": "netrepo-power",
       "description": "US Western States Power Grid - topology of the electrical grid in the Western US",
-      "url": "https://networkrepository.com/graphml.php?dataset=power",
+      "url": "https://networkrepository.com/graphml.php?dataset=inf-power",
       "nodes": 4941,
       "edges": 6594,
       "labels": ["Node"],
@@ -123,7 +123,7 @@
     {
       "name": "netrepo-email-eu",
       "description": "Email network from a large European research institution - anonymized email communications",
-      "url": "https://networkrepository.com/graphml.php?dataset=email-Eu-core",
+      "url": "https://networkrepository.com/graphml.php?dataset=email-EU",
       "nodes": 1005,
       "edges": 25571,
       "labels": ["Node"],
