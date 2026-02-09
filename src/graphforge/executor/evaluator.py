@@ -117,9 +117,11 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                         Variable,
                         PropertyAccess,
                         BinaryOp,
+                        UnaryOp,
                         FunctionCall,
                         CaseExpression,
                         ListComprehension,
+                        QuantifierExpression,
                         SubqueryExpression,
                     ),
                 )
@@ -138,9 +140,11 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                         Variable,
                         PropertyAccess,
                         BinaryOp,
+                        UnaryOp,
                         FunctionCall,
                         CaseExpression,
                         ListComprehension,
+                        QuantifierExpression,
                         SubqueryExpression,
                     ),
                 ):

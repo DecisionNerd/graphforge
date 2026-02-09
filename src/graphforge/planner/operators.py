@@ -21,7 +21,7 @@ This module defines the operators used in logical query plans:
 
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ScanNodes(BaseModel):
@@ -150,9 +150,18 @@ class ExpandVariableLength(BaseModel):
     @classmethod
     def validate_max_hops(cls, v: int | None) -> int | None:
         """Validate maximum hops."""
-        if v is not None and v < 1:
-            raise ValueError(f"Maximum hops must be positive, got {v}")
+        if v is not None and v < 0:
+            raise ValueError(f"Maximum hops must be non-negative, got {v}")
         return v
+
+    @model_validator(mode="after")
+    def validate_hop_range(self) -> "ExpandVariableLength":
+        """Validate that max_hops >= min_hops when both are specified."""
+        if self.max_hops is not None and self.max_hops < self.min_hops:
+            raise ValueError(
+                f"Maximum hops ({self.max_hops}) must be >= minimum hops ({self.min_hops})"
+            )
+        return self
 
     model_config = {"frozen": True}
 
