@@ -67,7 +67,7 @@ class CSVLoader(DatasetLoader):
                     if name.endswith((".csv", ".txt", ".tsv", ".mtx")) and not name.startswith("__")
                 ]
                 if not csv_files:
-                    raise ValueError(f"No CSV/TXT/MTX files found in zip archive: {path}")
+                    raise ValueError(f"No CSV/TXT/TSV/MTX files found in zip archive: {path}")
 
                 # Load the first CSV file found
                 with zf.open(csv_files[0], "r") as raw_f:

@@ -339,7 +339,7 @@ class TestCSVLoader:
             gf = GraphForge()
             loader = CSVLoader()
 
-            with pytest.raises(ValueError, match="No CSV/TXT/MTX files found in zip archive"):
+            with pytest.raises(ValueError, match="No CSV/TXT/TSV/MTX files found in zip archive"):
                 loader.load(gf, temp_path)
         finally:
             temp_path.unlink()

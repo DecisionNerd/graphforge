@@ -363,7 +363,6 @@ Individual datasets may have their own citations. Check the NetworkRepository we
 
 ## Related Documentation
 
-- [Dataset Integration Guide](../reference/dataset-integration.md)
 - [SNAP Datasets](./snap.md)
 - [LDBC Datasets](./ldbc.md)
 
