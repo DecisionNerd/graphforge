@@ -52,96 +52,99 @@ def validate_dataset(dataset_name: str, verbose: bool = True) -> dict:
             print("Test 1: Loading dataset (with download)...")
 
         gf = GraphForge()
-        start_time = time.time()
-        load_dataset(gf, dataset_name)
-        load_time = time.time() - start_time
-        results["load_time"] = load_time
+        try:
+            start_time = time.time()
+            load_dataset(gf, dataset_name)
+            load_time = time.time() - start_time
+            results["load_time"] = load_time
 
-        if verbose:
-            print(f"  ✅ Loaded in {load_time:.2f}s")
+            if verbose:
+                print(f"  ✅ Loaded in {load_time:.2f}s")
 
-        # Test 2: Count nodes and edges
-        if verbose:
-            print("Test 2: Counting nodes and edges...")
+            # Test 2: Count nodes and edges
+            if verbose:
+                print("Test 2: Counting nodes and edges...")
 
-        node_count = gf.execute("MATCH (n) RETURN count(n) AS count")[0]["count"].value
-        edge_count = gf.execute("MATCH ()-[r]->() RETURN count(r) AS count")[0]["count"].value
+            node_count = gf.execute("MATCH (n) RETURN count(n) AS count")[0]["count"].value
+            edge_count = gf.execute("MATCH ()-[r]->() RETURN count(r) AS count")[0]["count"].value
 
-        results["nodes"] = node_count
-        results["edges"] = edge_count
+            results["nodes"] = node_count
+            results["edges"] = edge_count
 
-        if verbose:
-            print(f"  ✅ Nodes: {node_count:,}")
-            print(f"  ✅ Edges: {edge_count:,}")
-
-        gf.close()
+            if verbose:
+                print(f"  ✅ Nodes: {node_count:,}")
+                print(f"  ✅ Edges: {edge_count:,}")
+        finally:
+            gf.close()
 
         # Test 3: Load from cache (second load)
         if verbose:
             print("Test 3: Loading from cache...")
 
         gf2 = GraphForge()
-        start_time = time.time()
-        load_dataset(gf2, dataset_name)
-        cached_load_time = time.time() - start_time
-        results["cached_load_time"] = cached_load_time
-
-        if verbose:
-            print(f"  ✅ Loaded from cache in {cached_load_time:.2f}s")
-
-        # Test 4: Basic queries
-        if verbose:
-            print("Test 4: Running test queries...")
-
-        # Query 1: Sample nodes
         try:
-            sample_nodes = gf2.execute("MATCH (n) RETURN n LIMIT 5")
-            if verbose:
-                print(f"  ✅ Sample query returned {len(sample_nodes)} nodes")
-            results["queries_passed"] += 1
-        except Exception as e:
-            results["errors"].append(f"Sample query failed: {e}")
-            results["queries_failed"] += 1
-            if verbose:
-                print(f"  ❌ Sample query failed: {e}")
+            start_time = time.time()
+            load_dataset(gf2, dataset_name)
+            cached_load_time = time.time() - start_time
+            results["cached_load_time"] = cached_load_time
 
-        # Query 2: Degree distribution
-        try:
-            degree_query = """
-                MATCH (n)
-                OPTIONAL MATCH (n)-[r]-()
-                WITH n, count(r) AS degree
-                RETURN degree, count(n) AS frequency
-                ORDER BY degree DESC
-                LIMIT 5
-            """
-            degree_dist = gf2.execute(degree_query)
             if verbose:
-                print(f"  ✅ Degree distribution query returned {len(degree_dist)} results")
-            results["queries_passed"] += 1
-        except Exception as e:
-            results["errors"].append(f"Degree query failed: {e}")
-            results["queries_failed"] += 1
-            if verbose:
-                print(f"  ❌ Degree query failed: {e}")
+                print(f"  ✅ Loaded from cache in {cached_load_time:.2f}s")
 
-        # Query 3: Triangle counting (if small enough)
-        if node_count < 1000:  # Only for small graphs
+            # Test 4: Basic queries
+            if verbose:
+                print("Test 4: Running test queries...")
+
+            # Query 1: Sample nodes
             try:
-                triangles = gf2.execute("""
-                    MATCH (a)-[:CONNECTED_TO]-(b)-[:CONNECTED_TO]-(c)-[:CONNECTED_TO]-(a)
-                    WHERE id(a) < id(b) AND id(b) < id(c)
-                    RETURN count(*) AS triangles
-                """)[0]["triangles"].value
+                sample_nodes = gf2.execute("MATCH (n) RETURN n LIMIT 5")
                 if verbose:
-                    print(f"  ✅ Found {triangles} triangles")
+                    print(f"  ✅ Sample query returned {len(sample_nodes)} nodes")
                 results["queries_passed"] += 1
             except Exception as e:
-                # Triangle query may fail if relationship type differs
+                results["errors"].append(f"Sample query failed: {e}")
+                results["queries_failed"] += 1
                 if verbose:
-                    print(f"  ⚠️  Triangle query skipped: {e}")
+                    print(f"  ❌ Sample query failed: {e}")
 
-        gf2.close()
+            # Query 2: Degree distribution
+            try:
+                degree_query = """
+                    MATCH (n)
+                    OPTIONAL MATCH (n)-[r]-()
+                    WITH n, count(r) AS degree
+                    RETURN degree, count(n) AS frequency
+                    ORDER BY degree DESC
+                    LIMIT 5
+                """
+                degree_dist = gf2.execute(degree_query)
+                if verbose:
+                    print(f"  ✅ Degree distribution query returned {len(degree_dist)} results")
+                results["queries_passed"] += 1
+            except Exception as e:
+                results["errors"].append(f"Degree query failed: {e}")
+                results["queries_failed"] += 1
+                if verbose:
+                    print(f"  ❌ Degree query failed: {e}")
+
+            # Query 3: Triangle counting (if small enough)
+            if node_count < 1000:  # Only for small graphs
+                try:
+                    triangles = gf2.execute("""
+                        MATCH (a)-[:CONNECTED_TO]-(b)-[:CONNECTED_TO]-(c)-[:CONNECTED_TO]-(a)
+                        WHERE id(a) < id(b) AND id(b) < id(c)
+                        RETURN count(*) AS triangles
+                    """)[0]["triangles"].value
+                    if verbose:
+                        print(f"  ✅ Found {triangles} triangles")
+                    results["queries_passed"] += 1
+                except Exception as e:
+                    # Triangle query may fail if relationship type differs
+                    results["queries_failed"] += 1
+                    if verbose:
+                        print(f"  ⚠️  Triangle query skipped: {e}")
+        finally:
+            gf2.close()
 
         results["success"] = True
         if verbose:
