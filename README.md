@@ -52,6 +52,23 @@ Modern data science and ML workflows increasingly produce **graph-shaped data**â
 > *We are not building a database for applications.*
 > *We are building a graph execution environment for thinking.*
 
+### Latest Release: v0.3.0
+
+Version 0.3.0 brings major Cypher features and 109+ real-world datasets:
+
+- **OPTIONAL MATCH** - Left outer joins with NULL preservation
+- **UNION / UNION ALL** - Combine query results with deduplication
+- **List comprehensions** - Transform and filter lists: `[x IN list WHERE x > 3 | x * 2]`
+- **EXISTS / COUNT subqueries** - Correlated subqueries in expressions
+- **Variable-length paths** - Recursive traversal: `-[:KNOWS*1..3]->`
+- **109+ datasets** - SNAP, LDBC, NetworkRepository with automatic caching
+- **Spatial types** - Point, Distance for geographic queries
+- **Temporal types** - Date, DateTime, Time, Duration
+
+**TCK Coverage**: 29% openCypher compatibility (up from 16.6%)
+
+See [CHANGELOG.md](CHANGELOG.md) for complete release notes.
+
 ### Use Cases
 
 **Knowledge Graph Construction**
@@ -233,7 +250,7 @@ Browse and filter datasets:
 ```python
 from graphforge.datasets import list_datasets
 
-# List all datasets (115+ available)
+# List all datasets (109+ available)
 datasets = list_datasets()
 print(f"Total datasets: {len(datasets)}")
 

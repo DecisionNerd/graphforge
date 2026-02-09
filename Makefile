@@ -61,9 +61,13 @@ coverage-report:  ## Open HTML coverage report in browser
 
 coverage-diff:  ## Show coverage for changed files only
 	@echo "Showing coverage for changed files..."
-	@git diff --name-only origin/main... | \
-		grep '\.py$$' | \
-		xargs uv run coverage report --include
+	@CHANGED_FILES=$$(git diff --name-only origin/main... | grep '\.py$$' || true); \
+	if [ -z "$$CHANGED_FILES" ]; then \
+		echo "ℹ️  No Python files changed"; \
+	else \
+		INCLUDE_PATTERN=$$(echo "$$CHANGED_FILES" | tr '\n' ',' | sed 's/,$$//'); \
+		uv run coverage report --include="$$INCLUDE_PATTERN"; \
+	fi
 
 check-patch-coverage:  ## Validate patch coverage for changed files (90% threshold)
 	@echo "Checking patch coverage for changed files..."

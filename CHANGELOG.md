@@ -7,6 +7,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-02-09
+
+### Added - Major Cypher Features
+
+#### OPTIONAL MATCH (Left Outer Joins)
+- Left outer join semantics with NULL preservation (#104)
+- Example: `MATCH (p:Person) OPTIONAL MATCH (p)-[:KNOWS]->(f) RETURN p.name, f.name`
+- 6 integration tests, comprehensive NULL handling
+
+#### UNION and UNION ALL
+- Combine query results with automatic deduplication (UNION) or preserve duplicates (UNION ALL) (#104)
+- Example: `MATCH (p:Person) RETURN p.name UNION MATCH (c:Company) RETURN c.name`
+- Tree-based operator structure for nested queries
+- 9 integration tests
+
+#### List Comprehensions
+- Transform and filter lists declaratively (#104)
+- Example: `RETURN [x IN [1,2,3,4,5] WHERE x > 3 | x * 2]`
+- Supports WHERE filtering, map expressions, and nested comprehensions
+- 12 integration tests
+
+#### EXISTS and COUNT Subquery Expressions
+- Correlated subqueries for existence checks and counting (#104)
+- Example: `MATCH (p:Person) WHERE EXISTS { MATCH (p)-[:KNOWS]->() } RETURN p.name`
+- Full operator pipeline execution for nested queries
+- 13 integration tests
+
+#### Variable-Length Path Patterns
+- Recursive traversal with cycle detection (#104)
+- Example: `MATCH (a)-[:KNOWS*1..3]->(b) RETURN a.name, b.name`
+- Depth-first search with per-path cycle prevention
+- Configurable min/max hop counts
+- 2 integration tests
+
+#### IS NULL / IS NOT NULL Operators
+- Boolean NULL checking (distinct from = NULL ternary logic) (#104)
+- Example: `MATCH (p:Person) WHERE p.age IS NULL RETURN p.name`
+- Always returns boolean (never NULL)
+
+### Added - Dataset Integration
+
+#### NetworkRepository Datasets (#110, #113)
+- 10 new graph datasets from NetworkRepository
+- GraphML loader for complex graph formats
+- Comprehensive metadata with node/edge counts, categories, licenses
+- Examples: Polblogs, Polbooks, Karate club, Dolphin social network, C. elegans, Les Miserables
+- All datasets validated with comprehensive test suite
+
+#### Spatial and Temporal Types
+- Point type for geographic coordinates
+- Distance function for spatial queries
+- Date, DateTime, Time, Duration types
+- Full openCypher compatibility for type system
+
+#### Dataset Validation Infrastructure (#112, #113)
+- Comprehensive validation script (scripts/validate_datasets.py)
+- Validates downloads, caching, node/edge counts, query functionality
+- Performance benchmarking for all datasets
+- 100% validation success rate (13/13 datasets tested)
+
+### Fixed
+- make coverage-diff command now works correctly (#111)
+- Dataset validation script handles missing query results (#112)
+- NetworkRepository dataset URLs and metadata corrections (#113)
+- Exception handling improvements in validation infrastructure (#113)
+- Resource cleanup with proper try/finally blocks
+
+### Architecture Improvements
+- Tree-based operator structure for nested queries
+- Dual serialization: SQLite+MessagePack (data) + Pydantic+JSON (metadata)
+- Enhanced expression evaluator with recursive execution
+- Operator pipeline supports nested query planning
+
+### Testing
+- 767 integration tests passing (42+ new tests for v0.3.0)
+- 91.96% code coverage maintained
+- Comprehensive dataset validation suite
+- Property-based testing with Hypothesis
+
+### TCK Compatibility
+- Progress from 16.6% to ~29% openCypher TCK coverage
+- 312+ additional scenarios passing
+- Foundation for continued TCK improvements toward 39% target
+
+### Documentation
+- Complete v0.3.0 feature documentation (CHANGELOG_v0.3.0.md)
+- Dataset integration guides (docs/datasets/)
+- Performance benchmarks and optimization tips
+- Updated openCypher compatibility matrix
+
+### Breaking Changes
+None. All changes maintain backward compatibility with v0.2.0 and v0.2.1.
+
+### Known Limitations
+- Variable-length paths: no configurable max depth limit in unbounded queries
+- UNION: no post-UNION ORDER BY (must be in each branch)
+- Pattern predicates (WHERE inside patterns) not yet supported
+
 ## [0.2.1] - 2026-02-03
 
 ### Added
@@ -278,7 +376,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 81% code coverage
 - Multi-OS, multi-Python CI/CD (3 OS × 4 Python versions)
 
-[Unreleased]: https://github.com/DecisionNerd/graphforge/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/DecisionNerd/graphforge/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/DecisionNerd/graphforge/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/DecisionNerd/graphforge/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/DecisionNerd/graphforge/compare/v0.1.4...v0.2.0
 [0.1.4]: https://github.com/DecisionNerd/graphforge/compare/v0.1.3...v0.1.4
 [0.1.2]: https://github.com/DecisionNerd/graphforge/compare/v0.1.1...v0.1.2

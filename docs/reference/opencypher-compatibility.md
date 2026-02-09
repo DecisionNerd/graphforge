@@ -1,7 +1,7 @@
 # OpenCypher Compatibility Status
 
-**Last Updated:** 2026-02-02
-**GraphForge Version:** v0.1.4 → v0.2.0 (in progress)
+**Last Updated:** 2026-02-09
+**GraphForge Version:** v0.3.0
 
 ## Executive Summary
 
@@ -11,10 +11,12 @@ GraphForge implements a **practical subset of OpenCypher** focused on common gra
 
 | Version | TCK Scenarios | Compliance | Status |
 |---------|--------------|------------|--------|
-| v0.1.4 | 1,277/7,722 | 16.5% | Released |
-| v0.2.0 | ~1,900/7,722 | ~25% | In Progress ([9 issues](https://github.com/DecisionNerd/graphforge/milestone/1)) |
-| v0.3.0 | ~3,000/7,722 | ~39% | Planned ([1 issue](https://github.com/DecisionNerd/graphforge/milestone/2)) |
-| v1.0 | >7,650/7,722 | >99% | Goal (Full OpenCypher) |
+| v0.1.4 | 638/3,837 | 16.6% | Released |
+| v0.2.0 | 638/3,837 | 16.6% | Released |
+| v0.2.1 | 638/3,837 | 16.6% | Released |
+| v0.3.0 | ~950/3,837 | ~29% | **Released** (February 2026) |
+| v0.4.0 | ~1,500/3,837 | ~39% | Planned |
+| v1.0 | >3,800/3,837 | >99% | Goal (Full OpenCypher) |
 
 ### Design Philosophy
 
@@ -122,24 +124,25 @@ GraphForge prioritizes:
 
 ---
 
-### 🚧 In Progress (v0.2.0)
+### ✅ Completed in v0.2.0 and v0.2.1
 
-Target: March 2026 | [GitHub Milestone](https://github.com/DecisionNerd/graphforge/milestone/1)
+Released: February 2026
 
-| Feature | Issue | Effort | Status |
-|---------|-------|--------|--------|
-| UNWIND clause | [#20](https://github.com/DecisionNerd/graphforge/issues/20) | 2-3h | 🚧 |
-| DETACH DELETE | [#21](https://github.com/DecisionNerd/graphforge/issues/21) | 1-2h | 🚧 |
-| CASE expressions | [#22](https://github.com/DecisionNerd/graphforge/issues/22) | 4-5h | 🚧 |
-| MATCH-CREATE formalization | [#23](https://github.com/DecisionNerd/graphforge/issues/23) | 3-4h | 🚧 |
-| REMOVE clause | [#25](https://github.com/DecisionNerd/graphforge/issues/25) | 2h | 🚧 |
-| Arithmetic operators | [#26](https://github.com/DecisionNerd/graphforge/issues/26) | 2-3h | 🚧 |
-| COLLECT aggregation | [#27](https://github.com/DecisionNerd/graphforge/issues/27) | 3-4h | 🚧 |
-| String matching operators | [#28](https://github.com/DecisionNerd/graphforge/issues/28) | 2-3h | 🚧 |
-| NOT operator | [#29](https://github.com/DecisionNerd/graphforge/issues/29) | 1-2h | 🚧 |
-
-**Total Effort:** 20-28 hours
-**Projected TCK Compliance:** ~25% (950+ scenarios)
+| Feature | Version | Status |
+|---------|---------|--------|
+| CASE expressions | v0.2.0 | ✅ Complete |
+| COLLECT aggregation | v0.2.0 | ✅ Complete |
+| Arithmetic operators (+, -, *, /, %) | v0.2.0 | ✅ Complete |
+| String matching (STARTS WITH, ENDS WITH, CONTAINS) | v0.2.0 | ✅ Complete |
+| REMOVE clause | v0.2.0 | ✅ Complete |
+| NOT operator | v0.2.0 | ✅ Complete |
+| UNWIND clause | v0.2.0 | ✅ Complete |
+| DETACH DELETE | v0.2.0 | ✅ Complete |
+| MERGE ON CREATE SET | v0.2.1 | ✅ Complete |
+| MERGE ON MATCH SET | v0.2.1 | ✅ Complete |
+| Dataset loading infrastructure | v0.2.1 | ✅ Complete |
+| CSV edge-list loader | v0.2.1 | ✅ Complete |
+| 5 SNAP datasets | v0.2.1 | ✅ Complete |
 
 #### What v0.2.0 Will Enable
 
@@ -186,39 +189,56 @@ RETURN p
 
 ---
 
-### ⏳ Planned (v0.3.0)
+### ✅ Completed in v0.3.0
 
-Target: June 2026 | [GitHub Milestone](https://github.com/DecisionNerd/graphforge/milestone/2)
+Released: February 2026 | [Release Notes](../../CHANGELOG.md#030---2026-02-09)
 
-#### Critical Missing Features
+#### Major Cypher Features
 
-| Feature | Priority | Effort | Impact |
-|---------|----------|--------|--------|
-| **OPTIONAL MATCH** | High | 8-10h | ~150 scenarios |
-| **Variable-length patterns** | High | 10-15h | ~150 scenarios |
-| **List comprehensions** | Medium | 5-7h | ~100 scenarios |
-| **Subqueries (EXISTS, COUNT)** | Medium | 8-10h | ~150 scenarios |
-| **UNION / UNION ALL** | Medium | 4-5h | ~30 scenarios |
-| **Pattern predicates** | Medium | 6-8h | ~100 scenarios |
-| **Additional string functions** | Low | 4-5h | ~100 scenarios |
-| **Additional list functions** | Low | 4-5h | ~100 scenarios |
+| Feature | Status | TCK Impact |
+|---------|--------|------------|
+| **OPTIONAL MATCH** | ✅ Complete | ~150 scenarios |
+| **Variable-length patterns** (`-[:TYPE*1..3]->`) | ✅ Complete | ~100 scenarios |
+| **List comprehensions** | ✅ Complete | ~100 scenarios |
+| **Subqueries (EXISTS, COUNT)** | ✅ Complete | ~100 scenarios |
+| **UNION / UNION ALL** | ✅ Complete | ~30 scenarios |
+| **IS NULL / IS NOT NULL** | ✅ Complete | Integrated |
+| **Spatial types** (Point, Distance) | ✅ Complete | ~50 scenarios |
+| **Temporal types** (Date, DateTime, Time, Duration) | ✅ Complete | ~50 scenarios |
 
-**Total Effort:** 50-70 hours
-**Projected TCK Compliance:** ~39% (1,500+ scenarios)
+#### Dataset Integration
+
+| Feature | Status |
+|---------|--------|
+| **95 SNAP datasets** | ✅ Complete |
+| **10 LDBC datasets** | ✅ Complete |
+| **10 NetworkRepository datasets** | ✅ Complete |
+| **GraphML loader** | ✅ Complete |
+| **Cypher script loader** | ✅ Complete |
+| **Zip compression support** | ✅ Complete |
+| **Zstandard compression support** | ✅ Complete |
+
+**Actual TCK Compliance:** ~29% (950+ scenarios)
+**Total Datasets:** 109+ validated datasets
+
+---
+
+### ⏳ Planned for v0.4.0 and Beyond
+
+#### Coming in v0.4.0
+- **Pattern predicates** - WHERE inside patterns: `MATCH (a)-[r WHERE r.weight > 5]->(b)`
+- **Path expressions** - Path variables and functions
+- **Additional string functions** - split(), replace(), reverse()
+- **Additional list functions** - tail(), head(), last()
+- **Query optimization** - Performance improvements for complex queries
+
+**Target:** ~39% TCK coverage (1,500+ scenarios)
 
 ---
 
 ### ❌ Not Supported
 
 These features are **out of scope** for GraphForge's design goals:
-
-#### Advanced Data Types
-- ❌ **Temporal Types** - `date`, `datetime`, `time`, `duration`
-  - *Reason:* Complex type system, limited use in analysis workflows
-  - *Workaround:* Use ISO 8601 strings, parse in Python
-- ❌ **Spatial Types** - `point`, `distance`, spatial indexing
-  - *Reason:* Requires specialized indexing, better handled by PostGIS
-  - *Workaround:* Store coordinates as properties, compute in Python
 - ❌ **Full-Text Search** - `db.index.fulltext.*`
   - *Reason:* SQLite FTS could be added, but not core priority
   - *Workaround:* Use string matching (CONTAINS) or external FTS
