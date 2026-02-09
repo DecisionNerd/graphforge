@@ -16,7 +16,8 @@ class TestSubqueryPlannerCheck:
 
         # Create a minimal subquery expression
         subquery = SubqueryExpression(
-            type="EXISTS", query=CypherQuery(clauses=[])  # type: ignore[arg-type]
+            type="EXISTS",
+            query=CypherQuery(clauses=[]),  # type: ignore[arg-type]
         )
 
         with pytest.raises(TypeError, match="Subquery expressions require executor parameter"):
@@ -33,7 +34,8 @@ class TestSubqueryPlannerCheck:
         executor = MockExecutor()
 
         subquery = SubqueryExpression(
-            type="EXISTS", query=CypherQuery(clauses=[])  # type: ignore[arg-type]
+            type="EXISTS",
+            query=CypherQuery(clauses=[]),  # type: ignore[arg-type]
         )
 
         with pytest.raises(
