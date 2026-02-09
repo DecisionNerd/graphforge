@@ -321,9 +321,10 @@ def debug_only():
 - Both enforced by `make pre-push` (runs before every push)
 
 **CI/CD coverage**:
-- GitHub Actions runs coverage on all PRs
-- Results uploaded to CodeCov for patch analysis
-- PR blocked if patch coverage < 80% (CodeCov target)
+- GitHub Actions checks total coverage (85% threshold) on all PRs
+- Results uploaded to CodeCov for project (85%) and patch (80%) analysis
+- CodeCov comments on PRs with coverage reports (informational, non-blocking)
+- **Local enforcement**: Always run `make pre-push` to ensure 90% patch coverage before pushing
 
 ### Understanding Coverage Metrics
 
