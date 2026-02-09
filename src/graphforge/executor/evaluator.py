@@ -608,12 +608,9 @@ def _evaluate_function(
     # SIZE function for lists and strings
     if func_name == "SIZE":
         arg = args[0]
-        if isinstance(arg, CypherList):
+        if isinstance(arg, (CypherList, CypherString)):
             return CypherInt(len(arg.value))
-        elif isinstance(arg, CypherString):
-            return CypherInt(len(arg.value))
-        else:
-            raise TypeError(f"SIZE expects list or string, got {type(arg).__name__}")
+        raise TypeError(f"SIZE expects list or string, got {type(arg).__name__}")
 
     # Dispatch to specific function handlers
     if func_name in STRING_FUNCTIONS:
