@@ -48,6 +48,31 @@ class ScanNodes(BaseModel):
     model_config = {"frozen": True}
 
 
+class OptionalScanNodes(BaseModel):
+    """Operator for scanning nodes with OPTIONAL semantics.
+
+    Like ScanNodes but preserves input rows with NULL binding when no nodes match.
+    Used for single-node OPTIONAL MATCH patterns.
+
+    Attributes:
+        variable: Variable name to bind nodes to
+        labels: Optional list of labels to filter by (None = all nodes)
+    """
+
+    variable: str = Field(..., min_length=1, description="Variable name to bind nodes")
+    labels: list[str] | None = Field(default=None, description="Optional label filter")
+
+    @field_validator("variable")
+    @classmethod
+    def validate_variable(cls, v: str) -> str:
+        """Validate variable name."""
+        if not v[0].isalpha() and v[0] != "_":
+            raise ValueError(f"Variable must start with letter or underscore: {v}")
+        return v
+
+    model_config = {"frozen": True}
+
+
 class ExpandEdges(BaseModel):
     """Operator for expanding (traversing) relationships.
 

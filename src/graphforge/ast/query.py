@@ -6,6 +6,8 @@ This module defines the root AST node for openCypher queries.
 from dataclasses import dataclass
 from typing import Any
 
+from pydantic import BaseModel, Field, field_validator, model_validator
+
 
 @dataclass
 class CypherQuery:
@@ -28,8 +30,7 @@ class CypherQuery:
     clauses: list[Any]  # List of Clause nodes
 
 
-@dataclass
-class UnionQuery:
+class UnionQuery(BaseModel):
     """AST node for UNION queries.
 
     Combines results from multiple query branches using UNION or UNION ALL.
@@ -43,5 +44,26 @@ class UnionQuery:
         MATCH (n) RETURN n.name UNION ALL MATCH (m) RETURN m.name
     """
 
-    branches: list[CypherQuery]
-    all: bool
+    branches: list[CypherQuery] = Field(
+        ..., description="List of query branches to combine with UNION"
+    )
+    all: bool = Field(..., description="True for UNION ALL, False for UNION")
+
+    @field_validator("branches")
+    @classmethod
+    def validate_branches(cls, v: list[CypherQuery]) -> list[CypherQuery]:
+        """Validate that branches is non-empty and contains CypherQuery objects."""
+        if not v:
+            raise ValueError("UNION must have at least one branch")
+        if not all(isinstance(b, CypherQuery) for b in v):
+            raise ValueError("All branches must be CypherQuery objects")
+        return v
+
+    @model_validator(mode="after")
+    def validate_union_query(self) -> "UnionQuery":
+        """Validate cross-field constraints."""
+        if len(self.branches) < 2:
+            raise ValueError("UNION requires at least two branches")
+        return self
+
+    model_config = {"frozen": True}

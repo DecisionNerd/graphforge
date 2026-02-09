@@ -19,6 +19,7 @@ from graphforge.planner.operators import (
     Limit,
     Merge,
     OptionalExpandEdges,
+    OptionalScanNodes,
     Project,
     Remove,
     ScanNodes,
@@ -131,6 +132,9 @@ class QueryExecutor:
         """
         if isinstance(op, ScanNodes):
             return self._execute_scan(op, input_rows)
+
+        if isinstance(op, OptionalScanNodes):
+            return self._execute_optional_scan(op, input_rows)
 
         if isinstance(op, ExpandEdges):
             return self._execute_expand(op, input_rows)
@@ -249,6 +253,69 @@ class QueryExecutor:
 
         return result
 
+    def _execute_optional_scan(
+        self, op: OptionalScanNodes, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute OptionalScanNodes operator with LEFT JOIN semantics.
+
+        Like ScanNodes but preserves input rows with NULL binding when no match found.
+        """
+        result = []
+
+        # For each input row
+        for ctx in input_rows:
+            # Check if variable is already bound (e.g., from WITH clause)
+            if op.variable in ctx.bindings:
+                # Variable already bound - validate it matches the pattern
+                bound_node = ctx.get(op.variable)
+
+                # Check if bound node has required labels
+                if op.labels:
+                    if all(label in bound_node.labels for label in op.labels):
+                        # Node matches pattern - keep the context
+                        result.append(ctx)
+                    else:
+                        # Node doesn't match - OPTIONAL preserves row with NULL
+                        new_ctx = ExecutionContext()
+                        new_ctx.bindings = dict(ctx.bindings)
+                        new_ctx.bind(op.variable, CypherNull())
+                        result.append(new_ctx)
+                else:
+                    # No label requirements - keep the context
+                    result.append(ctx)
+            else:
+                # Variable not bound - do normal scan
+                if op.labels:
+                    # Scan by first label for efficiency
+                    nodes = self.graph.get_nodes_by_label(op.labels[0])
+
+                    # Filter to only nodes with ALL required labels
+                    if len(op.labels) > 1:
+                        nodes = [
+                            node
+                            for node in nodes
+                            if all(label in node.labels for label in op.labels)
+                        ]
+                else:
+                    # Scan all nodes
+                    nodes = self.graph.get_all_nodes()
+
+                if nodes:
+                    # Bind each node
+                    for node in nodes:
+                        new_ctx = ExecutionContext()
+                        new_ctx.bindings = dict(ctx.bindings)
+                        new_ctx.bind(op.variable, node)
+                        result.append(new_ctx)
+                else:
+                    # OPTIONAL semantics: No nodes found - preserve row with NULL
+                    new_ctx = ExecutionContext()
+                    new_ctx.bindings = dict(ctx.bindings)
+                    new_ctx.bind(op.variable, CypherNull())
+                    result.append(new_ctx)
+
+        return result
+
     def _execute_expand(
         self, op: ExpandEdges, input_rows: list[ExecutionContext]
     ) -> list[ExecutionContext]:
@@ -321,11 +388,10 @@ class QueryExecutor:
                     new_ctx.bind(op.dst_var, current_node)
 
                     # Bind edge list if variable provided
+                    # Note: Binding raw list of EdgeRef objects (not wrapped in CypherList)
+                    # since EdgeRef is not a CypherValue and individual edges are bound directly
                     if op.edge_var:
-                        # EdgeRef objects can be stored in CypherList
-                        from typing import cast
-
-                        new_ctx.bind(op.edge_var, CypherList(cast(list[CypherValue], edge_path)))
+                        new_ctx.bind(op.edge_var, edge_path)
 
                     result.append(new_ctx)
 
@@ -1507,12 +1573,24 @@ class QueryExecutor:
         for ctx in input_rows:
             # Get source node
             if op.src_var not in ctx.bindings:
-                # Source variable not bound - skip this row
+                # OPTIONAL MATCH: Source variable not bound - preserve row with NULL bindings
+                new_ctx = ExecutionContext()
+                new_ctx.bindings = dict(ctx.bindings)
+                new_ctx.bind(op.dst_var, CypherNull())
+                if op.edge_var:
+                    new_ctx.bind(op.edge_var, CypherNull())
+                result.append(new_ctx)
                 continue
 
             src_node = ctx.get(op.src_var)
             if not isinstance(src_node, NodeRef):
-                # Source is not a node - skip this row
+                # OPTIONAL MATCH: Source is not a node - preserve row with NULL bindings
+                new_ctx = ExecutionContext()
+                new_ctx.bindings = dict(ctx.bindings)
+                new_ctx.bind(op.dst_var, CypherNull())
+                if op.edge_var:
+                    new_ctx.bind(op.edge_var, CypherNull())
+                result.append(new_ctx)
                 continue
 
             # Get edges based on direction

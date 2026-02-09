@@ -1,8 +1,11 @@
 """Integration tests for UNION and UNION ALL."""
 
+import pytest
+
 from graphforge import GraphForge
 
 
+@pytest.mark.integration
 class TestUnionBasic:
     """Test basic UNION functionality."""
 
@@ -88,6 +91,7 @@ class TestUnionBasic:
         assert names == {"Alice", "Acme", "Engineering"}
 
 
+@pytest.mark.integration
 class TestUnionOrdering:
     """Test UNION with ORDER BY and other clauses."""
 
@@ -130,6 +134,7 @@ class TestUnionOrdering:
         assert len(results) == 3
 
 
+@pytest.mark.integration
 class TestUnionEdgeCases:
     """Test UNION edge cases."""
 

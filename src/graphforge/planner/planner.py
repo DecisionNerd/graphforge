@@ -461,13 +461,13 @@ class QueryPlanner:
 
             # Handle simple node pattern
             if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
-                # OPTIONAL MATCH on a single node doesn't make much sense,
-                # but we can support it by using OptionalScanNodes if needed.
-                # For now, treat it like a regular scan (the OPTIONAL comes into play
-                # when there are relationships)
+                # OPTIONAL MATCH on a single node uses OptionalScanNodes
+                # to preserve rows with NULL bindings when no match found
+                from graphforge.planner.operators import OptionalScanNodes
+
                 node_pattern = pattern[0]
                 operators.append(
-                    ScanNodes(
+                    OptionalScanNodes(
                         variable=node_pattern.variable,  # type: ignore[arg-type]
                         labels=node_pattern.labels if node_pattern.labels else None,
                     )

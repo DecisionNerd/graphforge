@@ -440,8 +440,11 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
         if not isinstance(list_val, CypherList):
             raise TypeError(f"Quantifier requires a list, got {type(list_val).__name__}")
 
-        # Count how many items satisfy the predicate
+        # Count satisfied items and track NULL predicates (three-valued logic)
         satisfied_count = 0
+        false_count = 0
+        null_count = 0
+
         for item in list_val.value:
             # Create new context with loop variable bound
             new_ctx = ExecutionContext()
@@ -451,26 +454,62 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
             # Evaluate predicate
             predicate_val = evaluate_expression(expr.predicate, new_ctx, executor)
 
-            # Check if predicate is true (NULL counts as false)
-            if isinstance(predicate_val, CypherBool) and predicate_val.value:
-                satisfied_count += 1
+            # Track predicate results with three-valued logic
+            if isinstance(predicate_val, CypherBool):
+                if predicate_val.value:
+                    satisfied_count += 1
+                else:
+                    false_count += 1
+            elif isinstance(predicate_val, CypherNull):
+                null_count += 1
+            else:
+                # Non-boolean, non-null result counts as NULL (unknown)
+                null_count += 1
 
-        # Apply quantifier logic
+        # Apply quantifier logic with openCypher three-valued semantics
         list_length = len(list_val.value)
+
         if expr.quantifier == "ALL":
-            # All items must satisfy (empty list returns true - vacuous truth)
-            if list_length == 0:
+            # ALL: False if any False, True if empty or all True, else NULL
+            if false_count > 0:
+                return CypherBool(False)
+            elif list_length == 0 or (satisfied_count == list_length):  # noqa: PLR1714
                 return CypherBool(True)
-            return CypherBool(satisfied_count == list_length)
+            else:  # No False, but at least one NULL
+                return CypherNull()
+
         elif expr.quantifier == "ANY":
-            # At least one item must satisfy
-            return CypherBool(satisfied_count > 0)
+            # ANY: True if any True, NULL if any NULL but no True, else False
+            if satisfied_count > 0:
+                return CypherBool(True)
+            elif null_count > 0:
+                return CypherNull()
+            else:
+                return CypherBool(False)
+
         elif expr.quantifier == "NONE":
-            # No items should satisfy
-            return CypherBool(satisfied_count == 0)
+            # NONE: False if any True, NULL if any NULL but no True, else True
+            if satisfied_count > 0:
+                return CypherBool(False)
+            elif null_count > 0:
+                return CypherNull()
+            else:
+                return CypherBool(True)
+
         elif expr.quantifier == "SINGLE":
-            # Exactly one item must satisfy
-            return CypherBool(satisfied_count == 1)
+            # SINGLE: True if exactly one True and no NULLs,
+            # False if more than one True,
+            # NULL if zero True and any NULL,
+            # else False
+            if satisfied_count == 1 and null_count == 0:
+                return CypherBool(True)
+            elif satisfied_count > 1:
+                return CypherBool(False)
+            elif satisfied_count == 0 and null_count > 0:
+                return CypherNull()
+            else:
+                return CypherBool(False)
+
         else:
             raise ValueError(f"Unknown quantifier: {expr.quantifier}")
 
@@ -478,6 +517,9 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
     if isinstance(expr, SubqueryExpression):
         if executor is None:
             raise TypeError("Subquery expressions require executor parameter")
+
+        if executor.planner is None:
+            raise TypeError("Subquery expressions require executor with planner configured")
 
         # Plan the nested query
         operators = executor.planner.plan(expr.query)
@@ -488,8 +530,8 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
 
         # Execute the subquery
         subquery_rows = [subquery_ctx]
-        for op in operators:
-            subquery_rows = executor._execute_operator(op, subquery_rows, 0, len(operators))
+        for i, op in enumerate(operators):
+            subquery_rows = executor._execute_operator(op, subquery_rows, i, len(operators))
 
         # Return result based on subquery type
         if expr.type == "EXISTS":
