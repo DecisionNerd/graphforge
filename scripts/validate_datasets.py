@@ -101,7 +101,7 @@ def validate_dataset(dataset_name: str, verbose: bool = True) -> dict:
                 if verbose:
                     print(f"  ✅ Sample query returned {len(sample_nodes)} nodes")
                 results["queries_passed"] += 1
-            except Exception as e:
+            except (RuntimeError, ValueError) as e:
                 results["errors"].append(f"Sample query failed: {e}")
                 results["queries_failed"] += 1
                 if verbose:
@@ -121,7 +121,7 @@ def validate_dataset(dataset_name: str, verbose: bool = True) -> dict:
                 if verbose:
                     print(f"  ✅ Degree distribution query returned {len(degree_dist)} results")
                 results["queries_passed"] += 1
-            except Exception as e:
+            except (RuntimeError, ValueError) as e:
                 results["errors"].append(f"Degree query failed: {e}")
                 results["queries_failed"] += 1
                 if verbose:
@@ -138,7 +138,7 @@ def validate_dataset(dataset_name: str, verbose: bool = True) -> dict:
                     if verbose:
                         print(f"  ✅ Found {triangles} triangles")
                     results["queries_passed"] += 1
-                except Exception as e:
+                except (RuntimeError, ValueError, KeyError) as e:
                     # Triangle query may fail if relationship type differs
                     results["queries_failed"] += 1
                     if verbose:
@@ -150,7 +150,7 @@ def validate_dataset(dataset_name: str, verbose: bool = True) -> dict:
         if verbose:
             print(f"\n✅ {dataset_name} validation PASSED")
 
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError) as e:
         results["errors"].append(f"Fatal error: {e}")
         if verbose:
             print(f"\n❌ {dataset_name} validation FAILED: {e}")
