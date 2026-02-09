@@ -19,7 +19,7 @@
     {
       "name": "netrepo-dolphins",
       "description": "Dolphin social network - relationships between 62 dolphins in a community",
-      "url": "https://nrvis.com/download/data/bn/bn-dolphin.zip",
+      "url": "https://nrvis.com/./download/data/soc/soc-dolphins.zip",
       "nodes": 62,
       "edges": 159,
       "labels": ["Node"],
@@ -32,7 +32,7 @@
     {
       "name": "netrepo-polbooks",
       "description": "Political books co-purchasing network - books about US politics sold on Amazon",
-      "url": "https://nrvis.com/download/data/polbooks/polbooks.zip",
+      "url": "https://nrvis.com/./download/data/misc/polbooks.zip",
       "nodes": 105,
       "edges": 441,
       "labels": ["Node"],
@@ -58,7 +58,7 @@
     {
       "name": "netrepo-lesmis",
       "description": "Les Miserables character co-appearance network - characters appearing in same chapters",
-      "url": "https://nrvis.com/download/data/misc/misc-les-miserables.zip",
+      "url": "https://nrvis.com/./download/data/misc/lesmis.zip",
       "nodes": 77,
       "edges": 254,
       "labels": ["Node"],
@@ -71,9 +71,9 @@
     {
       "name": "netrepo-celegans",
       "description": "C. elegans neural network - neural connections in the worm Caenorhabditis elegans",
-      "url": "https://nrvis.com/download/data/bn/bn-celegans.zip",
-      "nodes": 297,
-      "edges": 2148,
+      "url": "https://nrvis.com/./download/data/bio/bio-celegans.zip",
+      "nodes": 453,
+      "edges": 2025,
       "labels": ["Node"],
       "relationship_types": ["CONNECTED_TO"],
       "size_mb": 0.028,
@@ -97,7 +97,7 @@
     {
       "name": "netrepo-jazz",
       "description": "Jazz musicians collaboration network - collaborations between jazz musicians",
-      "url": "https://nrvis.com/download/data/ca/ca-jazz.zip",
+      "url": "https://nrvis.com/./download/data/misc/jazz.zip",
       "nodes": 198,
       "edges": 2742,
       "labels": ["Node"],
@@ -123,12 +123,12 @@
     {
       "name": "netrepo-email-eu",
       "description": "Email network from a large European research institution - anonymized email communications",
-      "url": "https://nrvis.com/download/data/email/email-Eu-core.zip",
-      "nodes": 1005,
-      "edges": 25571,
+      "url": "https://nrvis.com/./download/data/ia/ia-email-EU.zip",
+      "nodes": 32430,
+      "edges": 54397,
       "labels": ["Node"],
       "relationship_types": ["CONNECTED_TO"],
-      "size_mb": 0.364,
+      "size_mb": 0.8,
       "license": "Public Domain",
       "category": "communication",
       "loader_class": "csv"
