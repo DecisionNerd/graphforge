@@ -364,7 +364,6 @@ Individual datasets may have their own citations. Check the NetworkRepository we
 ## Related Documentation
 
 - [Dataset Integration Guide](../reference/dataset-integration.md)
-- [GraphML Loader Documentation](../reference/graphml-loader.md)
 - [SNAP Datasets](./snap.md)
 - [LDBC Datasets](./ldbc.md)
 

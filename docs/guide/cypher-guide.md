@@ -802,7 +802,6 @@ RETURN p.name AS person
 
 - [Getting Started](overview.md) - Step-by-step guide
 - [API Reference](../reference/api.md) - Python API documentation
-- [Examples](../examples/) - Real-world use cases
 - [TCK Compliance](../reference/tck-compliance.md) - openCypher conformance status
 
 ---
