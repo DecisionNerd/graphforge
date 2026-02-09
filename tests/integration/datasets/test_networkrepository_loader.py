@@ -107,8 +107,8 @@ class TestNetworkRepositoryMetadata:
         assert (
             "celegans" in celegans.description.lower() or "elegans" in celegans.description.lower()
         )
-        assert celegans.nodes == 297
-        assert celegans.edges == 2148
+        assert celegans.nodes == 453
+        assert celegans.edges == 2025
         assert celegans.category == "biological"
 
 
