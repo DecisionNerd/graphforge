@@ -19,22 +19,23 @@ class TestNetworkRepositoryMetadataLoading:
         """Test that loading from non-existent file raises FileNotFoundError."""
         # Temporarily move the JSON file to simulate missing file
         from graphforge.datasets.sources import networkrepository
-        import os
 
         module_dir = Path(networkrepository.__file__).parent.parent
         json_path = module_dir / "data" / "networkrepository.json"
         temp_path = module_dir / "data" / "networkrepository.json.backup"
 
         if json_path.exists():
-            os.rename(json_path, temp_path)
+            json_path.rename(temp_path)
 
         try:
-            with pytest.raises(FileNotFoundError, match="NetworkRepository metadata file not found"):
+            with pytest.raises(
+                FileNotFoundError, match="NetworkRepository metadata file not found"
+            ):
                 _load_networkrepository_metadata()
         finally:
             # Restore the file
             if temp_path.exists():
-                os.rename(temp_path, json_path)
+                temp_path.rename(json_path)
 
     def test_load_metadata_missing_required_key_raises_error(self):
         """Test that missing required keys in dataset entries raise ValueError."""
