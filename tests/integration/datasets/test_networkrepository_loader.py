@@ -5,6 +5,7 @@ and querying capabilities.
 """
 
 import pytest
+from urllib.parse import urlparse
 
 from graphforge.datasets.base import DatasetInfo
 from graphforge.datasets.registry import get_dataset_info, list_datasets
@@ -42,8 +43,11 @@ class TestNetworkRepositoryMetadata:
             # Name should start with netrepo- prefix
             assert ds.name.startswith("netrepo-")
 
-            # URL should point to networkrepository.com
-            assert "networkrepository.com" in ds.url
+            # URL should point to networkrepository.com (or its subdomains)
+            parsed_url = urlparse(ds.url)
+            host = parsed_url.hostname
+            assert host is not None
+            assert host == "networkrepository.com" or host.endswith(".networkrepository.com")
 
             # Nodes and edges should be positive
             assert ds.nodes > 0
