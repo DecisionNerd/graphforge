@@ -1,5 +1,6 @@
 """Dataset registry and loading functionality."""
 
+import contextlib
 from pathlib import Path
 import shutil
 import time
@@ -151,33 +152,70 @@ def _get_cache_path(name: str, url: str | None = None) -> Path:
     return _CACHE_DIR / safe_name
 
 
+def _validate_gzip_file(path: Path) -> bool:
+    """Validate a gzip file by checking its CRC integrity.
+
+    Args:
+        path: Path to gzip file
+
+    Returns:
+        True if file is valid, False if corrupt or not a gzip file
+    """
+    import gzip
+
+    if path.suffix != ".gz":
+        return True  # Not a gzip file, skip validation
+
+    try:
+        # Try to open and read the file to verify CRC
+        with gzip.open(path, "rb") as f:
+            # Read in chunks to avoid loading entire file into memory
+            while f.read(8192):
+                pass  # Just verify we can decompress without CRC errors
+        return True
+    except (OSError, gzip.BadGzipFile):
+        return False
+
+
 def _is_cache_valid(cache_path: Path) -> bool:
-    """Check if cached dataset is still valid (not expired).
+    """Check if cached dataset is still valid (not expired and not corrupt).
 
     Args:
         cache_path: Path to cached dataset
 
     Returns:
-        True if cache exists and is not expired
+        True if cache exists, is not expired, and passes integrity checks
     """
     if not cache_path.exists():
         return False
 
     # Check if cache has expired
     cache_age = time.time() - cache_path.stat().st_mtime
-    return cache_age < _CACHE_TTL
+    if cache_age >= _CACHE_TTL:
+        return False
+
+    # For gzip files, validate integrity
+    if cache_path.suffix == ".gz" or cache_path.name.endswith(".gz"):
+        if not _validate_gzip_file(cache_path):
+            # Corrupt file, remove it so it will be re-downloaded
+            with contextlib.suppress(OSError):
+                cache_path.unlink()
+            return False
+
+    return True
 
 
-def _download_dataset(url: str, dest_path: Path) -> None:
-    """Download a dataset from a URL.
+def _download_dataset(url: str, dest_path: Path, max_retries: int = 2) -> None:
+    """Download a dataset from a URL with integrity validation and retry.
 
     Args:
         url: URL to download from (must be HTTP or HTTPS)
         dest_path: Destination file path
+        max_retries: Number of times to retry download on failure (default: 2)
 
     Raises:
         ValueError: If URL scheme is not HTTP or HTTPS
-        RuntimeError: If download fails
+        RuntimeError: If download fails after all retries
     """
     # Validate URL scheme for security (only allow HTTP/HTTPS)
     from urllib.parse import urlparse
@@ -191,18 +229,58 @@ def _download_dataset(url: str, dest_path: Path) -> None:
     # Ensure cache directory exists
     dest_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Download to temporary file first
-    temp_path = dest_path.with_suffix(".tmp")
+    # Download to temporary file first (append .tmp to preserve extension)
+    temp_path = dest_path.parent / f"{dest_path.name}.tmp"
 
-    try:
-        urlretrieve(url, temp_path)  # nosec B310 - URL scheme validated above
-        # Move to final location (replace handles existing files on Windows)
-        temp_path.replace(dest_path)
-    except Exception as e:
-        # Clean up temporary file on error
-        if temp_path.exists():
-            temp_path.unlink()
-        raise RuntimeError(f"Failed to download dataset: {e}") from e
+    last_error: Exception | None = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            # Clean up any existing temp or corrupt destination files
+            if temp_path.exists():
+                temp_path.unlink()
+            if dest_path.exists() and not _is_cache_valid(dest_path):
+                dest_path.unlink()
+
+            # Download the file
+            urlretrieve(url, temp_path)  # nosec B310 - URL scheme validated above
+
+            # Validate gzip files before finalizing
+            if dest_path.suffix == ".gz" or dest_path.name.endswith(".gz"):
+                # For gzip files, validate integrity before finalizing
+                # Temporarily rename temp to final name for validation
+                temp_path.rename(dest_path)
+
+                if not _validate_gzip_file(dest_path):
+                    dest_path.unlink()
+                    raise RuntimeError("Downloaded file failed CRC check (corrupt or incomplete)")
+
+                # Validation passed, file already in final location
+            else:
+                # Not a gzip file, move directly to destination
+                temp_path.replace(dest_path)
+
+            # Success!
+            return
+
+        except Exception as e:  # noqa: PERF203 - try-except in loop is intentional for retry logic
+            last_error = e
+            # Clean up any partial files
+            if temp_path.exists():
+                temp_path.unlink()
+            if dest_path.exists():
+                # Remove potentially corrupt destination file
+                dest_path.unlink()
+
+            if attempt < max_retries:
+                # Wait a bit before retrying
+                time.sleep(1)
+                continue
+
+    # All retries exhausted
+    raise RuntimeError(
+        f"Failed to download dataset after {max_retries + 1} attempts: {last_error}"
+    ) from last_error
 
 
 def load_dataset(gf: "GraphForge", name: str, force_download: bool = False) -> Dataset:
