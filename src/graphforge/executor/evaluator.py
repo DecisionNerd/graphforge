@@ -31,6 +31,7 @@ from graphforge.types.values import (
     CypherList,
     CypherMap,
     CypherNull,
+    CypherPath,
     CypherPoint,
     CypherString,
     CypherTime,
@@ -612,6 +613,18 @@ def _evaluate_function(
             if not isinstance(arg, CypherNull):
                 return arg
         return CypherNull()
+
+    # LENGTH is overloaded - works for both strings and paths
+    if func_name == "LENGTH":
+        args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
+        arg = args[0]
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+        if isinstance(arg, CypherPath):
+            return _evaluate_path_function(func_name, args)
+        if isinstance(arg, CypherString):
+            return _evaluate_string_function(func_name, args)
+        raise TypeError(f"LENGTH expects string or path argument, got {type(arg).__name__}")
 
     # Graph functions need special handling for NodeRef/EdgeRef arguments
     if func_name in GRAPH_FUNCTIONS:
