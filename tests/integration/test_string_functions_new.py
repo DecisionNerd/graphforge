@@ -1,7 +1,5 @@
 """Integration tests for new string functions (v0.4.0)."""
 
-import pytest
-
 from graphforge.api import GraphForge
 
 
@@ -83,7 +81,7 @@ class TestStringFunctionsIntegration:
         gf = GraphForge()
         results = gf.execute(
             """
-            RETURN 
+            RETURN
                 left(rtrim('  hello  '), 3) AS result1,
                 replace(ltrim('  hello world  '), ' ', '_') AS result2
             """
@@ -112,7 +110,7 @@ class TestStringFunctionsIntegration:
         gf = GraphForge()
         results = gf.execute(
             """
-            RETURN 
+            RETURN
                 split(null, ',') AS s1,
                 replace(null, 'a', 'b') AS s2,
                 left(null, 3) AS s3,
