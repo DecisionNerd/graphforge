@@ -1,7 +1,7 @@
 """Unit tests for ExpandMultiHop operator."""
 
-import pytest
 from pydantic import ValidationError
+import pytest
 
 from graphforge.planner.operators import ExpandMultiHop
 

@@ -28,14 +28,10 @@ comment:
   require_changes: false               # Always comment, even if no changes
 
 flags:
-  unittests:
-    paths:
-      - src/
-    carryforward: true                 # Use previous coverage if job fails
   full-coverage:
     paths:
       - src/
-    carryforward: true
+    carryforward: true                 # Use previous coverage if job fails
 
 component_management:
   individual_components:
