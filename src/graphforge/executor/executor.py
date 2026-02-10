@@ -1222,6 +1222,166 @@ class QueryExecutor:
                     max_val = val
             return max_val
 
+        # PERCENTILEDISC - discrete percentile (no interpolation)
+        if func_name == "PERCENTILEDISC":
+            # Second argument is the percentile value (0.0 to 1.0)
+            if len(func_call.args) != 2:
+                raise TypeError(f"percentileDisc expects 2 arguments, got {len(func_call.args)}")
+
+            # Get percentile value from second argument
+            percentile_expr = func_call.args[1]
+            context = group_rows[0] if group_rows else ExecutionContext()
+            percentile_val = evaluate_expression(percentile_expr, context, self)
+
+            if isinstance(percentile_val, CypherNull):
+                return CypherNull()
+
+            if not isinstance(percentile_val, (CypherInt, CypherFloat)):
+                raise TypeError("percentileDisc percentile must be a number")
+
+            percentile = float(percentile_val.value)
+            if not 0.0 <= percentile <= 1.0:
+                raise ValueError("percentileDisc percentile must be between 0.0 and 1.0")
+
+            if not values:
+                return CypherNull()
+
+            # Convert values to floats and sort
+            numeric_values = []
+            for val in values:
+                if isinstance(val, CypherInt):
+                    numeric_values.append(float(val.value))
+                elif isinstance(val, CypherFloat):
+                    numeric_values.append(val.value)
+                else:
+                    val_type = type(val).__name__
+                    raise TypeError(f"percentileDisc requires numeric values, got {val_type}")
+
+            numeric_values.sort()
+
+            # Calculate index (discrete - no interpolation)
+            if percentile == 1.0:
+                index = len(numeric_values) - 1
+            else:
+                index = int(percentile * len(numeric_values))
+
+            return CypherFloat(numeric_values[index])
+
+        # PERCENTILECONT - continuous percentile (with linear interpolation)
+        if func_name == "PERCENTILECONT":
+            # Second argument is the percentile value (0.0 to 1.0)
+            if len(func_call.args) != 2:
+                raise TypeError(f"percentileCont expects 2 arguments, got {len(func_call.args)}")
+
+            # Get percentile value from second argument
+            percentile_expr = func_call.args[1]
+            context = group_rows[0] if group_rows else ExecutionContext()
+            percentile_val = evaluate_expression(percentile_expr, context, self)
+
+            if isinstance(percentile_val, CypherNull):
+                return CypherNull()
+
+            if not isinstance(percentile_val, (CypherInt, CypherFloat)):
+                raise TypeError("percentileCont percentile must be a number")
+
+            percentile = float(percentile_val.value)
+            if not 0.0 <= percentile <= 1.0:
+                raise ValueError("percentileCont percentile must be between 0.0 and 1.0")
+
+            if not values:
+                return CypherNull()
+
+            # Convert values to floats and sort
+            numeric_values = []
+            for val in values:
+                if isinstance(val, CypherInt):
+                    numeric_values.append(float(val.value))
+                elif isinstance(val, CypherFloat):
+                    numeric_values.append(val.value)
+                else:
+                    val_type = type(val).__name__
+                    raise TypeError(f"percentileCont requires numeric values, got {val_type}")
+
+            numeric_values.sort()
+
+            # Calculate position with linear interpolation
+            if percentile == 0.0:
+                return CypherFloat(numeric_values[0])
+            if percentile == 1.0:
+                return CypherFloat(numeric_values[-1])
+
+            # Linear interpolation between adjacent values
+            position = percentile * (len(numeric_values) - 1)
+            lower_index = int(position)
+            upper_index = lower_index + 1
+
+            if upper_index >= len(numeric_values):
+                return CypherFloat(numeric_values[-1])
+
+            # Interpolate
+            fraction = position - lower_index
+            lower_value = numeric_values[lower_index]
+            upper_value = numeric_values[upper_index]
+            result = lower_value + fraction * (upper_value - lower_value)
+
+            return CypherFloat(result)
+
+        # STDEV - sample standard deviation
+        if func_name == "STDEV":
+            if len(values) < 2:
+                return CypherNull()
+
+            # Convert to numeric values
+            numeric_values = []
+            for val in values:
+                if isinstance(val, CypherInt):
+                    numeric_values.append(float(val.value))
+                elif isinstance(val, CypherFloat):
+                    numeric_values.append(val.value)
+                else:
+                    raise TypeError(f"stDev requires numeric values, got {type(val).__name__}")
+
+            # Calculate mean
+            mean = sum(numeric_values) / len(numeric_values)
+
+            # Calculate sample variance: sum((x - mean)^2) / (n - 1)
+            variance = sum((x - mean) ** 2 for x in numeric_values) / (len(numeric_values) - 1)
+
+            # Standard deviation is square root of variance
+            import math
+
+            std_dev = math.sqrt(variance)
+
+            return CypherFloat(std_dev)
+
+        # STDEVP - population standard deviation
+        if func_name == "STDEVP":
+            if not values:
+                return CypherNull()
+
+            # Convert to numeric values
+            numeric_values = []
+            for val in values:
+                if isinstance(val, CypherInt):
+                    numeric_values.append(float(val.value))
+                elif isinstance(val, CypherFloat):
+                    numeric_values.append(val.value)
+                else:
+                    raise TypeError(f"stDevP requires numeric values, got {type(val).__name__}")
+
+            # Calculate mean
+            mean = sum(numeric_values) / len(numeric_values)
+
+            # Calculate population variance: sum((x - mean)^2) / n
+            variance = sum((x - mean) ** 2 for x in numeric_values) / len(numeric_values)
+
+            # Standard deviation is square root of variance
+            import math
+
+            std_dev = math.sqrt(variance)
+
+            return CypherFloat(std_dev)
+
         raise ValueError(f"Unknown aggregation function: {func_name}")
 
     def _execute_create(

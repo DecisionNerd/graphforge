@@ -34,7 +34,8 @@ coverage:  ## Run tests with coverage measurement
 		--cov-branch \
 		--cov-report=term-missing \
 		--cov-report=xml \
-		--cov-report=html
+		--cov-report=html \
+		-n auto
 
 test-analytics:  ## Run tests with analytics output (JUnit XML)
 	@echo "Running tests with analytics output..."
