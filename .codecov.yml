@@ -8,11 +8,15 @@ coverage:
         target: 85%                    # Project-wide coverage target
         threshold: 2%                  # Allow 2% drop before failing
         if_ci_failed: error            # Fail if CI fails
+        flags:
+          - full-coverage              # Use full test suite for project coverage
     patch:
       default:
         target: 80%                    # New code should have 80%+ coverage
         threshold: 5%
         if_ci_failed: error
+        flags:
+          - full-coverage              # Use full test suite (unit + integration) for patch coverage
 
   precision: 2                         # Show 2 decimal places
   round: down                          # Round coverage down
