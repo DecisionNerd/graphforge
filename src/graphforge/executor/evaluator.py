@@ -554,7 +554,8 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
 
 
 # Function categories
-STRING_FUNCTIONS = {"LENGTH", "SUBSTRING", "UPPER", "LOWER", "TRIM"}
+STRING_FUNCTIONS = {"LENGTH", "SUBSTRING", "UPPER", "LOWER", "TRIM", "REVERSE"}
+LIST_FUNCTIONS = {"TAIL", "HEAD", "LAST", "REVERSE", "RANGE", "SIZE"}
 TYPE_FUNCTIONS = {"TOBOOLEAN", "TOINTEGER", "TOFLOAT", "TOSTRING", "TYPE"}
 TEMPORAL_FUNCTIONS = {
     "DATE",
@@ -570,7 +571,7 @@ TEMPORAL_FUNCTIONS = {
 }
 SPATIAL_FUNCTIONS = {"POINT", "DISTANCE"}
 GRAPH_FUNCTIONS = {"ID", "LABELS"}
-PATH_FUNCTIONS = {"LENGTH", "NODES", "RELATIONSHIPS"}
+PATH_FUNCTIONS = {"LENGTH", "NODES", "RELATIONSHIPS", "HEAD", "LAST"}
 AGGREGATE_FUNCTIONS = {"COUNT", "SUM", "AVG", "MAX", "MIN", "COLLECT"}
 
 
@@ -626,6 +627,42 @@ def _evaluate_function(
             return _evaluate_string_function(func_name, args)
         raise TypeError(f"LENGTH expects string or path argument, got {type(arg).__name__}")
 
+    # HEAD is overloaded - works for both lists and paths
+    if func_name == "HEAD":
+        args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
+        arg = args[0]
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+        if isinstance(arg, CypherPath):
+            return _evaluate_path_function(func_name, args)
+        if isinstance(arg, CypherList):
+            return _evaluate_list_function(func_name, args)
+        raise TypeError(f"HEAD expects list or path argument, got {type(arg).__name__}")
+
+    # LAST is overloaded - works for both lists and paths
+    if func_name == "LAST":
+        args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
+        arg = args[0]
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+        if isinstance(arg, CypherPath):
+            return _evaluate_path_function(func_name, args)
+        if isinstance(arg, CypherList):
+            return _evaluate_list_function(func_name, args)
+        raise TypeError(f"LAST expects list or path argument, got {type(arg).__name__}")
+
+    # REVERSE is overloaded - works for both lists and strings
+    if func_name == "REVERSE":
+        args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
+        arg = args[0]
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+        if isinstance(arg, CypherList):
+            return _evaluate_list_function(func_name, args)
+        if isinstance(arg, CypherString):
+            return _evaluate_string_function(func_name, args)
+        raise TypeError(f"REVERSE expects list or string argument, got {type(arg).__name__}")
+
     # Graph functions need special handling for NodeRef/EdgeRef arguments
     if func_name in GRAPH_FUNCTIONS:
         args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
@@ -653,6 +690,8 @@ def _evaluate_function(
     # Dispatch to specific function handlers
     if func_name in STRING_FUNCTIONS:
         return _evaluate_string_function(func_name, args)
+    elif func_name in LIST_FUNCTIONS:
+        return _evaluate_list_function(func_name, args)
     elif func_name in TYPE_FUNCTIONS:
         return _evaluate_type_function(func_name, args)
     elif func_name in TEMPORAL_FUNCTIONS:
@@ -722,6 +761,11 @@ def _evaluate_string_function(func_name: str, args: list[CypherValue]) -> Cypher
         if not isinstance(args[0], CypherString):
             raise TypeError(f"TRIM expects string, got {type(args[0]).__name__}")
         return CypherString(args[0].value.strip())
+
+    elif func_name == "REVERSE":
+        if not isinstance(args[0], CypherString):
+            raise TypeError(f"REVERSE expects string, got {type(args[0]).__name__}")
+        return CypherString(args[0].value[::-1])
 
     raise ValueError(f"Unknown string function: {func_name}")
 
@@ -1189,4 +1233,193 @@ def _evaluate_path_function(func_name: str, args: list[CypherValue]) -> CypherVa
 
         raise TypeError(f"RELATIONSHIPS expects path argument, got {type(arg).__name__}")
 
+    if func_name == "HEAD":
+        # head(path) - returns the first node in the path
+        if len(args) != 1:
+            raise TypeError(f"HEAD expects 1 argument, got {len(args)}")
+
+        arg = args[0]
+
+        # Handle NULL
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+
+        # Check if argument is a path
+        if isinstance(arg, CypherPath):
+            if len(arg.nodes) == 0:
+                return CypherNull()
+            return arg.nodes[0]  # type: ignore[return-value]
+
+        raise TypeError(f"HEAD expects path argument, got {type(arg).__name__}")
+
+    if func_name == "LAST":
+        # last(path) - returns the last node in the path
+        if len(args) != 1:
+            raise TypeError(f"LAST expects 1 argument, got {len(args)}")
+
+        arg = args[0]
+
+        # Handle NULL
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+
+        # Check if argument is a path
+        if isinstance(arg, CypherPath):
+            if len(arg.nodes) == 0:
+                return CypherNull()
+            return arg.nodes[-1]  # type: ignore[return-value]
+
+        raise TypeError(f"LAST expects path argument, got {type(arg).__name__}")
+
     raise ValueError(f"Unknown path function: {func_name}")
+
+
+def _evaluate_list_function(func_name: str, args: list[CypherValue]) -> CypherValue:
+    """Evaluate list functions.
+
+    These functions work with CypherList values.
+
+    Args:
+        func_name: Name of the list function (uppercase)
+        args: List of evaluated arguments
+
+    Returns:
+        CypherValue result of the list function
+
+    Raises:
+        ValueError: If function is unknown
+        TypeError: If arguments have invalid types
+    """
+    if func_name == "TAIL":
+        # tail(list) - returns all elements except the first
+        if len(args) != 1:
+            raise TypeError(f"TAIL expects 1 argument, got {len(args)}")
+
+        arg = args[0]
+
+        # Handle NULL
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+
+        # Check if argument is a list
+        if isinstance(arg, CypherList):
+            if len(arg.value) == 0:
+                return CypherList([])
+            return CypherList(arg.value[1:])
+
+        raise TypeError(f"TAIL expects list argument, got {type(arg).__name__}")
+
+    if func_name == "HEAD":
+        # head(list) - returns the first element or NULL for empty list
+        if len(args) != 1:
+            raise TypeError(f"HEAD expects 1 argument, got {len(args)}")
+
+        arg = args[0]
+
+        # Handle NULL
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+
+        # Check if argument is a list
+        if isinstance(arg, CypherList):
+            if len(arg.value) == 0:
+                return CypherNull()
+            first_element: CypherValue = arg.value[0]
+            return first_element
+
+        raise TypeError(f"HEAD expects list argument, got {type(arg).__name__}")
+
+    if func_name == "LAST":
+        # last(list) - returns the last element or NULL for empty list
+        if len(args) != 1:
+            raise TypeError(f"LAST expects 1 argument, got {len(args)}")
+
+        arg = args[0]
+
+        # Handle NULL
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+
+        # Check if argument is a list
+        if isinstance(arg, CypherList):
+            if len(arg.value) == 0:
+                return CypherNull()
+            last_element: CypherValue = arg.value[-1]
+            return last_element
+
+        raise TypeError(f"LAST expects list argument, got {type(arg).__name__}")
+
+    if func_name == "REVERSE":
+        # reverse(list) - returns list with elements in reverse order
+        if len(args) != 1:
+            raise TypeError(f"REVERSE expects 1 argument, got {len(args)}")
+
+        arg = args[0]
+
+        # Handle NULL
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+
+        # Check if argument is a list
+        if isinstance(arg, CypherList):
+            return CypherList(list(reversed(arg.value)))
+
+        raise TypeError(f"REVERSE expects list argument, got {type(arg).__name__}")
+
+    if func_name == "RANGE":
+        # range(start, end) or range(start, end, step)
+        if len(args) < 2 or len(args) > 3:
+            raise TypeError(f"RANGE expects 2 or 3 arguments, got {len(args)}")
+
+        # Validate argument types
+        if not isinstance(args[0], CypherInt):
+            raise TypeError(f"RANGE start must be integer, got {type(args[0]).__name__}")
+        if not isinstance(args[1], CypherInt):
+            raise TypeError(f"RANGE end must be integer, got {type(args[1]).__name__}")
+
+        start = args[0].value
+        end = args[1].value
+        step = 1
+
+        if len(args) == 3:
+            if not isinstance(args[2], CypherInt):
+                raise TypeError(f"RANGE step must be integer, got {type(args[2]).__name__}")
+            step = args[2].value
+
+            # Validate step is not zero
+            if step == 0:
+                raise ValueError("RANGE step cannot be zero")
+
+        # Generate range
+        result_list: list[CypherValue] = []
+        if step > 0:
+            current = start
+            while current <= end:
+                result_list.append(CypherInt(current))
+                current += step
+        else:  # step < 0
+            current = start
+            while current >= end:
+                result_list.append(CypherInt(current))
+                current += step
+
+        return CypherList(result_list)
+
+    if func_name == "SIZE":
+        # size(list) - returns the number of elements in the list
+        if len(args) != 1:
+            raise TypeError(f"SIZE expects 1 argument, got {len(args)}")
+
+        arg = args[0]
+
+        # Handle NULL
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+
+        # Check if argument is a list
+        if isinstance(arg, CypherList):
+            return CypherInt(len(arg.value))
+
+        raise TypeError(f"SIZE expects list argument, got {type(arg).__name__}")
+
+    raise ValueError(f"Unknown list function: {func_name}")
