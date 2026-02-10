@@ -191,7 +191,7 @@ RETURN p
 
 ### ✅ Completed in v0.3.0
 
-Released: February 2026 | [Release Notes](../../CHANGELOG.md#030---2026-02-09)
+Released: February 2026 | [Release Notes](changelog.md#030-2026-02-09)
 
 #### Major Cypher Features
 
