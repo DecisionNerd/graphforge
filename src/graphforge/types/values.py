@@ -447,15 +447,18 @@ class CypherPath(CypherValue):
 
         # Validate connectivity
         for i, rel in enumerate(relationships):
-            src_node = nodes[i]
-            dst_node = nodes[i + 1]
+            node_a = nodes[i]
+            node_b = nodes[i + 1]
             # Check that relationship connects consecutive nodes
-            # Relationship direction matters: src -> dst
-            if rel.src.id != src_node.id or rel.dst.id != dst_node.id:
+            # Allow traversal in either direction (for undirected or reversed patterns)
+            forward_match = rel.src.id == node_a.id and rel.dst.id == node_b.id
+            reverse_match = rel.src.id == node_b.id and rel.dst.id == node_a.id
+
+            if not (forward_match or reverse_match):
                 raise ValueError(
                     f"Relationship at index {i} does not connect nodes {i} and {i+1}: "
                     f"relationship goes from {rel.src.id} to {rel.dst.id}, "
-                    f"but path expects {src_node.id} to {dst_node.id}"
+                    f"but path expects connection between {node_a.id} and {node_b.id}"
                 )
 
         # Store as tuple for immutability

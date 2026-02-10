@@ -32,10 +32,12 @@ class ScanNodes(BaseModel):
     Attributes:
         variable: Variable name to bind nodes to
         labels: Optional list of labels to filter by (None = all nodes)
+        path_var: Variable name to bind single-node path to (None if not needed)
     """
 
     variable: str = Field(..., min_length=1, description="Variable name to bind nodes")
     labels: list[str] | None = Field(default=None, description="Optional label filter")
+    path_var: str | None = Field(default=None, description="Path variable name")
 
     @field_validator("variable")
     @classmethod
@@ -57,10 +59,12 @@ class OptionalScanNodes(BaseModel):
     Attributes:
         variable: Variable name to bind nodes to
         labels: Optional list of labels to filter by (None = all nodes)
+        path_var: Variable name to bind single-node path to (None if not needed)
     """
 
     variable: str = Field(..., min_length=1, description="Variable name to bind nodes")
     labels: list[str] | None = Field(default=None, description="Optional label filter")
+    path_var: str | None = Field(default=None, description="Path variable name")
 
     @field_validator("variable")
     @classmethod
@@ -82,6 +86,7 @@ class ExpandEdges(BaseModel):
         src_var: Variable name for source nodes
         edge_var: Variable name to bind edges to
         dst_var: Variable name to bind destination nodes to
+        path_var: Variable name to bind full path to (None if not needed)
         edge_types: List of edge types to match
         direction: Direction to traverse ('OUT', 'IN', 'UNDIRECTED')
     """
@@ -89,6 +94,7 @@ class ExpandEdges(BaseModel):
     src_var: str = Field(..., min_length=1, description="Source variable name")
     edge_var: str | None = Field(default=None, description="Edge variable name")
     dst_var: str = Field(..., min_length=1, description="Destination variable name")
+    path_var: str | None = Field(default=None, description="Path variable name")
     edge_types: list[str] = Field(..., description="Edge types to match")
     direction: str = Field(..., description="Traversal direction")
 
@@ -162,6 +168,47 @@ class ExpandVariableLength(BaseModel):
                 f"Maximum hops ({self.max_hops}) must be >= minimum hops ({self.min_hops})"
             )
         return self
+
+    model_config = {"frozen": True}
+
+
+class ExpandMultiHop(BaseModel):
+    """Operator for multi-hop fixed-length path expansion.
+
+    Traverses a chain of relationships with specific types in sequence.
+    Used for patterns like: (a)-[:R1]->(b)-[:R2]->(c)-[:R3]->(d)
+
+    Attributes:
+        src_var: Variable name for source node
+        hops: List of (edge_var, edge_types, direction, dst_var) tuples for each hop
+        path_var: Variable name to bind full path to (None if not needed)
+    """
+
+    src_var: str = Field(..., min_length=1, description="Source variable name")
+    hops: list[tuple[str | None, list[str], str, str]] = Field(
+        ..., min_length=1, description="List of (edge_var, edge_types, direction, dst_var)"
+    )
+    path_var: str | None = Field(default=None, description="Path variable name")
+
+    @field_validator("hops")
+    @classmethod
+    def validate_hops(
+        cls, v: list[tuple[str | None, list[str], str, str]]
+    ) -> list[tuple[str | None, list[str], str, str]]:
+        """Validate hop specifications."""
+        for i, hop in enumerate(v):
+            if not isinstance(hop, tuple) or len(hop) != 4:
+                raise ValueError(
+                    f"Hop {i} must be tuple of (edge_var, edge_types, direction, dst_var), got {hop}"
+                )
+            edge_var, edge_types, direction, dst_var = hop
+            # Validate direction
+            valid_dirs = {"OUT", "IN", "UNDIRECTED"}
+            if direction not in valid_dirs:
+                raise ValueError(
+                    f"Hop {i} direction must be one of {valid_dirs}, got {direction}"
+                )
+        return v
 
     model_config = {"frozen": True}
 
