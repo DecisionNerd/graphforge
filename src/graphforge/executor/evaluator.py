@@ -554,7 +554,20 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
 
 
 # Function categories
-STRING_FUNCTIONS = {"LENGTH", "SUBSTRING", "UPPER", "LOWER", "TRIM", "REVERSE"}
+STRING_FUNCTIONS = {
+    "LENGTH",
+    "SUBSTRING",
+    "UPPER",
+    "LOWER",
+    "TRIM",
+    "REVERSE",
+    "SPLIT",
+    "REPLACE",
+    "LEFT",
+    "RIGHT",
+    "LTRIM",
+    "RTRIM",
+}
 LIST_FUNCTIONS = {"TAIL", "HEAD", "LAST", "REVERSE", "RANGE", "SIZE"}
 TYPE_FUNCTIONS = {"TOBOOLEAN", "TOINTEGER", "TOFLOAT", "TOSTRING", "TYPE"}
 TEMPORAL_FUNCTIONS = {
@@ -766,6 +779,100 @@ def _evaluate_string_function(func_name: str, args: list[CypherValue]) -> Cypher
         if not isinstance(args[0], CypherString):
             raise TypeError(f"REVERSE expects string, got {type(args[0]).__name__}")
         return CypherString(args[0].value[::-1])
+
+    elif func_name == "SPLIT":
+        # SPLIT(string, delimiter) -> list of strings
+        if len(args) != 2:
+            raise TypeError(f"SPLIT expects 2 arguments, got {len(args)}")
+        if not isinstance(args[0], CypherString):
+            raise TypeError(f"SPLIT expects string as first argument, got {type(args[0]).__name__}")
+        if not isinstance(args[1], CypherString):
+            raise TypeError(f"SPLIT expects string as delimiter, got {type(args[1]).__name__}")
+
+        string = args[0].value
+        delimiter = args[1].value
+
+        # Split the string
+        parts = string.split(delimiter)
+        return CypherList([CypherString(part) for part in parts])
+
+    elif func_name == "REPLACE":
+        # REPLACE(string, search, replacement) -> string
+        if len(args) != 3:
+            raise TypeError(f"REPLACE expects 3 arguments, got {len(args)}")
+        if not isinstance(args[0], CypherString):
+            arg_type = type(args[0]).__name__
+            raise TypeError(f"REPLACE expects string as first argument, got {arg_type}")
+        if not isinstance(args[1], CypherString):
+            arg_type = type(args[1]).__name__
+            raise TypeError(f"REPLACE expects string as search argument, got {arg_type}")
+        if not isinstance(args[2], CypherString):
+            arg_type = type(args[2]).__name__
+            raise TypeError(f"REPLACE expects string as replacement argument, got {arg_type}")
+
+        string = args[0].value
+        search = args[1].value
+        replacement = args[2].value
+
+        # Replace all occurrences
+        result = string.replace(search, replacement)
+        return CypherString(result)
+
+    elif func_name == "LEFT":
+        # LEFT(string, length) -> string
+        if len(args) != 2:
+            raise TypeError(f"LEFT expects 2 arguments, got {len(args)}")
+        if not isinstance(args[0], CypherString):
+            raise TypeError(f"LEFT expects string as first argument, got {type(args[0]).__name__}")
+        if not isinstance(args[1], CypherInt):
+            raise TypeError(f"LEFT expects integer as length, got {type(args[1]).__name__}")
+
+        string = args[0].value
+        length = args[1].value
+
+        # Negative length returns empty string (openCypher behavior)
+        if length < 0:
+            return CypherString("")
+
+        return CypherString(string[:length])
+
+    elif func_name == "RIGHT":
+        # RIGHT(string, length) -> string
+        if len(args) != 2:
+            raise TypeError(f"RIGHT expects 2 arguments, got {len(args)}")
+        if not isinstance(args[0], CypherString):
+            raise TypeError(f"RIGHT expects string as first argument, got {type(args[0]).__name__}")
+        if not isinstance(args[1], CypherInt):
+            raise TypeError(f"RIGHT expects integer as length, got {type(args[1]).__name__}")
+
+        string = args[0].value
+        length = args[1].value
+
+        # Negative or zero length returns empty string (openCypher behavior)
+        if length <= 0:
+            return CypherString("")
+
+        # If length exceeds string length, return entire string
+        if length >= len(string):
+            return CypherString(string)
+
+        return CypherString(string[-length:])
+
+    elif func_name == "LTRIM":
+        # LTRIM(string) -> string (remove leading whitespace)
+        if len(args) != 1:
+            raise TypeError(f"LTRIM expects 1 argument, got {len(args)}")
+        if not isinstance(args[0], CypherString):
+            raise TypeError(f"LTRIM expects string, got {type(args[0]).__name__}")
+        return CypherString(args[0].value.lstrip())
+
+    elif func_name == "RTRIM":
+        # RTRIM(string) -> string (remove trailing whitespace)
+        if len(args) != 1:
+            raise TypeError(f"RTRIM expects 1 argument, got {len(args)}")
+        if not isinstance(args[0], CypherString):
+            raise TypeError(f"RTRIM expects string, got {type(args[0]).__name__}")
+        return CypherString(args[0].value.rstrip())
 
     raise ValueError(f"Unknown string function: {func_name}")
 
