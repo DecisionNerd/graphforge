@@ -360,9 +360,19 @@ class QueryExecutor:
             elif op.direction == "IN":
                 edges = self.graph.get_incoming_edges(src_node.id)
             else:  # UNDIRECTED
-                edges = self.graph.get_outgoing_edges(src_node.id) + self.graph.get_incoming_edges(
-                    src_node.id
-                )
+                # For undirected, get both outgoing and incoming edges
+                # BUT: self-loops will appear in both lists, so deduplicate them
+                outgoing = self.graph.get_outgoing_edges(src_node.id)
+                incoming = self.graph.get_incoming_edges(src_node.id)
+
+                # Deduplicate edges - self-loops (src==dst) will appear in both lists
+                # Use edge ID to identify duplicates
+                seen_edge_ids = set()
+                edges = []
+                for edge in outgoing + incoming:
+                    if edge.id not in seen_edge_ids:
+                        edges.append(edge)
+                        seen_edge_ids.add(edge.id)
 
             # Filter by type if specified
             if op.edge_types:
@@ -463,9 +473,19 @@ class QueryExecutor:
                     elif op.direction == "IN":
                         edges = self.graph.get_incoming_edges(current_node.id)
                     else:  # UNDIRECTED
-                        edges = self.graph.get_outgoing_edges(
-                            current_node.id
-                        ) + self.graph.get_incoming_edges(current_node.id)
+                        # For undirected, get both outgoing and incoming edges
+                        # BUT: self-loops will appear in both lists, so deduplicate them
+                        outgoing = self.graph.get_outgoing_edges(current_node.id)
+                        incoming = self.graph.get_incoming_edges(current_node.id)
+
+                        # Deduplicate edges - self-loops (src==dst) will appear in both lists
+                        # Use edge ID to identify duplicates
+                        seen_edge_ids = set()
+                        edges = []
+                        for edge in outgoing + incoming:
+                            if edge.id not in seen_edge_ids:
+                                edges.append(edge)
+                                seen_edge_ids.add(edge.id)
 
                     # Filter by type if specified
                     if op.edge_types:
