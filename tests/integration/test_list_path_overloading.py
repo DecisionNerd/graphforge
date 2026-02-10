@@ -17,12 +17,16 @@ class TestHeadLastPathOverloading:
         results = gf.execute(
             """
             MATCH (n)
+            WITH n
+            ORDER BY n.id
             WITH collect(n) AS nodes
             RETURN size(nodes) AS count, head(nodes) AS first
             """
         )
         assert len(results) == 1
         assert results[0]["count"].value == 2
+        # Verify head() returns the first node (id=1)
+        assert results[0]["first"].properties["id"].value == 1
 
     def test_last_on_list_of_nodes(self):
         """Test last() returns last element of node list."""
@@ -33,12 +37,16 @@ class TestHeadLastPathOverloading:
         results = gf.execute(
             """
             MATCH (n)
+            WITH n
+            ORDER BY n.id
             WITH collect(n) AS nodes
             RETURN size(nodes) AS count, last(nodes) AS last_node
             """
         )
         assert len(results) == 1
         assert results[0]["count"].value == 2
+        # Verify last() returns the last node (id=2)
+        assert results[0]["last_node"].properties["id"].value == 2
 
 
 class TestReverseOverloading:
