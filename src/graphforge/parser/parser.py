@@ -355,8 +355,22 @@ class ASTTransformer(Transformer):
         return OrderByItem(expression=expression, ascending=ascending)
 
     # Patterns
-    def pattern(self, items):
-        """Transform pattern (node-rel-node-rel-node...)."""
+    def pattern_with_binding(self, items):
+        """Transform pattern with path variable binding: p = (a)-[:R]->(b)."""
+        # items: [Variable, pattern_parts_list]
+        path_var = items[0]
+        pattern_parts = items[1]
+
+        # Return dict with path variable and pattern parts
+        return {"path_variable": path_var.name, "parts": pattern_parts}
+
+    def pattern_without_binding(self, items):
+        """Transform pattern without path binding."""
+        # items: [pattern_parts_list]
+        return {"path_variable": None, "parts": items[0]}
+
+    def pattern_parts(self, items):
+        """Transform pattern parts (node-rel-node-rel-node...)."""
         return items
 
     def node_pattern(self, items):

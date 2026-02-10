@@ -86,7 +86,11 @@ merge_action: on_create_clause | on_match_clause
 on_create_clause: "ON"i "CREATE"i set_clause
 on_match_clause: "ON"i "MATCH"i set_clause
 
-pattern: node_pattern (relationship_pattern node_pattern)*
+// Pattern with optional path variable binding: p = (a)-[:R]->(b)
+pattern: variable "=" pattern_parts  -> pattern_with_binding
+       | pattern_parts               -> pattern_without_binding
+
+pattern_parts: node_pattern (relationship_pattern node_pattern)*
 
 node_pattern: "(" variable? labels? properties? ")"
 

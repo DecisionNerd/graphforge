@@ -1109,18 +1109,29 @@ class QueryExecutor:
                 if not pattern:
                     continue
 
+                # Extract pattern parts from new format (dict with path_variable and parts)
+                # or use pattern directly if it's old format (list)
+                if isinstance(pattern, dict) and "parts" in pattern:
+                    path_var = pattern.get("path_variable")
+                    pattern_parts = pattern["parts"]
+                    # TODO: Phase 3 will use path_var to bind CypherPath objects
+                else:
+                    # Old format: pattern is already a list
+                    pattern_parts = pattern
+                    path_var = None
+
                 # Handle simple node pattern: CREATE (n:Person {name: 'Alice'})
-                if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
-                    node_pattern = pattern[0]
+                if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):
+                    node_pattern = pattern_parts[0]
                     node = self._create_node_from_pattern(node_pattern, new_ctx)
                     if node_pattern.variable:
                         new_ctx.bindings[node_pattern.variable] = node
 
                 # Handle node-relationship-node pattern: CREATE (a)-[r:KNOWS]->(b)
-                elif len(pattern) >= 3:
+                elif len(pattern_parts) >= 3:
                     # First node
-                    if isinstance(pattern[0], NodePattern):
-                        src_pattern = pattern[0]
+                    if isinstance(pattern_parts[0], NodePattern):
+                        src_pattern = pattern_parts[0]
                         # Check if variable already bound (for connecting existing nodes)
                         if src_pattern.variable and src_pattern.variable in new_ctx.bindings:
                             src_node = new_ctx.bindings[src_pattern.variable]
@@ -1130,9 +1141,9 @@ class QueryExecutor:
                                 new_ctx.bindings[src_pattern.variable] = src_node
 
                     # Relationship and destination node
-                    if len(pattern) >= 3 and isinstance(pattern[1], RelationshipPattern):
-                        rel_pattern = pattern[1]
-                        dst_pattern = pattern[2]
+                    if len(pattern_parts) >= 3 and isinstance(pattern_parts[1], RelationshipPattern):
+                        rel_pattern = pattern_parts[1]
+                        dst_pattern = pattern_parts[2]
 
                         # Check if destination variable already bound
                         if dst_pattern.variable and dst_pattern.variable in new_ctx.bindings:
@@ -1412,9 +1423,20 @@ class QueryExecutor:
                 if not pattern:
                     continue
 
+                # Extract pattern parts from new format (dict with path_variable and parts)
+                # or use pattern directly if it's old format (list)
+                if isinstance(pattern, dict) and "parts" in pattern:
+                    path_var = pattern.get("path_variable")
+                    pattern_parts = pattern["parts"]
+                    # TODO: Phase 3 will use path_var to bind CypherPath objects
+                else:
+                    # Old format: pattern is already a list
+                    pattern_parts = pattern
+                    path_var = None
+
                 # Handle simple node pattern: MERGE (n:Person {name: 'Alice'})
-                if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
-                    node_pattern = pattern[0]
+                if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):
+                    node_pattern = pattern_parts[0]
 
                     # Try to find existing node
                     found_node = None

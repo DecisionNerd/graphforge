@@ -343,9 +343,20 @@ class QueryPlanner:
             if not pattern:
                 continue
 
+            # Extract pattern parts from new format (dict with path_variable and parts)
+            # or use pattern directly if it's old format (list)
+            if isinstance(pattern, dict) and "parts" in pattern:
+                path_var = pattern.get("path_variable")
+                pattern_parts = pattern["parts"]
+                # TODO: Phase 3 will use path_var to bind CypherPath objects
+            else:
+                # Old format: pattern is already a list
+                pattern_parts = pattern
+                path_var = None
+
             # Handle simple node pattern
-            if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
-                node_pattern = pattern[0]
+            if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):
+                node_pattern = pattern_parts[0]
                 operators.append(
                     ScanNodes(
                         variable=node_pattern.variable,  # type: ignore[arg-type]
@@ -362,10 +373,10 @@ class QueryPlanner:
                     operators.append(Filter(predicate=predicate))
 
             # Handle node-relationship-node pattern
-            elif len(pattern) >= 3:
+            elif len(pattern_parts) >= 3:
                 # First node
-                if isinstance(pattern[0], NodePattern):
-                    src_pattern = pattern[0]
+                if isinstance(pattern_parts[0], NodePattern):
+                    src_pattern = pattern_parts[0]
                     # Generate variable name for anonymous patterns
                     src_var = (
                         src_pattern.variable
@@ -388,9 +399,9 @@ class QueryPlanner:
                         operators.append(Filter(predicate=predicate))
 
                 # Relationship
-                if isinstance(pattern[1], RelationshipPattern):
-                    rel_pattern = pattern[1]
-                    dst_pattern = pattern[2]
+                if isinstance(pattern_parts[1], RelationshipPattern):
+                    rel_pattern = pattern_parts[1]
+                    dst_pattern = pattern_parts[2]
 
                     # Generate variable names for anonymous patterns
                     rel_var = (
@@ -459,13 +470,24 @@ class QueryPlanner:
             if not pattern:
                 continue
 
+            # Extract pattern parts from new format (dict with path_variable and parts)
+            # or use pattern directly if it's old format (list)
+            if isinstance(pattern, dict) and "parts" in pattern:
+                path_var = pattern.get("path_variable")
+                pattern_parts = pattern["parts"]
+                # TODO: Phase 3 will use path_var to bind CypherPath objects
+            else:
+                # Old format: pattern is already a list
+                pattern_parts = pattern
+                path_var = None
+
             # Handle simple node pattern
-            if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
+            if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):
                 # OPTIONAL MATCH on a single node uses OptionalScanNodes
                 # to preserve rows with NULL bindings when no match found
                 from graphforge.planner.operators import OptionalScanNodes
 
-                node_pattern = pattern[0]
+                node_pattern = pattern_parts[0]
                 operators.append(
                     OptionalScanNodes(
                         variable=node_pattern.variable,  # type: ignore[arg-type]
@@ -482,10 +504,10 @@ class QueryPlanner:
                     operators.append(Filter(predicate=predicate))
 
             # Handle node-relationship-node pattern
-            elif len(pattern) >= 3:
+            elif len(pattern_parts) >= 3:
                 # First node
-                if isinstance(pattern[0], NodePattern):
-                    src_pattern = pattern[0]
+                if isinstance(pattern_parts[0], NodePattern):
+                    src_pattern = pattern_parts[0]
                     # Generate variable name for anonymous patterns
                     src_var = (
                         src_pattern.variable
@@ -508,9 +530,9 @@ class QueryPlanner:
                         operators.append(Filter(predicate=predicate))
 
                 # Relationship - use OptionalExpandEdges instead of ExpandEdges
-                if isinstance(pattern[1], RelationshipPattern):
-                    rel_pattern = pattern[1]
-                    dst_pattern = pattern[2]
+                if isinstance(pattern_parts[1], RelationshipPattern):
+                    rel_pattern = pattern_parts[1]
+                    dst_pattern = pattern_parts[2]
 
                     # Generate variable names for anonymous patterns
                     rel_var = (
