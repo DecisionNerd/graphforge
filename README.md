@@ -1494,11 +1494,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Documentation
 
-- **[Quick Start Tutorial](docs/tutorial.md)** — Step-by-step guide for new users
-- **[API Reference](docs/api-reference.md)** — Complete Python API documentation
-- **[Cypher Language Guide](docs/cypher-guide.md)** — openCypher subset reference
-- **[Architecture Overview](docs/architecture-overview.md)** — System design and internals
-- **[Requirements Document](docs/0-requirements.md)** — Full scope and design rationale
+Full documentation is available at **[decisionnerd.github.io/graphforge](https://decisionnerd.github.io/graphforge/)**
+
+Quick links:
+- **[Quick Start Tutorial](docs/getting-started/tutorial.md)** — Step-by-step guide for new users
+- **[API Reference](docs/reference/api.md)** — Complete Python API documentation
+- **[Cypher Language Guide](docs/guide/cypher-guide.md)** — openCypher subset reference
+- **[Architecture Overview](docs/architecture/overview.md)** — System design and internals
+- **[OpenCypher Compatibility](docs/reference/opencypher-compatibility.md)** — Feature matrix and compliance
 
 ---
 
