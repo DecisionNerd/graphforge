@@ -3,7 +3,7 @@
 This module implements the openCypher type system including:
 - Scalar types: NULL, BOOLEAN, INTEGER, FLOAT, STRING
 - Temporal types: DATE, DATETIME, TIME, DURATION
-- Collection types: LIST, MAP
+- Collection types: LIST, MAP, PATH
 
 Values follow openCypher semantics including:
 - NULL propagation in comparisons and operations
@@ -13,10 +13,13 @@ Values follow openCypher semantics including:
 
 import datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from dateutil import parser as dateutil_parser
 import isodate  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    from graphforge.types.graph import EdgeRef, NodeRef
 
 
 class CypherType(Enum):
@@ -35,6 +38,7 @@ class CypherType(Enum):
     DISTANCE = "DISTANCE"
     LIST = "LIST"
     MAP = "MAP"
+    PATH = "PATH"
 
 
 class CypherValue:
@@ -67,7 +71,7 @@ class CypherValue:
 
         # Same type comparison
         if self.type == other.type:
-            if self.type in (CypherType.LIST, CypherType.MAP):
+            if self.type in (CypherType.LIST, CypherType.MAP, CypherType.PATH):
                 return self._deep_equals(other)
             return CypherBool(self.value == other.value)
 
@@ -135,6 +139,32 @@ class CypherValue:
                     return CypherBool(False)
             return CypherBool(True)
 
+        if self.type == CypherType.PATH:
+            # Path equality: same nodes and relationships in same order
+            # Cast to CypherPath for type safety
+            if not isinstance(other, CypherPath):
+                return CypherBool(False)
+            self_path = self if isinstance(self, CypherPath) else None
+            other_path = other if isinstance(other, CypherPath) else None
+            if self_path is None or other_path is None:
+                return CypherBool(False)
+
+            # Compare lengths first
+            if len(self_path.nodes) != len(other_path.nodes):
+                return CypherBool(False)
+
+            # Compare node IDs (identity-based)
+            for n1, n2 in zip(self_path.nodes, other_path.nodes):
+                if n1.id != n2.id:
+                    return CypherBool(False)
+
+            # Compare relationship IDs (identity-based)
+            for r1, r2 in zip(self_path.relationships, other_path.relationships):
+                if r1.id != r2.id:
+                    return CypherBool(False)
+
+            return CypherBool(True)
+
         return CypherBool(False)
 
     def to_python(self) -> Any:
@@ -145,6 +175,11 @@ class CypherValue:
             return [item.to_python() for item in self.value]
         if self.type == CypherType.MAP:
             return {key: val.to_python() for key, val in self.value.items()}
+        if self.type == CypherType.PATH:
+            # Return dict with nodes and relationships
+            if isinstance(self, CypherPath):
+                return {"nodes": self.nodes, "relationships": self.relationships}
+            return self.value
         # Temporal types already store Python datetime/timedelta objects
         return self.value
 
@@ -355,6 +390,92 @@ class CypherMap(CypherValue):
 
     def __init__(self, value: dict[str, "CypherValue"]):
         super().__init__(value, CypherType.MAP)
+
+
+class CypherPath(CypherValue):
+    """Represents a path through the graph.
+
+    A path consists of an alternating sequence of nodes and relationships:
+    node -> edge -> node -> edge -> node
+
+    Attributes:
+        nodes: List of NodeRef objects in the path (N nodes)
+        relationships: List of EdgeRef objects connecting the nodes (N-1 relationships)
+
+    The path structure ensures that:
+    - len(relationships) == len(nodes) - 1
+    - relationships[i] connects nodes[i] to nodes[i+1]
+
+    Examples:
+        >>> # Path with 3 nodes: A -> B -> C
+        >>> path = CypherPath(
+        ...     nodes=[node_a, node_b, node_c],
+        ...     relationships=[edge_ab, edge_bc]
+        ... )
+        >>> path.length()  # Number of relationships
+        2
+        >>> len(path.nodes)
+        3
+    """
+
+    def __init__(self, nodes: list["NodeRef"], relationships: list["EdgeRef"]):
+        """Initialize a path from nodes and relationships.
+
+        Args:
+            nodes: List of NodeRef objects in the path
+            relationships: List of EdgeRef objects connecting the nodes
+
+        Raises:
+            ValueError: If path structure is invalid
+        """
+        from graphforge.types.graph import EdgeRef, NodeRef
+
+        # Validate types
+        if not all(isinstance(n, NodeRef) for n in nodes):
+            raise TypeError("All nodes must be NodeRef instances")
+        if not all(isinstance(r, EdgeRef) for r in relationships):
+            raise TypeError("All relationships must be EdgeRef instances")
+
+        # Validate path structure
+        if len(nodes) == 0:
+            raise ValueError("Path must contain at least one node")
+        if len(relationships) != len(nodes) - 1:
+            raise ValueError(
+                f"Path must have exactly len(nodes)-1 relationships: "
+                f"got {len(nodes)} nodes and {len(relationships)} relationships"
+            )
+
+        # Validate connectivity
+        for i, rel in enumerate(relationships):
+            node_a = nodes[i]
+            node_b = nodes[i + 1]
+            # Check that relationship connects consecutive nodes
+            # Allow traversal in either direction (for undirected or reversed patterns)
+            forward_match = rel.src.id == node_a.id and rel.dst.id == node_b.id
+            reverse_match = rel.src.id == node_b.id and rel.dst.id == node_a.id
+
+            if not (forward_match or reverse_match):
+                raise ValueError(
+                    f"Relationship at index {i} does not connect nodes {i} and {i + 1}: "
+                    f"relationship goes from {rel.src.id} to {rel.dst.id}, "
+                    f"but path expects connection between {node_a.id} and {node_b.id}"
+                )
+
+        # Store as tuple for immutability
+        self.nodes = nodes
+        self.relationships = relationships
+
+        # Store tuple of (nodes, relationships) as value for compatibility
+        super().__init__((tuple(nodes), tuple(relationships)), CypherType.PATH)
+
+    def length(self) -> int:
+        """Return the length of the path (number of relationships)."""
+        return len(self.relationships)
+
+    def __repr__(self) -> str:
+        """Readable string representation."""
+        node_ids = " -> ".join(str(n.id) for n in self.nodes)
+        return f"CypherPath([{node_ids}], length={self.length()})"
 
 
 def from_python(value: Any) -> CypherValue:

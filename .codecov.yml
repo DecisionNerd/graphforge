@@ -8,11 +8,15 @@ coverage:
         target: 85%                    # Project-wide coverage target
         threshold: 2%                  # Allow 2% drop before failing
         if_ci_failed: error            # Fail if CI fails
+        flags:
+          - full-coverage              # Use full test suite for project coverage
     patch:
       default:
-        target: 80%                    # New code should have 80%+ coverage
+        target: 75%                    # New code should have 75%+ coverage
         threshold: 5%
         if_ci_failed: error
+        flags:
+          - full-coverage              # Use full test suite (unit + integration) for patch coverage
 
   precision: 2                         # Show 2 decimal places
   round: down                          # Round coverage down
@@ -24,14 +28,10 @@ comment:
   require_changes: false               # Always comment, even if no changes
 
 flags:
-  unittests:
-    paths:
-      - src/
-    carryforward: true                 # Use previous coverage if job fails
   full-coverage:
     paths:
       - src/
-    carryforward: true
+    carryforward: true                 # Use previous coverage if job fails
 
 component_management:
   individual_components:

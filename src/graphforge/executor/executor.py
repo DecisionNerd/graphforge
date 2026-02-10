@@ -14,6 +14,7 @@ from graphforge.planner.operators import (
     Delete,
     Distinct,
     ExpandEdges,
+    ExpandMultiHop,
     ExpandVariableLength,
     Filter,
     Limit,
@@ -144,6 +145,9 @@ class QueryExecutor:
         if isinstance(op, ExpandVariableLength):
             return self._execute_variable_expand(op, input_rows)
 
+        if isinstance(op, ExpandMultiHop):
+            return self._execute_multi_hop(op, input_rows)
+
         if isinstance(op, OptionalExpandEdges):
             return self._execute_optional_expand(op, input_rows)
 
@@ -221,9 +225,28 @@ class QueryExecutor:
                 if op.labels:
                     if all(label in bound_node.labels for label in op.labels):
                         # Node matches pattern - keep the context
-                        result.append(ctx)
+                        # Bind path variable if requested
+                        if op.path_var:
+                            from graphforge.types import CypherPath
+
+                            new_ctx = ExecutionContext()
+                            new_ctx.bindings = dict(ctx.bindings)
+                            path = CypherPath(nodes=[bound_node], relationships=[])
+                            new_ctx.bind(op.path_var, path)
+                            result.append(new_ctx)
+                        else:
+                            result.append(ctx)
+                # No label requirements - keep the context
+                # Bind path variable if requested
+                elif op.path_var:
+                    from graphforge.types import CypherPath
+
+                    new_ctx = ExecutionContext()
+                    new_ctx.bindings = dict(ctx.bindings)
+                    path = CypherPath(nodes=[bound_node], relationships=[])
+                    new_ctx.bind(op.path_var, path)
+                    result.append(new_ctx)
                 else:
-                    # No label requirements - keep the context
                     result.append(ctx)
             else:
                 # Variable not bound - do normal scan
@@ -249,6 +272,12 @@ class QueryExecutor:
                     new_ctx.bindings = dict(ctx.bindings)
                     # Bind new node
                     new_ctx.bind(op.variable, node)
+                    # Bind path variable if requested (single-node path)
+                    if op.path_var:
+                        from graphforge.types import CypherPath
+
+                        path = CypherPath(nodes=[node], relationships=[])
+                        new_ctx.bind(op.path_var, path)
                     result.append(new_ctx)
 
         return result
@@ -356,6 +385,14 @@ class QueryExecutor:
                     dst_node = edge.dst if edge.src.id == src_node.id else edge.src
 
                 new_ctx.bind(op.dst_var, dst_node)
+
+                # Bind path variable if requested (single-hop path)
+                if op.path_var:
+                    from graphforge.types import CypherPath
+
+                    path = CypherPath(nodes=[src_node, dst_node], relationships=[edge])
+                    new_ctx.bind(op.path_var, path)
+
                 result.append(new_ctx)
 
         return result
@@ -393,6 +430,29 @@ class QueryExecutor:
                     if op.edge_var:
                         new_ctx.bind(op.edge_var, edge_path)
 
+                    # Bind path if path variable is specified
+                    if op.path_var:
+                        from graphforge.types import CypherPath
+
+                        # Build node list from edge path
+                        # Start with source node, then add destination of each edge
+                        nodes = [src_node]
+                        for edge in edge_path:
+                            # Add the destination node of each edge
+                            # (accounting for direction)
+                            if op.direction == "OUT":
+                                nodes.append(edge.dst)
+                            elif op.direction == "IN":
+                                nodes.append(edge.src)
+                            else:  # UNDIRECTED
+                                # Add whichever node we haven't visited yet
+                                prev_node = nodes[-1]
+                                next_node = edge.dst if edge.src.id == prev_node.id else edge.src
+                                nodes.append(next_node)
+
+                        path = CypherPath(nodes=nodes, relationships=edge_path)
+                        new_ctx.bind(op.path_var, path)
+
                     result.append(new_ctx)
 
                 # Continue exploration if we haven't exceeded max depth
@@ -425,6 +485,90 @@ class QueryExecutor:
                         if next_node.id not in visited_in_path:
                             new_visited = visited_in_path | {next_node.id}
                             stack.append((next_node, [*edge_path, edge], depth + 1, new_visited))
+
+        return result
+
+    def _execute_multi_hop(
+        self, op: ExpandMultiHop, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute ExpandMultiHop operator for fixed multi-hop patterns.
+
+        Traverses a chain of relationships with specific types in sequence,
+        building the complete path as it goes.
+        """
+        result = []
+
+        for ctx in input_rows:
+            src_node = ctx.get(op.src_var)
+
+            # Track paths through the multi-hop traversal
+            # Each state: (current_node, path_nodes, path_edges, hop_index)
+            from graphforge.types.graph import EdgeRef, NodeRef
+
+            states: list[tuple[NodeRef, list[NodeRef], list[EdgeRef], int]] = [
+                (src_node, [src_node], [], 0)
+            ]
+
+            while states:
+                current_node, path_nodes, path_edges, hop_idx = states.pop()
+
+                # If we've completed all hops, emit result
+                if hop_idx >= len(op.hops):
+                    new_ctx = ExecutionContext()
+                    new_ctx.bindings = dict(ctx.bindings)
+
+                    # Bind all intermediate node variables
+                    # path_nodes[0] is src (already bound)
+                    # path_nodes[1..] are destinations from each hop
+                    for i, (edge_var, _, _, dst_var) in enumerate(op.hops):
+                        # Bind destination variable for this hop
+                        new_ctx.bind(dst_var, path_nodes[i + 1])
+
+                        # Bind edge variable if specified
+                        if edge_var:
+                            new_ctx.bind(edge_var, path_edges[i])
+
+                    # Bind path variable if specified
+                    if op.path_var:
+                        from graphforge.types import CypherPath
+
+                        path = CypherPath(nodes=path_nodes, relationships=path_edges)
+                        new_ctx.bind(op.path_var, path)
+
+                    result.append(new_ctx)
+                    continue
+
+                # Process current hop
+                edge_var, edge_types, direction, dst_var = op.hops[hop_idx]
+
+                # Get edges based on direction
+                if direction == "OUT":
+                    edges = self.graph.get_outgoing_edges(current_node.id)
+                elif direction == "IN":
+                    edges = self.graph.get_incoming_edges(current_node.id)
+                else:  # UNDIRECTED
+                    edges = self.graph.get_outgoing_edges(
+                        current_node.id
+                    ) + self.graph.get_incoming_edges(current_node.id)
+
+                # Filter by type if specified
+                if edge_types:
+                    edges = [e for e in edges if e.type in edge_types]
+
+                # For each matching edge, continue traversal
+                for edge in edges:
+                    # Determine next node based on direction
+                    if direction == "OUT":
+                        next_node = edge.dst
+                    elif direction == "IN":
+                        next_node = edge.src
+                    else:  # UNDIRECTED
+                        next_node = edge.dst if edge.src.id == current_node.id else edge.src
+
+                    # Add state for next hop
+                    new_path_nodes = [*path_nodes, next_node]
+                    new_path_edges = [*path_edges, edge]
+                    states.append((next_node, new_path_nodes, new_path_edges, hop_idx + 1))
 
         return result
 
@@ -671,7 +815,9 @@ class QueryExecutor:
                     if return_item.alias:
                         # Skip aggregate functions (COUNT, SUM, AVG, etc.)
                         # They must be evaluated by the Aggregate operator
-                        if not isinstance(return_item.expression, FunctionCall):
+                        from graphforge.executor.evaluator import is_aggregate_function
+
+                        if not is_aggregate_function(return_item.expression):
                             # Evaluate the expression and bind it with the alias name
                             value = evaluate_expression(return_item.expression, ctx, self)
                             extended_ctx.bind(return_item.alias, value)
@@ -1109,18 +1255,27 @@ class QueryExecutor:
                 if not pattern:
                     continue
 
+                # Extract pattern parts from new format (dict with path_variable and parts)
+                # or use pattern directly if it's old format (list)
+                # Note: CREATE and MERGE do not support path binding
+                if isinstance(pattern, dict) and "parts" in pattern:
+                    pattern_parts = pattern["parts"]
+                else:
+                    # Old format: pattern is already a list
+                    pattern_parts = pattern
+
                 # Handle simple node pattern: CREATE (n:Person {name: 'Alice'})
-                if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
-                    node_pattern = pattern[0]
+                if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):
+                    node_pattern = pattern_parts[0]
                     node = self._create_node_from_pattern(node_pattern, new_ctx)
                     if node_pattern.variable:
                         new_ctx.bindings[node_pattern.variable] = node
 
                 # Handle node-relationship-node pattern: CREATE (a)-[r:KNOWS]->(b)
-                elif len(pattern) >= 3:
+                elif len(pattern_parts) >= 3:
                     # First node
-                    if isinstance(pattern[0], NodePattern):
-                        src_pattern = pattern[0]
+                    if isinstance(pattern_parts[0], NodePattern):
+                        src_pattern = pattern_parts[0]
                         # Check if variable already bound (for connecting existing nodes)
                         if src_pattern.variable and src_pattern.variable in new_ctx.bindings:
                             src_node = new_ctx.bindings[src_pattern.variable]
@@ -1130,9 +1285,11 @@ class QueryExecutor:
                                 new_ctx.bindings[src_pattern.variable] = src_node
 
                     # Relationship and destination node
-                    if len(pattern) >= 3 and isinstance(pattern[1], RelationshipPattern):
-                        rel_pattern = pattern[1]
-                        dst_pattern = pattern[2]
+                    if len(pattern_parts) >= 3 and isinstance(
+                        pattern_parts[1], RelationshipPattern
+                    ):
+                        rel_pattern = pattern_parts[1]
+                        dst_pattern = pattern_parts[2]
 
                         # Check if destination variable already bound
                         if dst_pattern.variable and dst_pattern.variable in new_ctx.bindings:
@@ -1412,9 +1569,18 @@ class QueryExecutor:
                 if not pattern:
                     continue
 
+                # Extract pattern parts from new format (dict with path_variable and parts)
+                # or use pattern directly if it's old format (list)
+                # Note: CREATE and MERGE do not support path binding
+                if isinstance(pattern, dict) and "parts" in pattern:
+                    pattern_parts = pattern["parts"]
+                else:
+                    # Old format: pattern is already a list
+                    pattern_parts = pattern
+
                 # Handle simple node pattern: MERGE (n:Person {name: 'Alice'})
-                if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
-                    node_pattern = pattern[0]
+                if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):
+                    node_pattern = pattern_parts[0]
 
                     # Try to find existing node
                     found_node = None

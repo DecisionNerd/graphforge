@@ -108,8 +108,12 @@ class TestMergeOnCreateParsing:
 
         # Check pattern
         pattern = merge.patterns[0]
-        assert len(pattern) == 1
-        node = pattern[0]
+        # Pattern is now a dict with 'path_variable' and 'parts'
+        assert isinstance(pattern, dict)
+        assert pattern["path_variable"] is None
+        parts = pattern["parts"]
+        assert len(parts) == 1
+        node = parts[0]
         assert isinstance(node, NodePattern)
         assert node.variable == "TheMatrix"
         assert node.labels == ["Movie"]

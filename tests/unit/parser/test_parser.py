@@ -59,7 +59,7 @@ class TestNodePatterns:
         """Parse node with variable."""
         ast = parser.parse("MATCH (n) RETURN n")
         match = ast.clauses[0]
-        node = match.patterns[0][0]  # First element of pattern
+        node = match.patterns[0]["parts"][0]  # First element of pattern
 
         assert isinstance(node, NodePattern)
         assert node.variable == "n"
@@ -68,7 +68,7 @@ class TestNodePatterns:
         """Parse node with label."""
         ast = parser.parse("MATCH (n:Person) RETURN n")
         match = ast.clauses[0]
-        node = match.patterns[0][0]
+        node = match.patterns[0]["parts"][0]
 
         assert isinstance(node, NodePattern)
         assert node.variable == "n"
@@ -78,7 +78,7 @@ class TestNodePatterns:
         """Parse node with multiple labels."""
         ast = parser.parse("MATCH (n:Person:Employee) RETURN n")
         match = ast.clauses[0]
-        node = match.patterns[0][0]
+        node = match.patterns[0]["parts"][0]
 
         assert len(node.labels) == 2
         assert "Person" in node.labels
@@ -88,7 +88,7 @@ class TestNodePatterns:
         """Parse node with property constraints."""
         ast = parser.parse('MATCH (n {name: "Alice", age: 30}) RETURN n')
         match = ast.clauses[0]
-        node = match.patterns[0][0]
+        node = match.patterns[0]["parts"][0]
 
         assert len(node.properties) == 2
         assert "name" in node.properties
@@ -98,7 +98,7 @@ class TestNodePatterns:
         """Parse anonymous node."""
         ast = parser.parse("MATCH (:Person) RETURN 1")
         match = ast.clauses[0]
-        node = match.patterns[0][0]
+        node = match.patterns[0]["parts"][0]
 
         assert node.variable is None
         assert "Person" in node.labels
@@ -115,8 +115,9 @@ class TestRelationshipPatterns:
         pattern = match.patterns[0]
 
         # Pattern contains: node, rel, node
-        assert len(pattern) == 3
-        rel = pattern[1]
+        parts = pattern["parts"]
+        assert len(parts) == 3
+        rel = parts[1]
 
         assert isinstance(rel, RelationshipPattern)
         assert rel.variable == "r"
@@ -127,7 +128,7 @@ class TestRelationshipPatterns:
         """Parse incoming relationship."""
         ast = parser.parse("MATCH (a)<-[r:KNOWS]-(b) RETURN a")
         match = ast.clauses[0]
-        rel = match.patterns[0][1]
+        rel = match.patterns[0]["parts"][1]
 
         assert rel.direction == Direction.IN
 
@@ -135,7 +136,7 @@ class TestRelationshipPatterns:
         """Parse undirected relationship."""
         ast = parser.parse("MATCH (a)-[r:KNOWS]-(b) RETURN a")
         match = ast.clauses[0]
-        rel = match.patterns[0][1]
+        rel = match.patterns[0]["parts"][1]
 
         assert rel.direction == Direction.UNDIRECTED
 
@@ -143,7 +144,7 @@ class TestRelationshipPatterns:
         """Parse anonymous relationship."""
         ast = parser.parse("MATCH (a)-[:KNOWS]->(b) RETURN a")
         match = ast.clauses[0]
-        rel = match.patterns[0][1]
+        rel = match.patterns[0]["parts"][1]
 
         assert rel.variable is None
         assert "KNOWS" in rel.types
@@ -482,7 +483,7 @@ class TestLiterals:
         """Parse integer literal."""
         ast = parser.parse("MATCH (n {age: 42}) RETURN n")
         match = ast.clauses[0]
-        node = match.patterns[0][0]
+        node = match.patterns[0]["parts"][0]
 
         age_literal = node.properties["age"]
         assert isinstance(age_literal, Literal)
@@ -492,7 +493,7 @@ class TestLiterals:
         """Parse string literal."""
         ast = parser.parse('MATCH (n {name: "Alice"}) RETURN n')
         match = ast.clauses[0]
-        node = match.patterns[0][0]
+        node = match.patterns[0]["parts"][0]
 
         name_literal = node.properties["name"]
         assert isinstance(name_literal, Literal)
@@ -502,7 +503,7 @@ class TestLiterals:
         """Parse true literal."""
         ast = parser.parse("MATCH (n {active: true}) RETURN n")
         match = ast.clauses[0]
-        node = match.patterns[0][0]
+        node = match.patterns[0]["parts"][0]
 
         active_literal = node.properties["active"]
         assert isinstance(active_literal, Literal)
@@ -512,7 +513,7 @@ class TestLiterals:
         """Parse false literal."""
         ast = parser.parse("MATCH (n {active: false}) RETURN n")
         match = ast.clauses[0]
-        node = match.patterns[0][0]
+        node = match.patterns[0]["parts"][0]
 
         active_literal = node.properties["active"]
         assert isinstance(active_literal, Literal)
@@ -522,7 +523,7 @@ class TestLiterals:
         """Parse null literal."""
         ast = parser.parse("MATCH (n {value: null}) RETURN n")
         match = ast.clauses[0]
-        node = match.patterns[0][0]
+        node = match.patterns[0]["parts"][0]
 
         value_literal = node.properties["value"]
         assert isinstance(value_literal, Literal)

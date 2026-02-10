@@ -343,13 +343,25 @@ class QueryPlanner:
             if not pattern:
                 continue
 
+            # Extract pattern parts from new format (dict with path_variable and parts)
+            # or use pattern directly if it's old format (list)
+            if isinstance(pattern, dict) and "parts" in pattern:
+                path_var = pattern.get("path_variable")
+                pattern_parts = pattern["parts"]
+                # TODO: Phase 3 will use path_var to bind CypherPath objects
+            else:
+                # Old format: pattern is already a list
+                pattern_parts = pattern
+                path_var = None
+
             # Handle simple node pattern
-            if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
-                node_pattern = pattern[0]
+            if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):
+                node_pattern = pattern_parts[0]
                 operators.append(
                     ScanNodes(
                         variable=node_pattern.variable,  # type: ignore[arg-type]
                         labels=node_pattern.labels if node_pattern.labels else None,
+                        path_var=path_var,
                     )
                 )
 
@@ -361,11 +373,11 @@ class QueryPlanner:
                     )
                     operators.append(Filter(predicate=predicate))
 
-            # Handle node-relationship-node pattern
-            elif len(pattern) >= 3:
+            # Handle node-relationship-node pattern (single or multi-hop)
+            elif len(pattern_parts) >= 3:
                 # First node
-                if isinstance(pattern[0], NodePattern):
-                    src_pattern = pattern[0]
+                if isinstance(pattern_parts[0], NodePattern):
+                    src_pattern = pattern_parts[0]
                     # Generate variable name for anonymous patterns
                     src_var = (
                         src_pattern.variable
@@ -387,58 +399,172 @@ class QueryPlanner:
                         )
                         operators.append(Filter(predicate=predicate))
 
-                # Relationship
-                if isinstance(pattern[1], RelationshipPattern):
-                    rel_pattern = pattern[1]
-                    dst_pattern = pattern[2]
+                # Determine number of hops
+                # Pattern: node, rel, node, rel, node, ... (alternating)
+                num_hops = (len(pattern_parts) - 1) // 2
 
-                    # Generate variable names for anonymous patterns
-                    rel_var = (
-                        rel_pattern.variable
-                        if rel_pattern.variable
-                        else self._generate_anonymous_variable()
+                direction_map = {
+                    Direction.OUT: "OUT",
+                    Direction.IN: "IN",
+                    Direction.UNDIRECTED: "UNDIRECTED",
+                }
+
+                # Check if any relationship is variable-length
+                has_variable_length = any(
+                    isinstance(pattern_parts[1 + (i * 2)], RelationshipPattern)
+                    and (
+                        pattern_parts[1 + (i * 2)].min_hops is not None
+                        or pattern_parts[1 + (i * 2)].max_hops is not None
                     )
-                    dst_var = (
-                        dst_pattern.variable
-                        if dst_pattern.variable
-                        else self._generate_anonymous_variable()
-                    )
+                    for i in range(num_hops)
+                )
 
-                    direction_map = {
-                        Direction.OUT: "OUT",
-                        Direction.IN: "IN",
-                        Direction.UNDIRECTED: "UNDIRECTED",
-                    }
+                # For multi-hop patterns with path binding and no variable-length:
+                # Use ExpandMultiHop operator
+                if num_hops > 1 and path_var and not has_variable_length:
+                    from graphforge.planner.operators import ExpandMultiHop
 
-                    # Check if this is a variable-length pattern
-                    if rel_pattern.min_hops is not None or rel_pattern.max_hops is not None:
-                        # Variable-length expansion
-                        from graphforge.planner.operators import ExpandVariableLength
+                    # Collect all hops and filters
+                    hops = []
+                    filters = []
+                    for hop_idx in range(num_hops):
+                        rel_idx = 1 + (hop_idx * 2)
+                        node_idx = rel_idx + 1
 
-                        operators.append(
-                            ExpandVariableLength(
-                                src_var=src_var,
-                                edge_var=rel_var,
-                                dst_var=dst_var,
-                                edge_types=rel_pattern.types if rel_pattern.types else [],
-                                direction=direction_map[rel_pattern.direction],
-                                min_hops=rel_pattern.min_hops
-                                if rel_pattern.min_hops is not None
-                                else 1,
-                                max_hops=rel_pattern.max_hops,
+                        if rel_idx >= len(pattern_parts) or node_idx >= len(pattern_parts):
+                            break
+
+                        if not isinstance(pattern_parts[rel_idx], RelationshipPattern):
+                            continue
+
+                        rel_pattern = pattern_parts[rel_idx]
+                        dst_pattern = pattern_parts[node_idx]
+
+                        # Generate variable names
+                        rel_var = (
+                            rel_pattern.variable
+                            if rel_pattern.variable
+                            else None  # Anonymous relationship
+                        )
+                        dst_var = (
+                            dst_pattern.variable
+                            if dst_pattern.variable
+                            else self._generate_anonymous_variable()
+                        )
+
+                        hops.append(
+                            (
+                                rel_var,
+                                rel_pattern.types if rel_pattern.types else [],
+                                direction_map[rel_pattern.direction],
+                                dst_var,
                             )
                         )
-                    else:
-                        # Single-hop expansion
-                        operators.append(
-                            ExpandEdges(
-                                src_var=src_var,
-                                edge_var=rel_var,
-                                dst_var=dst_var,
-                                edge_types=rel_pattern.types if rel_pattern.types else [],
-                                direction=direction_map[rel_pattern.direction],
+
+                        # Collect Filter for inline property predicates on dst node
+                        # (to be added AFTER ExpandMultiHop binds the variables)
+                        if dst_pattern.properties:
+                            predicate = self._properties_to_predicate(
+                                dst_var,
+                                dst_pattern.properties,
                             )
+                            filters.append(Filter(predicate=predicate))
+
+                    # Add ExpandMultiHop operator first
+                    operators.append(
+                        ExpandMultiHop(
+                            src_var=src_var,
+                            hops=hops,
+                            path_var=path_var,
                         )
+                    )
+
+                    # Then add filters (now that variables are bound)
+                    operators.extend(filters)
+                else:
+                    # Single hop OR multi-hop without path binding OR has variable-length:
+                    # Use individual ExpandEdges/ExpandVariableLength operators
+                    prev_dst_var = src_var  # Initialize for multi-hop chaining
+                    for hop_idx in range(num_hops):
+                        rel_idx = 1 + (hop_idx * 2)
+                        node_idx = rel_idx + 1
+
+                        if rel_idx >= len(pattern_parts) or node_idx >= len(pattern_parts):
+                            break
+
+                        if not isinstance(pattern_parts[rel_idx], RelationshipPattern):
+                            continue
+
+                        rel_pattern = pattern_parts[rel_idx]
+                        dst_pattern = pattern_parts[node_idx]
+
+                        # Source is previous destination (or first src_var for first hop)
+                        if hop_idx == 0:
+                            current_src_var = src_var
+                        else:
+                            current_src_var = prev_dst_var
+
+                        # Generate variable names for anonymous patterns
+                        rel_var = (
+                            rel_pattern.variable
+                            if rel_pattern.variable
+                            else None
+                            if num_hops > 1
+                            else self._generate_anonymous_variable()
+                        )
+                        dst_var = (
+                            dst_pattern.variable
+                            if dst_pattern.variable
+                            else self._generate_anonymous_variable()
+                        )
+
+                        # For single-hop patterns with path binding:
+                        # Set path_var on the (only) hop
+                        is_single_hop = num_hops == 1
+                        hop_path_var = path_var if is_single_hop else None
+
+                        # Check if this is a variable-length pattern
+                        if rel_pattern.min_hops is not None or rel_pattern.max_hops is not None:
+                            # Variable-length expansion
+                            from graphforge.planner.operators import ExpandVariableLength
+
+                            operators.append(
+                                ExpandVariableLength(
+                                    src_var=current_src_var,
+                                    edge_var=rel_var,
+                                    dst_var=dst_var,
+                                    path_var=hop_path_var,
+                                    edge_types=rel_pattern.types if rel_pattern.types else [],
+                                    direction=direction_map[rel_pattern.direction],
+                                    min_hops=rel_pattern.min_hops
+                                    if rel_pattern.min_hops is not None
+                                    else 1,
+                                    max_hops=rel_pattern.max_hops,
+                                )
+                            )
+                        else:
+                            # Single-hop expansion
+                            operators.append(
+                                ExpandEdges(
+                                    src_var=current_src_var,
+                                    edge_var=rel_var,
+                                    dst_var=dst_var,
+                                    path_var=hop_path_var,
+                                    edge_types=rel_pattern.types if rel_pattern.types else [],
+                                    direction=direction_map[rel_pattern.direction],
+                                )
+                            )
+
+                        # Add Filter for inline property predicates on dst node
+                        if dst_pattern.properties:
+                            predicate = self._properties_to_predicate(
+                                dst_var,
+                                dst_pattern.properties,
+                            )
+                            operators.append(Filter(predicate=predicate))
+
+                        # Track destination for next hop
+                        prev_dst_var = dst_var
 
         return operators
 
@@ -459,17 +585,28 @@ class QueryPlanner:
             if not pattern:
                 continue
 
+            # Extract pattern parts from new format (dict with path_variable and parts)
+            # or use pattern directly if it's old format (list)
+            if isinstance(pattern, dict) and "parts" in pattern:
+                path_var = pattern.get("path_variable")
+                pattern_parts = pattern["parts"]
+            else:
+                # Old format: pattern is already a list
+                path_var = None
+                pattern_parts = pattern
+
             # Handle simple node pattern
-            if len(pattern) == 1 and isinstance(pattern[0], NodePattern):
+            if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):
                 # OPTIONAL MATCH on a single node uses OptionalScanNodes
                 # to preserve rows with NULL bindings when no match found
                 from graphforge.planner.operators import OptionalScanNodes
 
-                node_pattern = pattern[0]
+                node_pattern = pattern_parts[0]
                 operators.append(
                     OptionalScanNodes(
                         variable=node_pattern.variable,  # type: ignore[arg-type]
                         labels=node_pattern.labels if node_pattern.labels else None,
+                        path_var=path_var,
                     )
                 )
 
@@ -482,10 +619,10 @@ class QueryPlanner:
                     operators.append(Filter(predicate=predicate))
 
             # Handle node-relationship-node pattern
-            elif len(pattern) >= 3:
+            elif len(pattern_parts) >= 3:
                 # First node
-                if isinstance(pattern[0], NodePattern):
-                    src_pattern = pattern[0]
+                if isinstance(pattern_parts[0], NodePattern):
+                    src_pattern = pattern_parts[0]
                     # Generate variable name for anonymous patterns
                     src_var = (
                         src_pattern.variable
@@ -508,9 +645,9 @@ class QueryPlanner:
                         operators.append(Filter(predicate=predicate))
 
                 # Relationship - use OptionalExpandEdges instead of ExpandEdges
-                if isinstance(pattern[1], RelationshipPattern):
-                    rel_pattern = pattern[1]
-                    dst_pattern = pattern[2]
+                if isinstance(pattern_parts[1], RelationshipPattern):
+                    rel_pattern = pattern_parts[1]
+                    dst_pattern = pattern_parts[2]
 
                     # Generate variable names for anonymous patterns
                     rel_var = (

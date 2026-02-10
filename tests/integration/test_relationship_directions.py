@@ -96,7 +96,6 @@ class TestRelationshipDirections:
         assert results[0]["target"].value == "Alice"
         assert results[0]["source"].value == "Charlie"
 
-    @pytest.mark.skip(reason="Multi-hop chain patterns not yet supported")
     def test_match_chain_with_directions(self, graph_with_directed_relationships):
         """Match chain of relationships with mixed directions."""
         results = graph_with_directed_relationships.execute("""
