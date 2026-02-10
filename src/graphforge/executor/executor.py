@@ -816,7 +816,9 @@ class QueryExecutor:
                     if return_item.alias:
                         # Skip aggregate functions (COUNT, SUM, AVG, etc.)
                         # They must be evaluated by the Aggregate operator
-                        if not isinstance(return_item.expression, FunctionCall):
+                        from graphforge.executor.evaluator import is_aggregate_function
+
+                        if not is_aggregate_function(return_item.expression):
                             # Evaluate the expression and bind it with the alias name
                             value = evaluate_expression(return_item.expression, ctx, self)
                             extended_ctx.bind(return_item.alias, value)

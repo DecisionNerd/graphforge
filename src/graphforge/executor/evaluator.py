@@ -569,6 +569,22 @@ TEMPORAL_FUNCTIONS = {
 }
 SPATIAL_FUNCTIONS = {"POINT", "DISTANCE"}
 GRAPH_FUNCTIONS = {"ID", "LABELS"}
+PATH_FUNCTIONS = {"LENGTH", "NODES", "RELATIONSHIPS"}
+AGGREGATE_FUNCTIONS = {"COUNT", "SUM", "AVG", "MAX", "MIN", "COLLECT"}
+
+
+def is_aggregate_function(expr: Any) -> bool:
+    """Check if an expression is an aggregate function call.
+
+    Args:
+        expr: AST expression node
+
+    Returns:
+        True if expr is an aggregate function call, False otherwise
+    """
+    if not isinstance(expr, FunctionCall):
+        return False
+    return expr.name.upper() in AGGREGATE_FUNCTIONS
 
 
 def _evaluate_function(
@@ -601,6 +617,11 @@ def _evaluate_function(
     if func_name in GRAPH_FUNCTIONS:
         args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
         return _evaluate_graph_function(func_name, args)
+
+    # Path functions need special handling for CypherPath arguments
+    if func_name in PATH_FUNCTIONS:
+        args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
+        return _evaluate_path_function(func_name, args)
 
     # Evaluate arguments
     args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
@@ -1078,3 +1099,81 @@ def _evaluate_graph_function(
         raise TypeError(f"LABELS expects node argument, got {type(arg).__name__}")
 
     raise ValueError(f"Unknown graph function: {func_name}")
+
+
+def _evaluate_path_function(func_name: str, args: list[CypherValue]) -> CypherValue:
+    """Evaluate path functions.
+
+    These functions work with CypherPath values.
+
+    Args:
+        func_name: Name of the path function (uppercase)
+        args: List of evaluated arguments
+
+    Returns:
+        CypherValue result of the path function
+
+    Raises:
+        ValueError: If function is unknown
+        TypeError: If arguments have invalid types
+    """
+    from graphforge.types.values import CypherPath
+
+    if func_name == "LENGTH":
+        # length(path) - returns the number of relationships in the path
+        if len(args) != 1:
+            raise TypeError(f"LENGTH expects 1 argument, got {len(args)}")
+
+        arg = args[0]
+
+        # Handle NULL
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+
+        # Check if argument is a path
+        if isinstance(arg, CypherPath):
+            return CypherInt(arg.length())
+
+        raise TypeError(f"LENGTH expects path argument, got {type(arg).__name__}")
+
+    if func_name == "NODES":
+        # nodes(path) - returns a list of nodes in the path
+        if len(args) != 1:
+            raise TypeError(f"NODES expects 1 argument, got {len(args)}")
+
+        arg = args[0]
+
+        # Handle NULL
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+
+        # Check if argument is a path
+        if isinstance(arg, CypherPath):
+            # Return nodes as a list (NodeRef objects are stored directly)
+            # Note: We store NodeRef objects directly in the list, not wrapped in CypherValues
+            # This is consistent with how graph elements are handled elsewhere
+            return CypherList(arg.nodes)
+
+        raise TypeError(f"NODES expects path argument, got {type(arg).__name__}")
+
+    if func_name == "RELATIONSHIPS":
+        # relationships(path) - returns a list of relationships in the path
+        if len(args) != 1:
+            raise TypeError(f"RELATIONSHIPS expects 1 argument, got {len(args)}")
+
+        arg = args[0]
+
+        # Handle NULL
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+
+        # Check if argument is a path
+        if isinstance(arg, CypherPath):
+            # Return relationships as a list (EdgeRef objects are stored directly)
+            # Note: We store EdgeRef objects directly in the list, not wrapped in CypherValues
+            # This is consistent with how graph elements are handled elsewhere
+            return CypherList(arg.relationships)
+
+        raise TypeError(f"RELATIONSHIPS expects path argument, got {type(arg).__name__}")
+
+    raise ValueError(f"Unknown path function: {func_name}")
