@@ -1257,10 +1257,9 @@ class QueryExecutor:
 
                 # Extract pattern parts from new format (dict with path_variable and parts)
                 # or use pattern directly if it's old format (list)
+                # Note: CREATE and MERGE do not support path binding
                 if isinstance(pattern, dict) and "parts" in pattern:
-                    pattern.get("path_variable")
                     pattern_parts = pattern["parts"]
-                    # TODO: Phase 3 will use path_var to bind CypherPath objects
                 else:
                     # Old format: pattern is already a list
                     pattern_parts = pattern
@@ -1572,10 +1571,9 @@ class QueryExecutor:
 
                 # Extract pattern parts from new format (dict with path_variable and parts)
                 # or use pattern directly if it's old format (list)
+                # Note: CREATE and MERGE do not support path binding
                 if isinstance(pattern, dict) and "parts" in pattern:
-                    pattern.get("path_variable")
                     pattern_parts = pattern["parts"]
-                    # TODO: Phase 3 will use path_var to bind CypherPath objects
                 else:
                     # Old format: pattern is already a list
                     pattern_parts = pattern

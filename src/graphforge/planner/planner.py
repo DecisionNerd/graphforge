@@ -424,8 +424,9 @@ class QueryPlanner:
                 if num_hops > 1 and path_var and not has_variable_length:
                     from graphforge.planner.operators import ExpandMultiHop
 
-                    # Collect all hops
+                    # Collect all hops and filters
                     hops = []
+                    filters = []
                     for hop_idx in range(num_hops):
                         rel_idx = 1 + (hop_idx * 2)
                         node_idx = rel_idx + 1
@@ -460,14 +461,16 @@ class QueryPlanner:
                             )
                         )
 
-                        # Add Filter for inline property predicates on dst node
+                        # Collect Filter for inline property predicates on dst node
+                        # (to be added AFTER ExpandMultiHop binds the variables)
                         if dst_pattern.properties:
                             predicate = self._properties_to_predicate(
                                 dst_var,
                                 dst_pattern.properties,
                             )
-                            operators.append(Filter(predicate=predicate))
+                            filters.append(Filter(predicate=predicate))
 
+                    # Add ExpandMultiHop operator first
                     operators.append(
                         ExpandMultiHop(
                             src_var=src_var,
@@ -475,6 +478,9 @@ class QueryPlanner:
                             path_var=path_var,
                         )
                     )
+
+                    # Then add filters (now that variables are bound)
+                    operators.extend(filters)
                 else:
                     # Single hop OR multi-hop without path binding OR has variable-length:
                     # Use individual ExpandEdges/ExpandVariableLength operators
@@ -582,11 +588,11 @@ class QueryPlanner:
             # Extract pattern parts from new format (dict with path_variable and parts)
             # or use pattern directly if it's old format (list)
             if isinstance(pattern, dict) and "parts" in pattern:
-                pattern.get("path_variable")
+                path_var = pattern.get("path_variable")
                 pattern_parts = pattern["parts"]
-                # TODO: Phase 3 will use path_var to bind CypherPath objects
             else:
                 # Old format: pattern is already a list
+                path_var = None
                 pattern_parts = pattern
 
             # Handle simple node pattern
@@ -600,6 +606,7 @@ class QueryPlanner:
                     OptionalScanNodes(
                         variable=node_pattern.variable,  # type: ignore[arg-type]
                         labels=node_pattern.labels if node_pattern.labels else None,
+                        path_var=path_var,
                     )
                 )
 
