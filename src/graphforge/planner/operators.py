@@ -199,15 +199,14 @@ class ExpandMultiHop(BaseModel):
         for i, hop in enumerate(v):
             if not isinstance(hop, tuple) or len(hop) != 4:
                 raise ValueError(
-                    f"Hop {i} must be tuple of (edge_var, edge_types, direction, dst_var), got {hop}"
+                    f"Hop {i} must be tuple of "
+                    f"(edge_var, edge_types, direction, dst_var), got {hop}"
                 )
-            edge_var, edge_types, direction, dst_var = hop
+            _edge_var, _edge_types, direction, _dst_var = hop
             # Validate direction
             valid_dirs = {"OUT", "IN", "UNDIRECTED"}
             if direction not in valid_dirs:
-                raise ValueError(
-                    f"Hop {i} direction must be one of {valid_dirs}, got {direction}"
-                )
+                raise ValueError(f"Hop {i} direction must be one of {valid_dirs}, got {direction}")
         return v
 
     model_config = {"frozen": True}

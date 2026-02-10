@@ -2,8 +2,8 @@
 
 import pytest
 
-from graphforge.types import CypherPath, CypherBool, CypherInt, CypherNull, CypherString
-from graphforge.types.graph import NodeRef, EdgeRef
+from graphforge.types import CypherBool, CypherInt, CypherNull, CypherPath, CypherString
+from graphforge.types.graph import EdgeRef, NodeRef
 
 
 class TestCypherPathConstruction:

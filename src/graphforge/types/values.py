@@ -13,13 +13,13 @@ Values follow openCypher semantics including:
 
 import datetime
 from enum import Enum
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from dateutil import parser as dateutil_parser
 import isodate  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
-    from graphforge.types.graph import NodeRef, EdgeRef
+    from graphforge.types.graph import EdgeRef, NodeRef
 
 
 class CypherType(Enum):
@@ -428,7 +428,7 @@ class CypherPath(CypherValue):
         Raises:
             ValueError: If path structure is invalid
         """
-        from graphforge.types.graph import NodeRef, EdgeRef
+        from graphforge.types.graph import EdgeRef, NodeRef
 
         # Validate types
         if not all(isinstance(n, NodeRef) for n in nodes):
@@ -456,7 +456,7 @@ class CypherPath(CypherValue):
 
             if not (forward_match or reverse_match):
                 raise ValueError(
-                    f"Relationship at index {i} does not connect nodes {i} and {i+1}: "
+                    f"Relationship at index {i} does not connect nodes {i} and {i + 1}: "
                     f"relationship goes from {rel.src.id} to {rel.dst.id}, "
                     f"but path expects connection between {node_a.id} and {node_b.id}"
                 )

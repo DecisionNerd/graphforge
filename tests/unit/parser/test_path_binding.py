@@ -1,10 +1,8 @@
 """Unit tests for path binding syntax in parser."""
 
-import pytest
-
+from graphforge.ast.clause import CreateClause, MatchClause, OptionalMatchClause
+from graphforge.ast.pattern import Direction, NodePattern, RelationshipPattern
 from graphforge.parser.parser import parse_cypher
-from graphforge.ast.clause import MatchClause, OptionalMatchClause, CreateClause
-from graphforge.ast.pattern import NodePattern, RelationshipPattern, Direction
 
 
 class TestPathBindingParsing:
@@ -228,6 +226,7 @@ class TestPathBindingEdgeCases:
 
         # Check WHERE clause exists
         from graphforge.ast.clause import WhereClause
+
         has_where = any(isinstance(c, WhereClause) for c in ast.clauses)
         assert has_where
 

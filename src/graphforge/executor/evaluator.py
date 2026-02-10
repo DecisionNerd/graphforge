@@ -1165,7 +1165,7 @@ def _evaluate_path_function(func_name: str, args: list[CypherValue]) -> CypherVa
             # Return nodes as a list (NodeRef objects are stored directly)
             # Note: We store NodeRef objects directly in the list, not wrapped in CypherValues
             # This is consistent with how graph elements are handled elsewhere
-            return CypherList(arg.nodes)
+            return CypherList(arg.nodes)  # type: ignore[arg-type]
 
         raise TypeError(f"NODES expects path argument, got {type(arg).__name__}")
 
@@ -1185,7 +1185,7 @@ def _evaluate_path_function(func_name: str, args: list[CypherValue]) -> CypherVa
             # Return relationships as a list (EdgeRef objects are stored directly)
             # Note: We store EdgeRef objects directly in the list, not wrapped in CypherValues
             # This is consistent with how graph elements are handled elsewhere
-            return CypherList(arg.relationships)
+            return CypherList(arg.relationships)  # type: ignore[arg-type]
 
         raise TypeError(f"RELATIONSHIPS expects path argument, got {type(arg).__name__}")
 

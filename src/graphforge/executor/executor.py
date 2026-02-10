@@ -236,19 +236,18 @@ class QueryExecutor:
                             result.append(new_ctx)
                         else:
                             result.append(ctx)
-                else:
-                    # No label requirements - keep the context
-                    # Bind path variable if requested
-                    if op.path_var:
-                        from graphforge.types import CypherPath
+                # No label requirements - keep the context
+                # Bind path variable if requested
+                elif op.path_var:
+                    from graphforge.types import CypherPath
 
-                        new_ctx = ExecutionContext()
-                        new_ctx.bindings = dict(ctx.bindings)
-                        path = CypherPath(nodes=[bound_node], relationships=[])
-                        new_ctx.bind(op.path_var, path)
-                        result.append(new_ctx)
-                    else:
-                        result.append(ctx)
+                    new_ctx = ExecutionContext()
+                    new_ctx.bindings = dict(ctx.bindings)
+                    path = CypherPath(nodes=[bound_node], relationships=[])
+                    new_ctx.bind(op.path_var, path)
+                    result.append(new_ctx)
+                else:
+                    result.append(ctx)
             else:
                 # Variable not bound - do normal scan
                 if op.labels:
@@ -1259,13 +1258,12 @@ class QueryExecutor:
                 # Extract pattern parts from new format (dict with path_variable and parts)
                 # or use pattern directly if it's old format (list)
                 if isinstance(pattern, dict) and "parts" in pattern:
-                    path_var = pattern.get("path_variable")
+                    pattern.get("path_variable")
                     pattern_parts = pattern["parts"]
                     # TODO: Phase 3 will use path_var to bind CypherPath objects
                 else:
                     # Old format: pattern is already a list
                     pattern_parts = pattern
-                    path_var = None
 
                 # Handle simple node pattern: CREATE (n:Person {name: 'Alice'})
                 if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):
@@ -1288,7 +1286,9 @@ class QueryExecutor:
                                 new_ctx.bindings[src_pattern.variable] = src_node
 
                     # Relationship and destination node
-                    if len(pattern_parts) >= 3 and isinstance(pattern_parts[1], RelationshipPattern):
+                    if len(pattern_parts) >= 3 and isinstance(
+                        pattern_parts[1], RelationshipPattern
+                    ):
                         rel_pattern = pattern_parts[1]
                         dst_pattern = pattern_parts[2]
 
@@ -1573,13 +1573,12 @@ class QueryExecutor:
                 # Extract pattern parts from new format (dict with path_variable and parts)
                 # or use pattern directly if it's old format (list)
                 if isinstance(pattern, dict) and "parts" in pattern:
-                    path_var = pattern.get("path_variable")
+                    pattern.get("path_variable")
                     pattern_parts = pattern["parts"]
                     # TODO: Phase 3 will use path_var to bind CypherPath objects
                 else:
                     # Old format: pattern is already a list
                     pattern_parts = pattern
-                    path_var = None
 
                 # Handle simple node pattern: MERGE (n:Person {name: 'Alice'})
                 if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):

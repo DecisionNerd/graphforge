@@ -1,9 +1,6 @@
 """Integration tests for path functions."""
 
-import pytest
-
 from graphforge import GraphForge
-from graphforge.types import CypherPath
 
 
 class TestPathFunctionLength:

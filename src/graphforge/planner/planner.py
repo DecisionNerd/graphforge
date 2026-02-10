@@ -478,6 +478,7 @@ class QueryPlanner:
                 else:
                     # Single hop OR multi-hop without path binding OR has variable-length:
                     # Use individual ExpandEdges/ExpandVariableLength operators
+                    prev_dst_var = src_var  # Initialize for multi-hop chaining
                     for hop_idx in range(num_hops):
                         rel_idx = 1 + (hop_idx * 2)
                         node_idx = rel_idx + 1
@@ -501,7 +502,9 @@ class QueryPlanner:
                         rel_var = (
                             rel_pattern.variable
                             if rel_pattern.variable
-                            else None if num_hops > 1 else self._generate_anonymous_variable()
+                            else None
+                            if num_hops > 1
+                            else self._generate_anonymous_variable()
                         )
                         dst_var = (
                             dst_pattern.variable
@@ -554,6 +557,7 @@ class QueryPlanner:
                             )
                             operators.append(Filter(predicate=predicate))
 
+                        # Track destination for next hop
                         prev_dst_var = dst_var
 
         return operators
@@ -578,13 +582,12 @@ class QueryPlanner:
             # Extract pattern parts from new format (dict with path_variable and parts)
             # or use pattern directly if it's old format (list)
             if isinstance(pattern, dict) and "parts" in pattern:
-                path_var = pattern.get("path_variable")
+                pattern.get("path_variable")
                 pattern_parts = pattern["parts"]
                 # TODO: Phase 3 will use path_var to bind CypherPath objects
             else:
                 # Old format: pattern is already a list
                 pattern_parts = pattern
-                path_var = None
 
             # Handle simple node pattern
             if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):

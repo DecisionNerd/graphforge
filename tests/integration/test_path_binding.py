@@ -1,7 +1,5 @@
 """Integration tests for path binding functionality."""
 
-import pytest
-
 from graphforge import GraphForge
 from graphforge.types import CypherPath
 
@@ -36,9 +34,7 @@ class TestPathBindingSingleHop:
         b = gf.create_node(["Person"], name="Bob", age=25)
         gf.create_relationship(a, b, "KNOWS", since=2020)
 
-        results = gf.execute(
-            "MATCH p = (a:Person {name: 'Alice'})-[:KNOWS]->(b:Person) RETURN p"
-        )
+        results = gf.execute("MATCH p = (a:Person {name: 'Alice'})-[:KNOWS]->(b:Person) RETURN p")
 
         assert len(results) == 1
         path = results[0]["p"]
@@ -68,9 +64,7 @@ class TestPathBindingSingleHop:
         b = gf.create_node(["Person"], name="Bob")
         gf.create_relationship(a, b, "KNOWS")
 
-        results = gf.execute(
-            "MATCH p = (a:Person)-[:KNOWS]->(b:Person) RETURN p, a.name, b.name"
-        )
+        results = gf.execute("MATCH p = (a:Person)-[:KNOWS]->(b:Person) RETURN p, a.name, b.name")
 
         assert len(results) == 1
         assert isinstance(results[0]["p"], CypherPath)
@@ -154,13 +148,13 @@ class TestPathBindingVariableLength:
         assert len(results) == 2  # A->B and A->B->C
 
         # Check 1-hop path
-        one_hop = [r for r in results if r["p"].length() == 1][0]
+        one_hop = next(r for r in results if r["p"].length() == 1)
         assert one_hop["p"].length() == 1
         assert len(one_hop["p"].nodes) == 2
         assert len(one_hop["p"].relationships) == 1
 
         # Check 2-hop path
-        two_hop = [r for r in results if r["p"].length() == 2][0]
+        two_hop = next(r for r in results if r["p"].length() == 2)
         assert two_hop["p"].length() == 2
         assert len(two_hop["p"].nodes) == 3
         assert len(two_hop["p"].relationships) == 2
