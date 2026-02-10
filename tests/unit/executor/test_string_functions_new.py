@@ -119,7 +119,11 @@ class TestReplaceFunction:
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="replace",
-            args=[Literal(value="hello world"), Literal(value="world"), Literal(value="GraphForge")],
+            args=[
+                Literal(value="hello world"),
+                Literal(value="world"),
+                Literal(value="GraphForge"),
+            ],
         )
         result = evaluate_expression(expr, ctx)
         assert result.value == "hello GraphForge"
