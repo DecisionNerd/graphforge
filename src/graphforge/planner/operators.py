@@ -89,6 +89,7 @@ class ExpandEdges(BaseModel):
         path_var: Variable name to bind full path to (None if not needed)
         edge_types: List of edge types to match
         direction: Direction to traverse ('OUT', 'IN', 'UNDIRECTED')
+        predicate: WHERE predicate expression to filter edges (None if not specified)
     """
 
     src_var: str = Field(..., min_length=1, description="Source variable name")
@@ -97,6 +98,9 @@ class ExpandEdges(BaseModel):
     path_var: str | None = Field(default=None, description="Path variable name")
     edge_types: list[str] = Field(..., description="Edge types to match")
     direction: str = Field(..., description="Traversal direction")
+    predicate: Any | None = Field(
+        default=None, description="WHERE predicate expression to filter edges"
+    )
 
     @field_validator("direction")
     @classmethod
@@ -124,6 +128,7 @@ class ExpandVariableLength(BaseModel):
         direction: Direction to traverse ('OUT', 'IN', 'UNDIRECTED')
         min_hops: Minimum number of hops (1 by default)
         max_hops: Maximum number of hops (None for unbounded)
+        predicate: WHERE predicate expression to filter edges (None if not specified)
     """
 
     src_var: str = Field(..., min_length=1, description="Source variable name")
@@ -134,6 +139,9 @@ class ExpandVariableLength(BaseModel):
     direction: str = Field(..., description="Traversal direction")
     min_hops: int = Field(default=1, description="Minimum hops")
     max_hops: int | None = Field(default=None, description="Maximum hops (None=unbounded)")
+    predicate: Any | None = Field(
+        default=None, description="WHERE predicate expression to filter edges"
+    )
 
     @field_validator("direction")
     @classmethod

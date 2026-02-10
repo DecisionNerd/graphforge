@@ -67,6 +67,7 @@ class RelationshipPattern(BaseModel):
 
     Represents a relationship pattern like: -[r:KNOWS {since: 2020}]->
     Or variable-length: -[r:KNOWS*1..3]->
+    Or with predicate: -[r:KNOWS WHERE r.since > 2020]->
 
     Attributes:
         variable: Variable name to bind the relationship (None for anonymous)
@@ -75,6 +76,7 @@ class RelationshipPattern(BaseModel):
         properties: Dict of property constraints (property_name -> Expression)
         min_hops: Minimum hops for variable-length (None for single-hop)
         max_hops: Maximum hops for variable-length (None for unbounded)
+        predicate: WHERE predicate expression inside pattern (None if not specified)
     """
 
     variable: str | None = Field(default=None, description="Variable name (None for anonymous)")
@@ -86,6 +88,9 @@ class RelationshipPattern(BaseModel):
     )
     max_hops: int | None = Field(
         default=None, description="Maximum hops for variable-length (None = unbounded)"
+    )
+    predicate: Any | None = Field(
+        default=None, description="WHERE predicate expression inside pattern"
     )
 
     @field_validator("variable")

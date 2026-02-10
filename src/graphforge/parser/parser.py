@@ -395,7 +395,7 @@ class ASTTransformer(Transformer):
 
     def right_arrow_rel(self, items):
         """Transform outgoing relationship."""
-        variable, types, properties, min_hops, max_hops = self._parse_rel_parts(items)
+        variable, types, properties, min_hops, max_hops, predicate = self._parse_rel_parts(items)
         return RelationshipPattern(
             variable=variable,
             types=types,
@@ -403,11 +403,12 @@ class ASTTransformer(Transformer):
             properties=properties,
             min_hops=min_hops,
             max_hops=max_hops,
+            predicate=predicate,
         )
 
     def left_arrow_rel(self, items):
         """Transform incoming relationship."""
-        variable, types, properties, min_hops, max_hops = self._parse_rel_parts(items)
+        variable, types, properties, min_hops, max_hops, predicate = self._parse_rel_parts(items)
         return RelationshipPattern(
             variable=variable,
             types=types,
@@ -415,11 +416,12 @@ class ASTTransformer(Transformer):
             properties=properties,
             min_hops=min_hops,
             max_hops=max_hops,
+            predicate=predicate,
         )
 
     def undirected_rel(self, items):
         """Transform undirected relationship."""
-        variable, types, properties, min_hops, max_hops = self._parse_rel_parts(items)
+        variable, types, properties, min_hops, max_hops, predicate = self._parse_rel_parts(items)
         return RelationshipPattern(
             variable=variable,
             types=types,
@@ -427,15 +429,22 @@ class ASTTransformer(Transformer):
             properties=properties,
             min_hops=min_hops,
             max_hops=max_hops,
+            predicate=predicate,
         )
 
+    def pattern_where(self, items):
+        """Transform pattern WHERE clause."""
+        # items[0] is the expression
+        return items[0] if items else None
+
     def _parse_rel_parts(self, items):
-        """Parse relationship variable, types, properties, and variable-length range."""
+        """Parse relationship variable, types, properties, variable-length range, and predicate."""
         variable = None
         types = []
         properties = {}
         min_hops = None
         max_hops = None
+        predicate = None
 
         for item in items:
             if isinstance(item, Variable):
@@ -447,8 +456,17 @@ class ASTTransformer(Transformer):
             elif isinstance(item, tuple) and len(item) == 2:
                 # Variable-length range: (min_hops, max_hops)
                 min_hops, max_hops = item
+            elif hasattr(item, "__class__") and item.__class__.__name__ in [
+                "BinaryOp",
+                "UnaryOp",
+                "FunctionCall",
+                "PropertyAccess",
+                "Literal",
+            ]:
+                # This is a WHERE predicate expression
+                predicate = item
 
-        return variable, types, properties, min_hops, max_hops
+        return variable, types, properties, min_hops, max_hops, predicate
 
     def var_length_unbounded(self, items):
         """Transform unbounded variable-length: *"""

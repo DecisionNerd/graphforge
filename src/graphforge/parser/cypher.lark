@@ -98,9 +98,11 @@ relationship_pattern: undirected_rel
                     | left_arrow_rel
                     | right_arrow_rel
 
-undirected_rel: "-" "[" variable? rel_types? var_length_range? properties? "]" "-"
-left_arrow_rel: "<-" "[" variable? rel_types? var_length_range? properties? "]" "-"
-right_arrow_rel: "-" "[" variable? rel_types? var_length_range? properties? "]" "->"
+undirected_rel: "-" "[" variable? rel_types? var_length_range? properties? pattern_where? "]" "-"
+left_arrow_rel: "<-" "[" variable? rel_types? var_length_range? properties? pattern_where? "]" "-"
+right_arrow_rel: "-" "[" variable? rel_types? var_length_range? properties? pattern_where? "]" "->"
+
+pattern_where: "WHERE"i expression
 
 var_length_range: "*" INT ".." INT              -> var_length_min_max
                 | "*" INT ".."                   -> var_length_min_only
