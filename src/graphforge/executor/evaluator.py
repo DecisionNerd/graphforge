@@ -897,58 +897,123 @@ def _evaluate_type_function(func_name: str, args: list[CypherValue]) -> CypherVa
 
     if func_name == "TOBOOLEAN":
         try:
-            if isinstance(args[0], CypherBool):
-                return args[0]
-            elif isinstance(args[0], CypherString):
-                # Only "true" and "false" (case-insensitive) convert to boolean
-                value_lower = args[0].value.lower()
+            arg = args[0]
+
+            # Boolean → Boolean (identity)
+            if isinstance(arg, CypherBool):
+                return arg
+
+            # String → Boolean (only "true"/"false" case-insensitive)
+            elif isinstance(arg, CypherString):
+                value_lower = arg.value.lower()
                 if value_lower == "true":
                     return CypherBool(True)
                 elif value_lower == "false":
                     return CypherBool(False)
                 else:
-                    return CypherNull()  # Invalid string
+                    return CypherNull()  # Invalid string value
+
+            # Complex types → NULL (cannot convert to boolean)
+            # Lists, maps, paths, nodes, relationships are not convertible
+            elif (
+                isinstance(arg, (CypherList, CypherMap))
+                or hasattr(arg, "id")
+                or hasattr(arg, "src")
+            ):
+                # NodeRef has 'id', EdgeRef has 'src'/'dst'
+                return CypherNull()
+
+            # All other types → NULL
             else:
-                return CypherNull()  # Cannot convert other types
+                return CypherNull()
         except (ValueError, TypeError):
             return CypherNull()
 
     elif func_name == "TOINTEGER":
         try:
-            if isinstance(args[0], CypherInt):
-                return args[0]
-            elif isinstance(args[0], (CypherFloat, CypherString)):
-                return CypherInt(int(args[0].value))
-            elif isinstance(args[0], CypherBool):
-                # Booleans convert to 1 (true) or 0 (false)
-                return CypherInt(1 if args[0].value else 0)
+            arg = args[0]
+
+            # Integer → Integer (identity)
+            if isinstance(arg, CypherInt):
+                return arg
+
+            # Float/String → Integer (truncate/parse)
+            elif isinstance(arg, (CypherFloat, CypherString)):
+                return CypherInt(int(arg.value))
+
+            # Boolean → Integer (true=1, false=0)
+            elif isinstance(arg, CypherBool):
+                return CypherInt(1 if arg.value else 0)
+
+            # Complex types → NULL (lists/maps are not numeric)
+            # Graph elements → NULL (use id(node) to get ID instead)
+            elif (
+                isinstance(arg, (CypherList, CypherMap))
+                or hasattr(arg, "id")
+                or hasattr(arg, "src")
+            ):
+                return CypherNull()
+
+            # All other types → NULL
             else:
-                return CypherNull()  # Cannot convert
+                return CypherNull()
         except (ValueError, TypeError):
             return CypherNull()
 
     elif func_name == "TOFLOAT":
         try:
-            if isinstance(args[0], CypherFloat):
-                return args[0]
-            elif isinstance(args[0], (CypherInt, CypherString)):
-                return CypherFloat(float(args[0].value))
-            elif isinstance(args[0], CypherBool):
-                # Booleans convert to 1.0 (true) or 0.0 (false)
-                return CypherFloat(1.0 if args[0].value else 0.0)
+            arg = args[0]
+
+            # Float → Float (identity)
+            if isinstance(arg, CypherFloat):
+                return arg
+
+            # Integer/String → Float (convert/parse)
+            elif isinstance(arg, (CypherInt, CypherString)):
+                return CypherFloat(float(arg.value))
+
+            # Boolean → Float (true=1.0, false=0.0)
+            elif isinstance(arg, CypherBool):
+                return CypherFloat(1.0 if arg.value else 0.0)
+
+            # Complex types → NULL (lists/maps are not numeric)
+            # Graph elements → NULL (nodes/relationships are not numeric)
+            elif (
+                isinstance(arg, (CypherList, CypherMap))
+                or hasattr(arg, "id")
+                or hasattr(arg, "src")
+            ):
+                return CypherNull()
+
+            # All other types → NULL
             else:
                 return CypherNull()
         except (ValueError, TypeError):
             return CypherNull()
 
     elif func_name == "TOSTRING":
-        if isinstance(args[0], CypherString):
-            return args[0]
-        elif isinstance(args[0], (CypherInt, CypherFloat)):
-            return CypherString(str(args[0].value))
-        elif isinstance(args[0], CypherBool):
-            # Booleans convert to "true" or "false"
-            return CypherString("true" if args[0].value else "false")
+        arg = args[0]
+
+        # String → String (identity)
+        if isinstance(arg, CypherString):
+            return arg
+
+        # Integer/Float → String (decimal representation)
+        elif isinstance(arg, (CypherInt, CypherFloat)):
+            return CypherString(str(arg.value))
+
+        # Boolean → String ("true"/"false")
+        elif isinstance(arg, CypherBool):
+            return CypherString("true" if arg.value else "false")
+
+        # Complex types → NULL (no standard string representation)
+        # Note: We could return JSON-like representations for lists/maps,
+        # but openCypher spec returns NULL for complex types
+        # Graph elements → NULL (use properties() or id() instead)
+        elif isinstance(arg, (CypherList, CypherMap)) or hasattr(arg, "id") or hasattr(arg, "src"):
+            return CypherNull()
+
+        # All other types → NULL
         else:
             return CypherNull()
 
