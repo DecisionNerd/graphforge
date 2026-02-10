@@ -188,9 +188,11 @@ class TestTriadicPatterns:
             RETURN count(*) AS cnt
             """
         )
-        # Alice-Bob-Charlie path exists in undirected mode
-        # Should find the path
-        assert results[0]["cnt"].value > 0
+        # Graph: Alice->Bob->Charlie (2 directed edges)
+        # Pattern: (x=Alice)-[:KNOWS]-(y)-[:KNOWS]-(z=Charlie)
+        # Path: Alice-Bob-Charlie (1 match)
+        # Expected: exactly 1 triadic path from Alice to Charlie through Bob
+        assert results[0]["cnt"].value == 1
 
     def test_triadic_with_name_filter(self):
         """Friend of friend filtered by names."""
@@ -209,8 +211,11 @@ class TestTriadicPatterns:
             RETURN count(*) AS cnt
             """
         )
-        # Alice-Bob-Charlie path exists in undirected mode
-        assert results[0]["cnt"].value > 0
+        # Graph: Alice->Bob->Charlie (2 directed edges)
+        # Pattern: (x=Alice)-[:KNOWS]-(y)-[:KNOWS]-(z=Charlie)
+        # Path: Alice-Bob-Charlie (1 match)
+        # Expected: exactly 1 triadic path from Alice to Charlie through Bob
+        assert results[0]["cnt"].value == 1
 
     def test_triadic_distinct_by_name(self):
         """Triadic pattern with distinct endpoint names."""
@@ -228,5 +233,15 @@ class TestTriadicPatterns:
             ORDER BY x_name, z_name
             """
         )
-        # Should find paths between people with different names
-        assert len(results) >= 2
+        # Graph: Alice->Bob->Charlie (2 directed edges)
+        # Triadic paths where x.name ≠ z.name:
+        # - x=Alice, y=Bob, z=Charlie: (Alice, Charlie) ✓
+        # - x=Charlie, y=Bob, z=Alice: (Charlie, Alice) ✓
+        # - x=Bob, y=Alice, z=Bob: filtered out (Bob = Bob)
+        # - x=Bob, y=Charlie, z=Bob: filtered out (Bob = Bob)
+        # Expected: exactly 2 distinct (x.name, z.name) pairs
+        assert len(results) == 2
+        assert results[0]["x_name"].value == "Alice"
+        assert results[0]["z_name"].value == "Charlie"
+        assert results[1]["x_name"].value == "Charlie"
+        assert results[1]["z_name"].value == "Alice"
