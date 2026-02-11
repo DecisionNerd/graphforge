@@ -86,6 +86,7 @@ class QueryExecutor:
         self.graph = graph
         self.graphforge = graphforge
         self.planner = planner
+        self.custom_functions: dict[str, Any] = {}
 
     def execute(self, operators: list) -> list[dict]:
         """Execute a pipeline of operators.

@@ -659,6 +659,21 @@ def _evaluate_function(
     """
     func_name = func_call.name.upper()
 
+    # Check for custom registered functions first
+    if (
+        executor
+        and hasattr(executor, "custom_functions")
+        and func_name in executor.custom_functions
+    ):
+        from typing import cast
+
+        custom_func = executor.custom_functions[func_name]
+        # Evaluate arguments
+        args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
+        # Call the custom function
+        result = custom_func(args, ctx, executor)
+        return cast(CypherValue, result)
+
     # COALESCE is special - it doesn't propagate NULL, returns first non-NULL value
     if func_name == "COALESCE":
         args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]

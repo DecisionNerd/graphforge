@@ -277,15 +277,49 @@ class TestThreeValuedLogicComplex:
         assert isinstance(result[0]["result"], CypherNull)
 
     def test_short_circuit_false_and(self):
-        """Short-circuit evaluation: false AND (error) should not error."""
+        """Short-circuit evaluation: false AND (dangerous) should not evaluate dangerous."""
         gf = GraphForge()
-        # If short-circuit works, the division by zero won't be evaluated
-        result = gf.execute("RETURN false AND (1/0 > 0) AS result")
+
+        # Create a counter to track if the function was called
+        call_count = {"count": 0}
+
+        def dangerous_func(args, ctx, executor):
+            """Function that increments counter when called."""
+            call_count["count"] += 1
+            raise RuntimeError("This function should not be called due to short-circuit!")
+
+        # Register the dangerous function
+        gf.register_function("DANGEROUS", dangerous_func)
+
+        # Execute: false AND DANGEROUS() should not call DANGEROUS() due to short-circuit
+        result = gf.execute("RETURN false AND DANGEROUS() AS result")
+
+        # Verify result is false
         assert result[0]["result"].value is False
 
+        # Verify DANGEROUS() was never called (short-circuit worked)
+        assert call_count["count"] == 0, "DANGEROUS() was called, short-circuit failed!"
+
     def test_short_circuit_true_or(self):
-        """Short-circuit evaluation: true OR (error) should not error."""
+        """Short-circuit evaluation: true OR (dangerous) should not evaluate dangerous."""
         gf = GraphForge()
-        # If short-circuit works, the division by zero won't be evaluated
-        result = gf.execute("RETURN true OR (1/0 > 0) AS result")
+
+        # Create a counter to track if the function was called
+        call_count = {"count": 0}
+
+        def dangerous_func(args, ctx, executor):
+            """Function that increments counter when called."""
+            call_count["count"] += 1
+            raise RuntimeError("This function should not be called due to short-circuit!")
+
+        # Register the dangerous function
+        gf.register_function("DANGEROUS", dangerous_func)
+
+        # Execute: true OR DANGEROUS() should not call DANGEROUS() due to short-circuit
+        result = gf.execute("RETURN true OR DANGEROUS() AS result")
+
+        # Verify result is true
         assert result[0]["result"].value is True
+
+        # Verify DANGEROUS() was never called (short-circuit worked)
+        assert call_count["count"] == 0, "DANGEROUS() was called, short-circuit failed!"
