@@ -86,6 +86,7 @@ class QueryExecutor:
         self.graph = graph
         self.graphforge = graphforge
         self.planner = planner
+        self.custom_functions: dict[str, Any] = {}
 
     def execute(self, operators: list) -> list[dict]:
         """Execute a pipeline of operators.
@@ -403,6 +404,13 @@ class QueryExecutor:
                     path = CypherPath(nodes=[src_node, dst_node], relationships=[edge])
                     new_ctx.bind(op.path_var, path)
 
+                # Apply pattern predicate if specified
+                if op.predicate is not None:
+                    predicate_result = evaluate_expression(op.predicate, new_ctx, self)
+                    # Only include edge if predicate evaluates to true
+                    if not (isinstance(predicate_result, CypherBool) and predicate_result.value):
+                        continue  # Skip this edge if predicate is not true
+
                 result.append(new_ctx)
 
         return result
@@ -490,6 +498,22 @@ class QueryExecutor:
                     # Filter by type if specified
                     if op.edge_types:
                         edges = [e for e in edges if e.type in op.edge_types]
+
+                    # Apply pattern predicate to filter edges if specified
+                    if op.predicate is not None:
+                        filtered_edges = []
+                        for edge in edges:
+                            # Create a temporary context with the edge bound
+                            temp_ctx = ExecutionContext()
+                            temp_ctx.bindings = dict(ctx.bindings)
+                            if op.edge_var:
+                                temp_ctx.bind(op.edge_var, edge)
+                            # Evaluate predicate
+                            predicate_result = evaluate_expression(op.predicate, temp_ctx, self)
+                            # Only include edge if predicate evaluates to true
+                            if isinstance(predicate_result, CypherBool) and predicate_result.value:
+                                filtered_edges.append(edge)
+                        edges = filtered_edges
 
                     # Add edges to stack for exploration
                     for edge in edges:

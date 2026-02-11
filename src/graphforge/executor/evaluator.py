@@ -217,6 +217,64 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
 
     # Binary operations
     if isinstance(expr, BinaryOp):
+        # For AND/OR, implement short-circuit evaluation
+        # Other operators need both operands evaluated
+        if expr.op in ("AND", "OR"):
+            left_val = evaluate_expression(expr.left, ctx, executor)
+
+            # Three-valued short-circuit semantics for AND
+            if expr.op == "AND":
+                # false AND anything = false (short-circuit)
+                if isinstance(left_val, CypherBool) and not left_val.value:
+                    return CypherBool(False)
+
+                # Evaluate right operand
+                right_val = evaluate_expression(expr.right, ctx, executor)
+
+                # true AND x = x (return right as-is, could be true/false/NULL)
+                if isinstance(left_val, CypherBool) and left_val.value:
+                    if isinstance(right_val, (CypherBool, CypherNull)):
+                        return right_val
+                    raise TypeError("AND requires boolean operands")
+
+                # NULL AND false = false
+                if isinstance(left_val, CypherNull):
+                    if isinstance(right_val, CypherBool) and not right_val.value:
+                        return CypherBool(False)
+                    # NULL AND true = NULL, NULL AND NULL = NULL
+                    if isinstance(right_val, (CypherBool, CypherNull)):
+                        return CypherNull()
+                    raise TypeError("AND requires boolean operands")
+
+                raise TypeError("AND requires boolean operands")
+
+            # Three-valued short-circuit semantics for OR
+            if expr.op == "OR":
+                # true OR anything = true (short-circuit)
+                if isinstance(left_val, CypherBool) and left_val.value:
+                    return CypherBool(True)
+
+                # Evaluate right operand
+                right_val = evaluate_expression(expr.right, ctx, executor)
+
+                # false OR x = x (return right as-is, could be true/false/NULL)
+                if isinstance(left_val, CypherBool) and not left_val.value:
+                    if isinstance(right_val, (CypherBool, CypherNull)):
+                        return right_val
+                    raise TypeError("OR requires boolean operands")
+
+                # NULL OR true = true
+                if isinstance(left_val, CypherNull):
+                    if isinstance(right_val, CypherBool) and right_val.value:
+                        return CypherBool(True)
+                    # NULL OR false = NULL, NULL OR NULL = NULL
+                    if isinstance(right_val, (CypherBool, CypherNull)):
+                        return CypherNull()
+                    raise TypeError("OR requires boolean operands")
+
+                raise TypeError("OR requires boolean operands")
+
+        # For all other operators, evaluate both operands
         left_val = evaluate_expression(expr.left, ctx, executor)
         right_val = evaluate_expression(expr.right, ctx, executor)
 
@@ -365,25 +423,6 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                 return CypherBool(left_val.value.endswith(right_val.value))
             elif expr.op == "CONTAINS":
                 return CypherBool(right_val.value in left_val.value)
-
-        # Logical operators
-        if expr.op == "AND":
-            # Handle NULL propagation
-            if isinstance(left_val, CypherNull) or isinstance(right_val, CypherNull):
-                return CypherNull()
-            # Both must be booleans
-            if isinstance(left_val, CypherBool) and isinstance(right_val, CypherBool):
-                return CypherBool(left_val.value and right_val.value)
-            raise TypeError("AND requires boolean operands")
-
-        if expr.op == "OR":
-            # Handle NULL propagation
-            if isinstance(left_val, CypherNull) or isinstance(right_val, CypherNull):
-                return CypherNull()
-            # Both must be booleans
-            if isinstance(left_val, CypherBool) and isinstance(right_val, CypherBool):
-                return CypherBool(left_val.value or right_val.value)
-            raise TypeError("OR requires boolean operands")
 
         raise ValueError(f"Unknown binary operator: {expr.op}")
 
@@ -619,6 +658,21 @@ def _evaluate_function(
         TypeError: If function arguments have invalid types
     """
     func_name = func_call.name.upper()
+
+    # Check for custom registered functions first
+    if (
+        executor
+        and hasattr(executor, "custom_functions")
+        and func_name in executor.custom_functions
+    ):
+        from typing import cast
+
+        custom_func = executor.custom_functions[func_name]
+        # Evaluate arguments
+        args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
+        # Call the custom function
+        result = custom_func(args, ctx, executor)
+        return cast(CypherValue, result)
 
     # COALESCE is special - it doesn't propagate NULL, returns first non-NULL value
     if func_name == "COALESCE":

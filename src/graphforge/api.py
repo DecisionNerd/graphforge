@@ -210,6 +210,22 @@ class GraphForge:
         load_dataset(instance, name)  # nosec B615 - Not Hugging Face, our own dataset loader
         return instance
 
+    def register_function(self, name: str, func: Any) -> None:
+        """Register a custom function for testing/extension purposes.
+
+        Args:
+            name: Function name (case-insensitive, will be uppercased)
+            func: Python callable that takes (args, ctx, executor) and returns CypherValue
+
+        Examples:
+            >>> gf = GraphForge()
+            >>> def my_func(args, ctx, executor):
+            ...     return CypherInt(42)
+            >>> gf.register_function("MYFUNC", my_func)
+            >>> result = gf.execute("RETURN MYFUNC() AS value")
+        """
+        self.executor.custom_functions[name.upper()] = func
+
     def execute(self, query: str) -> list[dict]:
         """Execute an openCypher query.
 

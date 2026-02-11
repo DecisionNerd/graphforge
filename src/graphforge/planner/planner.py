@@ -540,6 +540,7 @@ class QueryPlanner:
                                     if rel_pattern.min_hops is not None
                                     else 1,
                                     max_hops=rel_pattern.max_hops,
+                                    predicate=rel_pattern.predicate,
                                 )
                             )
                         else:
@@ -552,6 +553,7 @@ class QueryPlanner:
                                     path_var=hop_path_var,
                                     edge_types=rel_pattern.types if rel_pattern.types else [],
                                     direction=direction_map[rel_pattern.direction],
+                                    predicate=rel_pattern.predicate,
                                 )
                             )
 
