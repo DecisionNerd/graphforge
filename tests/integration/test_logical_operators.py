@@ -111,12 +111,13 @@ class TestNotOperator:
         """)
 
         # NOT (age < 30 AND active)
-        # Alice: NOT (false AND true) = NOT false = true
-        # Bob: NOT (true AND false) = NOT false = true
-        # Charlie: NOT (false AND NULL) = NOT NULL = NULL (filtered)
-        assert len(results) == 2
+        # Alice: NOT (false AND true) = NOT false = true (included)
+        # Bob: NOT (true AND false) = NOT false = true (included)
+        # Charlie: NOT (false AND NULL) = NOT false = true (included)
+        #   With three-valued short-circuit: false AND NULL = false (not NULL)
+        assert len(results) == 3
         names = {r["name"].value for r in results}
-        assert names == {"Alice", "Bob"}
+        assert names == {"Alice", "Bob", "Charlie"}
 
     def test_not_with_or(self, simple_graph):
         """NOT with OR operator."""
