@@ -22,7 +22,6 @@ import pytest
 
 from graphforge import GraphForge
 from graphforge.datasets import get_dataset_info, list_datasets
-from graphforge.datasets.registry import _get_cache_path, _is_cache_valid
 
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
@@ -42,19 +41,12 @@ def ensure_dataset_cached(tmp_path_factory):
         Function that takes a dataset name and ensures it's cached
     """
 
-    def _ensure_cached(dataset_name: str) -> Path:
+    def _ensure_cached(dataset_name: str) -> None:
         """Ensure a dataset is cached, downloading if necessary.
 
         Args:
             dataset_name: Name of the dataset to cache
-
-        Returns:
-            Path to the cached dataset file
         """
-        # Get dataset info and cache path
-        info = get_dataset_info(dataset_name)
-        cache_path = _get_cache_path(dataset_name, info.url)
-
         # Use file locking to ensure only one worker downloads at a time
         # Lock file is in a shared temp directory that all workers can access
         lock_file = tmp_path_factory.getbasetemp().parent / f"dataset-{dataset_name}.lock"
@@ -65,18 +57,12 @@ def ensure_dataset_cached(tmp_path_factory):
 
             # Timeout of 300 seconds (5 minutes) for large downloads
             with FileLock(str(lock_file), timeout=300):
-                # Double-check cache validity inside lock
-                if not _is_cache_valid(cache_path):
-                    # This worker is first, download the dataset
-                    # GraphForge.from_dataset will handle the actual download and caching
-                    GraphForge.from_dataset(dataset_name)
-
-                return cache_path
+                # Try to load - will download if not cached
+                # GraphForge.from_dataset handles both registration lookup and caching
+                GraphForge.from_dataset(dataset_name)
         except ImportError:
             # No filelock available (not using pytest-xdist), just download if needed
-            if not _is_cache_valid(cache_path):
-                GraphForge.from_dataset(dataset_name)
-            return cache_path
+            GraphForge.from_dataset(dataset_name)
 
     return _ensure_cached
 
