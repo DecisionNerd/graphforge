@@ -15,7 +15,6 @@ Session-scoped fixtures with file locking ensure that datasets are downloaded
 only once across all workers, with other workers waiting for the download to complete.
 """
 
-from pathlib import Path
 from urllib.parse import urlparse
 
 import pytest
