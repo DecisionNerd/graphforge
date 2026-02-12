@@ -74,7 +74,7 @@ class TestTemporalTruncate:
             "RETURN truncate('millisecond', datetime('2023-06-15T14:30:45.123456Z')) AS truncated"
         )
         assert isinstance(result[0]["truncated"], CypherDateTime)
-        # Should round to nearest ms: 123456µs → 123000µs
+        # Should truncate to milliseconds: 123456µs → 123000µs
         assert result[0]["truncated"].value.isoformat() == "2023-06-15T14:30:45.123000+00:00"
 
     def test_truncate_datetime_microsecond(self):
