@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Debug script to diagnose dataset registration issues."""
 
-import sys
 from pathlib import Path
+import sys
 
 print("=" * 60)
 print("Python version:", sys.version)
@@ -11,6 +11,7 @@ print("=" * 60)
 
 try:
     import graphforge
+
     print(f"graphforge imported from: {graphforge.__file__}")
     print(f"graphforge.__version__: {graphforge.__version__}")
 except Exception as e:
@@ -21,10 +22,12 @@ print("=" * 60)
 
 try:
     import graphforge.datasets
+
     print(f"graphforge.datasets imported from: {graphforge.datasets.__file__}")
 except Exception as e:
     print(f"ERROR importing graphforge.datasets: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)
 
@@ -47,16 +50,19 @@ try:
 except Exception as e:
     print(f"ERROR checking data directory: {e}")
     import traceback
+
     traceback.print_exc()
 
 print("=" * 60)
 
 try:
     import graphforge.datasets.sources
-    print(f"graphforge.datasets.sources imported successfully")
+
+    print("graphforge.datasets.sources imported successfully")
 except Exception as e:
     print(f"ERROR importing graphforge.datasets.sources: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)
 
@@ -64,10 +70,11 @@ print("=" * 60)
 
 try:
     from graphforge.datasets import list_datasets
+
     datasets = list_datasets()
     print(f"Total datasets registered: {len(datasets)}")
 
-    snap_datasets = [d for d in datasets if d.name.startswith('snap-')]
+    snap_datasets = [d for d in datasets if d.name.startswith("snap-")]
     print(f"SNAP datasets registered: {len(snap_datasets)}")
     if snap_datasets:
         print(f"First 5 SNAP datasets: {[d.name for d in snap_datasets[:5]]}")
@@ -77,6 +84,7 @@ try:
 except Exception as e:
     print(f"ERROR listing datasets: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)
 
