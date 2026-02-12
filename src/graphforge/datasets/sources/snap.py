@@ -28,7 +28,14 @@ def _load_snap_metadata() -> list[DatasetInfo]:
     snap_json_path = data_dir / "snap.json"
 
     if not snap_json_path.exists():
-        raise FileNotFoundError(f"SNAP metadata file not found: {snap_json_path}")
+        # Provide helpful error message for debugging
+        raise FileNotFoundError(
+            f"SNAP metadata file not found: {snap_json_path}\n"
+            f"Expected location: {snap_json_path.absolute()}\n"
+            f"Data directory exists: {data_dir.exists()}\n"
+            f"This file should be included in the package installation. "
+            f"If you see this error, the package may not be installed correctly."
+        )
 
     with snap_json_path.open(encoding="utf-8") as f:
         data = json.load(f)

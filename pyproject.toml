@@ -62,10 +62,8 @@ build-backend = "hatchling.build"
 [tool.hatchling.build.targets.wheel]
 packages = ["src/graphforge"]
 
-[tool.hatchling.build]
-artifacts = [
-  "src/graphforge/datasets/data/*.json"
-]
+[tool.hatchling.build.targets.wheel.force-include]
+"src/graphforge/datasets/data" = "graphforge/datasets/data"
 
 [tool.uv]
 package = true

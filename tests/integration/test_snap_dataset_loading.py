@@ -8,6 +8,11 @@ These tests verify that SNAP datasets can be:
 
 Note: These tests require network access and may download large files.
 Use pytest markers to control which tests run.
+
+Parallel Execution:
+This test suite is designed to work with pytest-xdist (-n auto).
+Session-scoped fixtures with file locking ensure that datasets are downloaded
+only once across all workers, with other workers waiting for the download to complete.
 """
 
 from urllib.parse import urlparse
@@ -19,6 +24,46 @@ from graphforge.datasets import get_dataset_info, list_datasets
 
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(scope="session")
+def ensure_dataset_cached(tmp_path_factory):
+    """Ensure a dataset is cached before tests run, with file locking for parallel execution.
+
+    This fixture uses pytest-xdist's file locking to ensure only one worker downloads
+    each dataset while others wait. Once downloaded, all workers can use the cached file.
+
+    Args:
+        tmp_path_factory: pytest fixture for creating temporary paths (with xdist lock support)
+
+    Returns:
+        Function that takes a dataset name and ensures it's cached
+    """
+
+    def _ensure_cached(dataset_name: str) -> None:
+        """Ensure a dataset is cached, downloading if necessary.
+
+        Args:
+            dataset_name: Name of the dataset to cache
+        """
+        # Use file locking to ensure only one worker downloads at a time
+        # Lock file is in a shared temp directory that all workers can access
+        lock_file = tmp_path_factory.getbasetemp().parent / f"dataset-{dataset_name}.lock"
+
+        # Use filelock if available (pytest-xdist provides this), otherwise use simple check
+        try:
+            from filelock import FileLock
+
+            # Timeout of 300 seconds (5 minutes) for large downloads
+            with FileLock(str(lock_file), timeout=300):
+                # Try to load - will download if not cached
+                # GraphForge.from_dataset handles both registration lookup and caching
+                GraphForge.from_dataset(dataset_name)
+        except ImportError:
+            # No filelock available (not using pytest-xdist), just download if needed
+            GraphForge.from_dataset(dataset_name)
+
+    return _ensure_cached
 
 
 class TestSNAPDatasetLoading:
@@ -34,13 +79,20 @@ class TestSNAPDatasetLoading:
             "snap-collegmsg",  # 1 MB, communication
         ],
     )
-    def test_load_small_dataset_end_to_end(self, dataset_name):
-        """Test loading small datasets end-to-end (download, parse, load, query)."""
+    def test_load_small_dataset_end_to_end(self, dataset_name, ensure_dataset_cached):
+        """Test loading small datasets end-to-end (download, parse, load, query).
+
+        The ensure_dataset_cached fixture ensures only one worker downloads the dataset
+        when running with pytest-xdist, while others wait for the cache.
+        """
+        # Ensure dataset is cached before proceeding (handles parallel execution)
+        ensure_dataset_cached(dataset_name)
+
         # Get dataset info
         info = get_dataset_info(dataset_name)
         assert info is not None, f"Dataset {dataset_name} not found"
 
-        # Load dataset into GraphForge - uses built-in caching
+        # Load dataset into GraphForge - uses cached file
         gf = GraphForge.from_dataset(dataset_name)
 
         # Verify graph was loaded
@@ -56,8 +108,9 @@ class TestSNAPDatasetLoading:
             f"Node count mismatch: got {node_count}, expected ~{expected_nodes} (±{tolerance * 100}%)"
         )
 
-    def test_load_facebook_ego_network_detailed(self):
+    def test_load_facebook_ego_network_detailed(self, ensure_dataset_cached):
         """Test Facebook ego network with detailed validation."""
+        ensure_dataset_cached("snap-ego-facebook")
         gf = GraphForge.from_dataset("snap-ego-facebook")
 
         # Test 1: Verify node count
@@ -94,8 +147,9 @@ class TestSNAPDatasetLoading:
         assert result[0]["m"] is not None
         assert result[0]["r"] is not None
 
-    def test_load_wikipedia_vote_network(self):
+    def test_load_wikipedia_vote_network(self, ensure_dataset_cached):
         """Test Wikipedia vote network with query validation."""
+        ensure_dataset_cached("snap-wiki-vote")
         gf = GraphForge.from_dataset("snap-wiki-vote")
 
         # Verify we can query the graph
@@ -113,8 +167,9 @@ class TestSNAPDatasetLoading:
         )
         assert len(result) == 10
 
-    def test_load_collaboration_network(self):
+    def test_load_collaboration_network(self, ensure_dataset_cached):
         """Test collaboration network (ca-grqc) loading and queries."""
+        ensure_dataset_cached("snap-ca-grqc")
         gf = GraphForge.from_dataset("snap-ca-grqc")
 
         # Test aggregation queries
@@ -150,7 +205,7 @@ class TestSNAPDatasetLoading:
             assert parsed.hostname == "snap.stanford.edu"
             assert dataset.category == category
 
-    def test_small_dataset_sample_from_each_category(self):
+    def test_small_dataset_sample_from_each_category(self, ensure_dataset_cached):
         """Test loading one small dataset from each major category."""
         # Map categories to their smallest datasets for quick testing
         test_datasets = {
@@ -161,6 +216,9 @@ class TestSNAPDatasetLoading:
         }
 
         for category, dataset_name in test_datasets.items():
+            # Ensure dataset is cached (with file locking for parallel execution)
+            ensure_dataset_cached(dataset_name)
+
             # Verify dataset exists and is in correct category
             info = get_dataset_info(dataset_name)
             assert info.category == category
@@ -188,8 +246,9 @@ class TestSNAPDatasetLoading:
             )
 
     @pytest.mark.slow
-    def test_load_medium_dataset(self):
+    def test_load_medium_dataset(self, ensure_dataset_cached):
         """Test loading a medium-sized dataset (~10-50 MB)."""
+        ensure_dataset_cached("snap-email-enron")
         # Test a medium dataset to verify loader handles larger files
         gf = GraphForge.from_dataset("snap-email-enron")
 
@@ -208,8 +267,13 @@ class TestSNAPDatasetLoading:
         )
         assert result[0]["edges"].value > 170000  # Expected ~183831 edges
 
-    def test_csv_loader_handles_different_formats(self):
+    def test_csv_loader_handles_different_formats(self, ensure_dataset_cached):
         """Test that CSV loader handles different SNAP file formats."""
+        # Ensure all datasets are cached before testing
+        ensure_dataset_cached("snap-ego-facebook")
+        ensure_dataset_cached("snap-soc-bitcoin-alpha")
+        ensure_dataset_cached("snap-lastfm-asia")
+
         # Test .txt.gz format (most common)
         gf1 = GraphForge.from_dataset("snap-ego-facebook")
         result1 = gf1.execute("MATCH (n) RETURN count(n) as count")
@@ -237,8 +301,9 @@ class TestSNAPDatasetMetadataAccuracy:
             "snap-wiki-vote",
         ],
     )
-    def test_metadata_node_count_accuracy(self, dataset_name):
+    def test_metadata_node_count_accuracy(self, dataset_name, ensure_dataset_cached):
         """Test that reported node counts are accurate (within tolerance)."""
+        ensure_dataset_cached(dataset_name)
         info = get_dataset_info(dataset_name)
         gf = GraphForge.from_dataset(dataset_name)
 
@@ -260,12 +325,13 @@ class TestSNAPDatasetMetadataAccuracy:
             "snap-ca-grqc",
         ],
     )
-    def test_metadata_edge_count_accuracy(self, dataset_name):
+    def test_metadata_edge_count_accuracy(self, dataset_name, ensure_dataset_cached):
         """Test that reported edge counts are accurate (within tolerance).
 
         Note: SNAP datasets are undirected but loaded as bidirectional,
         so actual edge count may be 2x the reported count.
         """
+        ensure_dataset_cached(dataset_name)
         info = get_dataset_info(dataset_name)
         gf = GraphForge.from_dataset(dataset_name)
 

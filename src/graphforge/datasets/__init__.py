@@ -42,7 +42,6 @@ __all__ = [
     "register_dataset",
 ]
 
-# Auto-register datasets on module import
-from graphforge.datasets.sources.snap import register_snap_datasets
-
-register_snap_datasets()
+# Auto-register all dataset sources on module import
+# This imports sources/__init__.py which calls all register_*() functions
+import graphforge.datasets.sources  # noqa: F401

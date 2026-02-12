@@ -347,6 +347,30 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                     )
                     return CypherString(left_str + right_str)
 
+            # Temporal arithmetic: datetime + duration, datetime - duration, datetime - datetime
+            if expr.op in ("+", "-"):
+                # Addition: temporal + duration or duration + temporal
+                if expr.op == "+":
+                    if isinstance(
+                        left_val, (CypherDateTime, CypherDate, CypherTime)
+                    ) and isinstance(right_val, CypherDuration):
+                        return _add_duration(left_val, right_val)
+                    elif isinstance(left_val, CypherDuration) and isinstance(
+                        right_val, (CypherDateTime, CypherDate, CypherTime)
+                    ):
+                        return _add_duration(right_val, left_val)
+
+                # Subtraction: temporal - duration or temporal - temporal
+                if expr.op == "-":
+                    if isinstance(
+                        left_val, (CypherDateTime, CypherDate, CypherTime)
+                    ) and isinstance(right_val, CypherDuration):
+                        return _subtract_duration(left_val, right_val)
+                    elif isinstance(left_val, (CypherDateTime, CypherDate)) and isinstance(
+                        right_val, (CypherDateTime, CypherDate)
+                    ):
+                        return _duration_between(left_val, right_val)
+
             # Type checking: both operands must be numeric
             if not isinstance(left_val, (CypherInt, CypherFloat)) or not isinstance(
                 right_val, (CypherInt, CypherFloat)
@@ -620,6 +644,7 @@ TEMPORAL_FUNCTIONS = {
     "HOUR",
     "MINUTE",
     "SECOND",
+    "TRUNCATE",
 }
 SPATIAL_FUNCTIONS = {"POINT", "DISTANCE"}
 GRAPH_FUNCTIONS = {"ID", "LABELS"}
@@ -639,6 +664,304 @@ def is_aggregate_function(expr: Any) -> bool:
     if not isinstance(expr, FunctionCall):
         return False
     return expr.name.upper() in AGGREGATE_FUNCTIONS
+
+
+def _add_duration(temporal: CypherValue, duration: CypherDuration) -> CypherValue:
+    """Add duration to temporal value.
+
+    Args:
+        temporal: CypherDateTime, CypherDate, or CypherTime
+        duration: CypherDuration to add
+
+    Returns:
+        New temporal value with duration added
+    """
+    import datetime
+
+    import isodate  # type: ignore[import-untyped]
+
+    duration_val = duration.value
+
+    if isinstance(temporal, CypherDateTime):
+        # Add duration to datetime, preserving timezone
+        dt = temporal.value
+        if isinstance(duration_val, isodate.Duration):
+            # isodate.Duration with years/months - needs calendar arithmetic
+            result = duration_val + dt
+        else:
+            # timedelta - simple addition
+            result = dt + duration_val
+        return CypherDateTime(result)
+
+    elif isinstance(temporal, CypherDate):
+        # Add duration to date
+        date_val = temporal.value
+        if isinstance(duration_val, isodate.Duration):
+            # Convert date to datetime for isodate arithmetic, then back to date
+            dt = datetime.datetime.combine(date_val, datetime.time.min)
+            result_dt = duration_val + dt
+            return CypherDate(result_dt.date())
+        else:
+            # timedelta - simple addition
+            result = date_val + duration_val
+            return CypherDate(result)
+
+    elif isinstance(temporal, CypherTime):
+        # Add duration to time (ignores date components of duration)
+        time_val = temporal.value
+        if isinstance(duration_val, isodate.Duration):
+            # Extract timedelta component from isodate.Duration
+            td = duration_val.tdelta if hasattr(duration_val, "tdelta") else datetime.timedelta()
+        else:
+            td = duration_val
+
+        # Combine time with fixed sentinel date, add timedelta, extract time with timezone
+        # Use fixed date (2000-01-01) for deterministic computation
+        dt = datetime.datetime.combine(datetime.date(2000, 1, 1), time_val)
+        result_dt = dt + td
+        # Preserve timezone with timetz()
+        return CypherTime(result_dt.timetz())
+
+    else:
+        raise TypeError(
+            f"Cannot add duration to {type(temporal).__name__}, "
+            "expected CypherDateTime, CypherDate, or CypherTime"
+        )
+
+
+def _subtract_duration(temporal: CypherValue, duration: CypherDuration) -> CypherValue:
+    """Subtract duration from temporal value.
+
+    Args:
+        temporal: CypherDateTime, CypherDate, or CypherTime
+        duration: CypherDuration to subtract
+
+    Returns:
+        New temporal value with duration subtracted
+    """
+    import datetime
+
+    import isodate
+
+    duration_val = duration.value
+
+    if isinstance(temporal, CypherDateTime):
+        # Subtract duration from datetime, preserving timezone
+        dt = temporal.value
+        if isinstance(duration_val, isodate.Duration):
+            # isodate.Duration with years/months - needs calendar arithmetic
+            # Negate the duration components
+            negated = isodate.Duration(
+                years=-duration_val.years if hasattr(duration_val, "years") else 0,
+                months=-duration_val.months if hasattr(duration_val, "months") else 0,
+            )
+            if hasattr(duration_val, "tdelta"):
+                result = dt + negated - duration_val.tdelta
+            else:
+                result = dt + negated
+        else:
+            # timedelta - simple subtraction
+            result = dt - duration_val
+        return CypherDateTime(result)
+
+    elif isinstance(temporal, CypherDate):
+        # Subtract duration from date
+        date_val = temporal.value
+        if isinstance(duration_val, isodate.Duration):
+            # Convert date to datetime for isodate arithmetic, then back to date
+            dt = datetime.datetime.combine(date_val, datetime.time.min)
+            negated = isodate.Duration(
+                years=-duration_val.years if hasattr(duration_val, "years") else 0,
+                months=-duration_val.months if hasattr(duration_val, "months") else 0,
+            )
+            if hasattr(duration_val, "tdelta"):
+                result_dt = dt + negated - duration_val.tdelta
+            else:
+                result_dt = dt + negated
+            return CypherDate(result_dt.date())
+        else:
+            # timedelta - simple subtraction
+            result = date_val - duration_val
+            return CypherDate(result)
+
+    elif isinstance(temporal, CypherTime):
+        # Subtract duration from time (ignores date components of duration)
+        time_val = temporal.value
+        if isinstance(duration_val, isodate.Duration):
+            # Extract timedelta component from isodate.Duration
+            td = duration_val.tdelta if hasattr(duration_val, "tdelta") else datetime.timedelta()
+        else:
+            td = duration_val
+
+        # Combine time with fixed sentinel date, subtract timedelta, extract time with timezone
+        # Use fixed date (2000-01-01) for deterministic computation
+        dt = datetime.datetime.combine(datetime.date(2000, 1, 1), time_val)
+        result_dt = dt - td
+        # Preserve timezone with timetz()
+        return CypherTime(result_dt.timetz())
+
+    else:
+        raise TypeError(
+            f"Cannot subtract duration from {type(temporal).__name__}, "
+            "expected CypherDateTime, CypherDate, or CypherTime"
+        )
+
+
+def _duration_between(left: CypherValue, right: CypherValue) -> CypherDuration:
+    """Calculate duration between two temporal values (left - right).
+
+    Args:
+        left: CypherDateTime or CypherDate (minuend)
+        right: CypherDateTime or CypherDate (subtrahend)
+
+    Returns:
+        CypherDuration representing the time difference (left - right)
+    """
+    import datetime
+
+    # Convert to comparable datetime objects
+    if isinstance(left, CypherDate):
+        left_dt = datetime.datetime.combine(left.value, datetime.time.min)
+    elif isinstance(left, CypherDateTime):
+        left_dt = left.value
+    else:
+        raise TypeError(f"Cannot calculate duration from {type(left).__name__}")
+
+    if isinstance(right, CypherDate):
+        right_dt = datetime.datetime.combine(right.value, datetime.time.min)
+    elif isinstance(right, CypherDateTime):
+        right_dt = right.value
+    else:
+        raise TypeError(f"Cannot calculate duration to {type(right).__name__}")
+
+    # Normalize timezone awareness: if one is tz-aware and the other is naive,
+    # make both aware using the same timezone
+    if left_dt.tzinfo is not None and right_dt.tzinfo is None:
+        # Left is aware, right is naive - attach left's timezone to right
+        right_dt = right_dt.replace(tzinfo=left_dt.tzinfo)
+    elif left_dt.tzinfo is None and right_dt.tzinfo is not None:
+        # Left is naive, right is aware - attach right's timezone to left
+        left_dt = left_dt.replace(tzinfo=right_dt.tzinfo)
+
+    # Calculate timedelta: left - right
+    duration = left_dt - right_dt
+    return CypherDuration(duration)
+
+
+def _truncate_temporal(temporal: CypherValue, unit: str) -> CypherValue:
+    """Truncate temporal value to specified unit.
+
+    Args:
+        temporal: CypherDateTime, CypherDate, or CypherTime
+        unit: Truncation unit ('year', 'month', 'day', 'hour', 'minute', 'second',
+              'millisecond', 'microsecond')
+
+    Returns:
+        Truncated temporal value
+
+    Raises:
+        ValueError: If unit is invalid
+        TypeError: If temporal type doesn't support the unit
+    """
+    import datetime
+
+    valid_units = {
+        "year",
+        "month",
+        "day",
+        "hour",
+        "minute",
+        "second",
+        "millisecond",
+        "microsecond",
+    }
+    if unit not in valid_units:
+        raise ValueError(
+            f"Invalid truncation unit: {unit}. Valid units: {', '.join(sorted(valid_units))}"
+        )
+
+    if isinstance(temporal, CypherDateTime):
+        dt = temporal.value
+        tz = dt.tzinfo
+
+        dt_result: datetime.datetime
+        if unit == "year":
+            dt_result = datetime.datetime(dt.year, 1, 1, 0, 0, 0, 0, tz)
+        elif unit == "month":
+            dt_result = datetime.datetime(dt.year, dt.month, 1, 0, 0, 0, 0, tz)
+        elif unit == "day":
+            dt_result = datetime.datetime(dt.year, dt.month, dt.day, 0, 0, 0, 0, tz)
+        elif unit == "hour":
+            dt_result = datetime.datetime(dt.year, dt.month, dt.day, dt.hour, 0, 0, 0, tz)
+        elif unit == "minute":
+            dt_result = datetime.datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, 0, 0, tz)
+        elif unit == "second":
+            dt_result = datetime.datetime(
+                dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, 0, tz
+            )
+        elif unit == "millisecond":
+            # Truncate microseconds to millisecond boundary
+            ms = dt.microsecond // 1000 * 1000
+            dt_result = datetime.datetime(
+                dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, ms, tz
+            )
+        elif unit == "microsecond":
+            # Keep existing datetime as-is (already at microsecond precision)
+            dt_result = dt
+        else:
+            raise ValueError(f"Invalid unit for datetime truncation: {unit}")
+
+        return CypherDateTime(dt_result)
+
+    elif isinstance(temporal, CypherDate):
+        date_val = temporal.value
+
+        date_result: datetime.date
+        if unit == "year":
+            date_result = datetime.date(date_val.year, 1, 1)
+        elif unit == "month":
+            date_result = datetime.date(date_val.year, date_val.month, 1)
+        elif unit == "day":
+            date_result = date_val  # Already at day precision
+        else:
+            raise TypeError(
+                f"Cannot truncate date to {unit}. "
+                "Date only supports truncation to: year, month, day"
+            )
+
+        return CypherDate(date_result)
+
+    elif isinstance(temporal, CypherTime):
+        time_val = temporal.value
+        tz = time_val.tzinfo
+
+        time_result: datetime.time
+        if unit == "hour":
+            time_result = datetime.time(time_val.hour, 0, 0, 0, tz)
+        elif unit == "minute":
+            time_result = datetime.time(time_val.hour, time_val.minute, 0, 0, tz)
+        elif unit == "second":
+            time_result = datetime.time(time_val.hour, time_val.minute, time_val.second, 0, tz)
+        elif unit == "millisecond":
+            # Truncate microseconds to millisecond boundary
+            ms = time_val.microsecond // 1000 * 1000
+            time_result = datetime.time(time_val.hour, time_val.minute, time_val.second, ms, tz)
+        elif unit == "microsecond":
+            # Keep existing time as-is (already at microsecond precision)
+            time_result = time_val
+        else:
+            raise TypeError(
+                f"Cannot truncate time to {unit}. "
+                "Time only supports truncation to: hour, minute, second, millisecond, microsecond"
+            )
+
+        return CypherTime(time_result)
+
+    else:
+        raise TypeError(
+            f"Cannot truncate {type(temporal).__name__}, "
+            "expected CypherDateTime, CypherDate, or CypherTime"
+        )
 
 
 def _evaluate_function(
@@ -1207,6 +1530,27 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
             return CypherInt(args[0].value.second)
         else:
             raise TypeError(f"SECOND expects datetime or time, got {type(args[0]).__name__}")
+
+    elif func_name == "TRUNCATE":
+        # truncate(unit, temporal) or temporal.truncate(unit)
+        if len(args) != 2:
+            raise TypeError(f"TRUNCATE expects 2 arguments, got {len(args)}")
+
+        # First argument is the unit string
+        if not isinstance(args[0], CypherString):
+            raise TypeError(f"TRUNCATE unit must be string, got {type(args[0]).__name__}")
+        unit = args[0].value.lower()
+
+        # Second argument is the temporal value
+        temporal = args[1]
+        if not isinstance(temporal, (CypherDateTime, CypherDate, CypherTime)):
+            raise TypeError(
+                f"TRUNCATE expects datetime, date, or time as second argument, "
+                f"got {type(temporal).__name__}"
+            )
+
+        # Truncate based on unit
+        return _truncate_temporal(temporal, unit)
 
     raise ValueError(f"Unknown temporal function: {func_name}")
 

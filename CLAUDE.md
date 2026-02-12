@@ -8,6 +8,170 @@ GraphForge is an embedded, openCypher-compatible graph database for Python, desi
 
 **Not a production database** - optimized for interactive analysis on small-to-medium graphs (< 10M nodes).
 
+## Agent Teams Workflow (READ THIS FIRST)
+
+**Agent teams let you coordinate multiple Claude Code sessions working together on complex tasks.** One session acts as the team lead, coordinating work and assigning tasks. Teammates work independently, each in its own context window, and communicate directly with each other.
+
+### When to Use Agent Teams
+
+Agent teams are most effective for GraphForge tasks involving **parallel, independent work**:
+
+**Ideal for teams:**
+- **Adding new Cypher features** - Parser, planner, and executor changes can happen in parallel by different teammates
+- **Cross-layer refactoring** - One teammate per layer (parser, planner, executor, storage)
+- **Research and review** - Multiple teammates investigate different aspects (security, performance, correctness)
+- **Comprehensive testing** - Unit tests, integration tests, and TCK tests written in parallel
+- **Multi-module features** - Dataset loaders, new operators, and documentation worked on simultaneously
+- **Debugging complex issues** - Multiple teammates test competing hypotheses in parallel
+
+**NOT ideal for teams (use solo workflow instead):**
+- Single-file changes
+- Sequential work with many dependencies
+- Simple bug fixes
+- Small refactorings
+- Documentation-only changes
+- Routine maintenance tasks
+
+### Enable Agent Teams
+
+Agent teams are disabled by default. Enable by setting `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in your environment or `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
+}
+```
+
+### Starting Your First Team
+
+Tell Claude to create an agent team and describe the task structure:
+
+```
+Create an agent team to implement the UNWIND clause (#42). Spawn three teammates:
+- Parser agent: Add grammar rules to cypher.lark and update parser.py
+- Planner agent: Add UnwindClause AST node and planner logic
+- Executor agent: Implement _execute_unwind() and add tests
+
+Each teammate should work independently on their layer, then coordinate
+at the end to ensure integration works.
+```
+
+Claude creates the team, spawns teammates, and coordinates work based on your prompt.
+
+### Example: Adding a Cypher Feature with Agent Teams
+
+**Task:** Implement `UNWIND` clause for list iteration
+
+**Team structure:**
+```
+Team Lead (coordinates)
+  ├── Parser Teammate
+  │   └── Task: Add grammar + AST + transformer
+  ├── Planner Teammate
+  │   └── Task: Add operator + planning logic
+  └── Executor Teammate
+      └── Task: Implement execution + write tests
+```
+
+**Workflow:**
+1. Team lead creates issue #42, creates branch `feature/42-unwind-clause`
+2. Lead spawns three teammates with specific layer assignments
+3. Teammates work in parallel on their layers
+4. Each teammate runs their own tests (`make test-unit`)
+5. Lead coordinates integration testing (`make test-integration`)
+6. Lead runs `make pre-push` to validate everything
+7. Lead creates PR with "Closes #42"
+
+**Benefits over solo work:**
+- Parser, planner, executor work happens simultaneously
+- Each teammate focuses on one layer (reduces cognitive load)
+- Tests written in parallel with implementation
+- Integration issues caught when teammates coordinate
+
+### Controlling Your Agent Team
+
+**Choose display mode:**
+- **In-process**: All teammates in main terminal (use Shift+Up/Down to select)
+- **Split panes**: Each teammate gets own pane (requires tmux or iTerm2)
+
+**Talk to teammates directly:**
+- In-process: Shift+Up/Down to select, then type to message
+- Split panes: Click into teammate's pane
+
+**Assign tasks explicitly or let teammates self-claim:**
+```
+Assign the parser work to the parser-agent teammate
+```
+
+**Require plan approval for risky changes:**
+```
+Spawn an executor teammate to refactor the evaluator.
+Require plan approval before making changes.
+```
+
+**Use delegate mode** to prevent the lead from implementing:
+- Press Shift+Tab to cycle into delegate mode
+- Lead focuses on coordination only (no code changes)
+
+**Shut down teammates gracefully:**
+```
+Ask all teammates to shut down, then clean up the team
+```
+
+### Best Practices for GraphForge Teams
+
+**1. Split work by architectural layer:**
+- GraphForge's 4-layer architecture (parser → planner → executor → storage) naturally supports parallel work
+- Each teammate owns one layer and becomes the expert for that layer
+
+**2. Size tasks appropriately:**
+- **Good task size:** "Add UNWIND grammar rule + transformer method"
+- **Too small:** "Add single line to grammar file"
+- **Too large:** "Implement entire UNWIND feature including all tests"
+
+**3. Avoid file conflicts:**
+- Don't have multiple teammates edit the same file simultaneously
+- Use layer boundaries as natural file ownership boundaries
+
+**4. Coordinate at integration points:**
+- After layer-specific work completes, teammates coordinate for integration testing
+- Lead runs `make pre-push` to catch cross-layer issues
+
+**5. Give teammates context:**
+Teammates automatically load CLAUDE.md but don't inherit lead's conversation history. Include specifics in spawn prompts:
+
+```
+Spawn a parser teammate with prompt: "Add UNWIND grammar to cypher.lark.
+The clause syntax is: UNWIND <expression> AS <variable>. Update parser.py
+to create UnwindClause AST nodes. See src/graphforge/ast/clause.py for
+examples. Run unit tests with: pytest tests/unit/parser/ -v"
+```
+
+**6. Start with research/review for new team users:**
+- Review a PR (security, performance, test coverage)
+- Research openCypher semantics for new feature
+- Investigate TCK test failures across different modules
+
+### When Teams Add Value vs Overhead
+
+**Agent teams use significantly more tokens** than solo work. Each teammate has its own context window. Use teams when parallel exploration justifies the cost:
+
+✅ **Worth the cost:**
+- Implementing multi-layer features (parser + planner + executor)
+- Comprehensive code review from multiple perspectives
+- Debugging with competing hypotheses
+- Writing extensive test suites in parallel
+
+❌ **Not worth the cost:**
+- Single-file bug fixes
+- Documentation updates
+- Simple refactorings
+- Sequential work with many dependencies
+
+**Rule of thumb:** If teammates can work independently for 80%+ of the time, teams add value. If they need constant coordination, solo work is faster.
+
 ## Development Workflow (CRITICAL - Follow This Always)
 
 **Every piece of work MUST follow this workflow. No exceptions.**
@@ -183,19 +347,21 @@ gh issue create --title "bug: parser fails on nested lists" \
 - Close issues you didn't fully address
 - Leave discoveries untracked
 
-### Example Workflow
+### Example Workflows
+
+#### Solo Workflow (Simple Features)
 
 ```bash
-# User asks: "Add support for UNWIND"
+# User asks: "Add support for LIMIT clause"
 
 # 1. Create issue
-gh issue create --title "feat: add UNWIND clause support" \
-  --body "Implement UNWIND for list iteration..." \
+gh issue create --title "feat: add LIMIT clause support" \
+  --body "Add LIMIT to restrict result count..." \
   --label "enhancement"
-# Created issue #42
+# Created issue #45
 
 # 2. Create branch
-git checkout -b feature/42-unwind-clause
+git checkout -b feature/45-limit-clause
 
 # 3. Do work (parser, AST, planner, executor, tests)
 # Edit files...
@@ -203,15 +369,80 @@ make pre-push  # Verify everything passes
 
 # 4. Commit and push
 git add .
-git commit -m "feat: implement UNWIND clause (#42)"
-git push origin feature/42-unwind-clause
+git commit -m "feat: implement LIMIT clause (#45)"
+git push origin feature/45-limit-clause
 
 # 5. Create PR
+gh pr create --title "feat: implement LIMIT clause" \
+  --body "Closes #45"
+
+# Issue #45 automatically closes when PR merges
+```
+
+#### Team Workflow (Complex Features)
+
+```bash
+# User asks: "Add support for UNWIND clause - this spans all 4 layers"
+
+# 1. Create issue (lead does this)
+gh issue create --title "feat: add UNWIND clause support" \
+  --body "Implement UNWIND for list iteration..." \
+  --label "enhancement"
+# Created issue #42
+
+# 2. Create branch (lead does this)
+git checkout -b feature/42-unwind-clause
+
+# 3. Start agent team
+# Tell Claude: "Create an agent team to implement UNWIND (#42).
+# Spawn three teammates: parser-agent for grammar/AST,
+# planner-agent for operators, executor-agent for execution/tests."
+
+# Team lead spawns teammates and assigns tasks:
+# - Task 1: Add UNWIND grammar + UnwindClause AST node
+# - Task 2: Add Unwind operator to planner
+# - Task 3: Implement _execute_unwind() + write tests
+
+# 4. Teammates work in parallel
+# - parser-agent edits cypher.lark, parser.py, ast/clause.py
+# - planner-agent edits planner.py, operators.py
+# - executor-agent edits executor.py, tests/
+
+# 5. Lead coordinates integration
+# After teammates finish, lead runs:
+make pre-push  # Verify everything passes
+
+# 6. Commit and push (lead does this)
+git add .
+git commit -m "feat: implement UNWIND clause (#42)
+
+- Add UNWIND grammar rule to cypher.lark (parser-agent)
+- Implement UnwindClause AST node (parser-agent)
+- Add planner support for Unwind operator (planner-agent)
+- Implement executor logic for list iteration (executor-agent)
+- Add 15 unit tests + 8 integration tests (executor-agent)
+
+All tests passing, coverage at 100% for new code.
+
+Co-authored-by: parser-agent
+Co-authored-by: planner-agent
+Co-authored-by: executor-agent"
+
+git push origin feature/42-unwind-clause
+
+# 7. Create PR (lead does this)
 gh pr create --title "feat: implement UNWIND clause" \
   --body "Closes #42"
 
+# 8. Clean up team
+# Tell lead: "Shut down all teammates and clean up the team"
+
 # Issue #42 automatically closes when PR merges
 ```
+
+**When to use each approach:**
+- **Solo workflow**: Simple features, single-layer changes, documentation
+- **Team workflow**: Multi-layer features, cross-cutting refactorings, comprehensive testing
 
 ## Development Commands
 
@@ -430,6 +661,34 @@ User Code (Python API / Cypher)
 - AST: `@dataclass class UnwindClause: expression: Expression, variable: str`
 - Planner: Convert `UnwindClause` → `Unwind` operator
 - Executor: Implement `_execute_unwind()` method
+
+**Solo vs Team Approach:**
+
+**Solo approach (good for simple features):**
+- Work through layers sequentially: parser → AST → planner → executor → tests
+- Best for: Simple functions, straightforward operators, small enhancements
+- Advantages: Lower coordination overhead, simpler to reason about
+- Disadvantages: Slower for complex features, context switching between layers
+
+**Team approach (good for complex features):**
+- Spawn teammates for each layer, work in parallel
+- Best for: New clauses, complex operators, multi-layer refactorings
+- Advantages: Faster completion, each teammate becomes layer expert, natural parallelism
+- Disadvantages: Higher token cost, requires coordination for integration
+- **Pattern:**
+  ```
+  Create an agent team to add UNWIND clause. Spawn teammates:
+  - parser-agent: Grammar + AST + transformer
+  - planner-agent: Operator definition + planning logic
+  - executor-agent: Execution implementation + tests
+  ```
+
+**Decision matrix:**
+- **1-2 layers affected:** Use solo workflow
+- **3-4 layers affected:** Consider agent team
+- **Extensive tests needed:** Use agent team (test writing happens in parallel)
+- **New to the feature:** Use solo workflow (learn as you go)
+- **Time-critical:** Use agent team (parallel work is faster)
 
 ## Critical Code Patterns
 
@@ -795,11 +1054,35 @@ datasets/
     └── __init__.py  # Auto-registers on import
 ```
 
-**To add datasets:**
+**To add datasets (solo approach):**
 1. Create loader in `loaders/` if needed
 2. Register loader: `register_loader("name", LoaderClass)`
 3. Register datasets: `register_dataset(DatasetInfo(...))`
 4. Sources auto-register on import via `datasets/sources/__init__.py`
+
+**To add datasets (team approach for multiple datasets/loaders):**
+
+```
+Create an agent team to add LDBC dataset support (#56). Spawn teammates:
+
+- loader-teammate: Implement LDBC loader in loaders/ldbc.py. Handle Person,
+  Post, Comment, knows/likes edges. Support multiple scale factors (SF0.1, SF1).
+
+- registry-teammate: Create sources/ldbc.py with DatasetInfo for all scale
+  factors. Register loader and datasets. Ensure metadata is accurate (node/edge counts).
+
+- test-teammate: Write tests in tests/integration/datasets/test_ldbc.py.
+  Verify loading, graph structure, and queries work correctly.
+
+Each teammate works independently on their module. Lead coordinates final
+integration testing with make test-integration.
+```
+
+**When to use teams for dataset work:**
+- Adding multiple dataset sources simultaneously
+- Implementing complex loaders requiring extensive testing
+- Large-scale dataset refactoring (multiple loaders affected)
+- NOT needed for single dataset additions or small loader fixes
 
 ## Testing Strategy
 
@@ -820,6 +1103,36 @@ tests/
 │   └── steps/         # pytest-bdd step definitions
 └── property/          # Hypothesis property tests
 ```
+
+### Solo vs Team Testing Approaches
+
+**Solo testing (default):**
+- Write tests as you implement each layer
+- Run `make test` or `make pre-push` to validate
+- Good for: Most development work
+
+**Team-based testing (for comprehensive test suites):**
+```
+Create an agent team to add comprehensive tests for the new UNWIND clause.
+Spawn three testing teammates:
+- unit-tester: Write unit tests for parser, planner, executor
+- integration-tester: Write integration tests for end-to-end behavior
+- tck-tester: Ensure TCK compliance and add missing scenarios
+
+Target: 100% coverage on new code with all three test types.
+```
+
+**Benefits of team-based testing:**
+- Unit, integration, and TCK tests written in parallel
+- Each teammate focuses on one test type (deeper coverage)
+- Faster test development for complex features
+- Natural division of work by test category
+
+**When to use team-based testing:**
+- Large features requiring extensive test suites
+- TCK compliance work (many scenarios to implement)
+- Coverage improvement initiatives (multiple teammates tackle different modules)
+- Test refactoring (one teammate per test directory)
 
 ### Test Markers
 
@@ -1138,6 +1451,8 @@ pytest tests/tck/ --tb=no -q | grep passed
 
 ### Adding a New Cypher Clause
 
+**Solo approach (sequential):**
+
 1. **Grammar:** Add to `src/graphforge/parser/cypher.lark`
 2. **AST:** Add dataclass to `src/graphforge/ast/clause.py`
 3. **Transformer:** Add method to `src/graphforge/parser/parser.py`
@@ -1146,12 +1461,58 @@ pytest tests/tck/ --tb=no -q | grep passed
 6. **Executor:** Implement in `src/graphforge/executor/executor.py`
 7. **Tests:** Unit tests for each layer + integration test
 
+**Team approach (parallel):**
+
+```
+Create an agent team to implement the WITH clause (#47). Spawn teammates:
+
+- parser-teammate: Add WITH grammar to cypher.lark, create WithClause AST
+  node, update parser.py transformer. Run: pytest tests/unit/parser/ -k with
+
+- planner-teammate: Add With operator to operators.py, update planner.py to
+  handle WithClause and emit With operator. Run: pytest tests/unit/planner/ -k with
+
+- executor-teammate: Implement _execute_with() in executor.py to handle
+  variable projection. Write unit and integration tests. Run: pytest
+  tests/unit/executor/ tests/integration/ -k with
+
+Each teammate works independently on their layer, then we coordinate for
+integration testing with make pre-push.
+```
+
+**Advantages of team approach:**
+- Parser, planner, executor work happens simultaneously
+- Each teammate becomes expert in their layer
+- Tests written in parallel with implementation
+- Faster completion for complex clauses
+
 ### Adding a New Function
+
+**Solo approach (sequential):**
 
 1. **Grammar:** Add to `function_call` rule in `cypher.lark`
 2. **Evaluator:** Implement in `src/graphforge/executor/evaluator.py`
 3. **Tests:** Unit tests in `tests/unit/executor/test_functions.py`
 4. **Integration:** Test in `tests/integration/test_functions.py`
+
+**Team approach (for multiple functions):**
+
+```
+Create an agent team to add string manipulation functions (#52):
+- function-impl-teammate: Implement toLower(), toUpper(), trim(), replace()
+  in evaluator.py. Focus on correct NULL handling and type checking.
+- function-test-teammate: Write comprehensive unit tests covering edge cases,
+  NULL propagation, and type errors. Target 100% coverage.
+
+After both finish, lead runs integration tests to ensure functions work
+end-to-end in queries.
+```
+
+**When to use teams for functions:**
+- Adding multiple related functions (string, math, list functions)
+- Complex functions requiring extensive tests
+- Functions that need TCK compliance verification
+- NOT needed for single, simple function additions
 
 ### Fixing Parser Issues
 
@@ -1189,6 +1550,59 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 gf.execute("MATCH (n) RETURN n")  # See operator pipeline
 ```
+
+### Code Review with Agent Teams
+
+Use agent teams for comprehensive PR reviews from multiple perspectives:
+
+```
+Create an agent team to review PR #142 (implements optional MATCH). Spawn reviewers:
+
+- correctness-reviewer: Verify openCypher semantics match spec. Check NULL
+  handling, optional node behavior, and pattern matching correctness.
+
+- test-reviewer: Ensure comprehensive test coverage. Check unit tests for all
+  layers, integration tests for end-to-end, and TCK compliance.
+
+- performance-reviewer: Identify potential performance issues. Check for
+  unnecessary graph traversals, inefficient operators, or missing optimizations.
+
+Each reviewer works independently, then share findings with each other to
+identify patterns or contradictions.
+```
+
+**Benefits:**
+- Multiple perspectives catch more issues
+- Reviewers can challenge each other's findings
+- Comprehensive coverage across correctness, tests, performance
+- Natural division by review criteria
+
+### Debugging with Agent Teams
+
+Use agent teams when root cause is unclear:
+
+```
+Query results are incorrect for nested OPTIONAL MATCH patterns. Create an
+agent team with competing hypotheses:
+
+- parser-debugger: Hypothesis: Grammar doesn't handle nested optionals.
+  Check AST generation for nested patterns.
+
+- planner-debugger: Hypothesis: Planner emits wrong operator sequence.
+  Verify operator ordering and context passing.
+
+- executor-debugger: Hypothesis: Optional matching logic is broken.
+  Test _execute_optional_match() with edge cases.
+
+Have teammates share findings and try to disprove each other's theories.
+The hypothesis that survives scrutiny is likely the root cause.
+```
+
+**Benefits:**
+- Parallel hypothesis testing is faster than sequential
+- Teammates challenge each other's assumptions
+- Scientific debate structure prevents anchoring bias
+- Root cause emerges from convergence of evidence
 
 ## Important Files
 
@@ -1236,5 +1650,53 @@ All tests must pass + coverage thresholds met before merge.
 2. **Inspectability** - Simple, debuggable code over clever optimizations
 3. **Modularity** - Each layer independent and replaceable
 4. **Developer experience** - Clear errors, good defaults, zero config
+5. **Right tool for the task** - Use agent teams for parallel work, solo sessions for sequential work
 
 **Not goals:** High throughput, massive graphs, production deployment
+
+### Agent Teams vs Solo: Decision Framework
+
+**Use agent teams when:**
+- Work naturally parallelizes across GraphForge's 4 layers
+- Multiple independent perspectives add value (review, research)
+- Different teammates can own different files/modules
+- Comprehensive test suites need parallel development
+- Debugging requires testing competing hypotheses
+- Time-to-completion matters and parallel work is faster
+
+**Use solo workflow when:**
+- Single file or single layer changes
+- Sequential work with many cross-layer dependencies
+- Simple bug fixes or maintenance tasks
+- Learning a new area of the codebase
+- Documentation-only changes
+- Token cost matters more than speed
+
+**How GraphForge's architecture enables agent teams:**
+
+GraphForge's 4-layer system (Parser → Planner → Executor → Storage) has clean boundaries between layers, making it naturally suited for agent teams:
+
+- **Clear interfaces:** Each layer has well-defined inputs/outputs (AST, operators, results)
+- **Minimal coupling:** Changes in one layer rarely require changes in others
+- **File ownership:** Each layer lives in separate directories with minimal shared files
+- **Independent testing:** Unit tests for each layer can run in isolation
+- **Natural parallelism:** New Cypher features require all 4 layers, perfect for 4 teammates
+
+**Token cost awareness:**
+
+Agent teams use significantly more tokens than solo work. Each teammate has its own context window. Example token usage for implementing UNWIND clause:
+
+- **Solo workflow:** ~50K tokens (1 session, sequential work)
+- **Team workflow:** ~120K tokens (3 teammates working in parallel)
+
+The team approach costs 2.4x more tokens but completes 2-3x faster. Use teams when speed justifies the cost.
+
+**Start simple, scale to teams:**
+
+If you're new to the codebase or agent teams:
+1. Start with solo workflow to learn GraphForge architecture
+2. Try team-based code review (low risk, high value)
+3. Graduate to team-based feature implementation
+4. Use teams routinely for multi-layer work
+
+**Remember:** Agent teams are a tool, not a requirement. Many tasks are faster and cheaper with solo work. Choose based on the task structure, not habit.
