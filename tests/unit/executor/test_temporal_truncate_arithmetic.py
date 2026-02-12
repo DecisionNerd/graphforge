@@ -208,6 +208,7 @@ class TestTemporalArithmeticAddition:
         assert isinstance(result[0]["result"], CypherDate)
         # isodate handles this as Feb 28, 2023
         assert result[0]["result"].value.month == 2
+        assert result[0]["result"].value.day == 28
 
     def test_time_plus_duration(self):
         """time + duration (ignores date components)."""
