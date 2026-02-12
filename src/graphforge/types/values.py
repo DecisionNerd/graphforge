@@ -270,10 +270,11 @@ class CypherTime(CypherValue):
         if isinstance(value, str):
             # Parse ISO 8601 time string
             parsed = dateutil_parser.parse(value)
-            value = parsed.time()
+            # Use timetz() to preserve timezone information
+            value = parsed.timetz()
         elif isinstance(value, datetime.datetime):
-            # Extract time component if datetime passed
-            value = value.time()
+            # Extract time component with timezone if datetime passed
+            value = value.timetz()
         super().__init__(value, CypherType.TIME)
 
     def __repr__(self) -> str:

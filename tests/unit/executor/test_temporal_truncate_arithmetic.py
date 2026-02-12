@@ -217,6 +217,21 @@ class TestTemporalArithmeticAddition:
         assert result[0]["result"].value.hour == 17
         assert result[0]["result"].value.minute == 0
 
+    def test_time_plus_duration_preserves_timezone(self):
+        """time + duration preserves timezone information."""
+        gf = GraphForge()
+        result = gf.execute("RETURN time('14:30:00+02:00') + duration('PT2H30M') AS result")
+        assert isinstance(result[0]["result"], CypherTime)
+        # Should be 17:00:00+02:00
+        assert result[0]["result"].value.hour == 17
+        assert result[0]["result"].value.minute == 0
+        # Verify timezone is preserved
+        assert result[0]["result"].value.tzinfo is not None
+        # UTC offset should be +2 hours
+        import datetime
+
+        assert result[0]["result"].value.utcoffset() == datetime.timedelta(hours=2)
+
 
 class TestTemporalArithmeticSubtraction:
     """Test temporal - duration and temporal - temporal arithmetic."""

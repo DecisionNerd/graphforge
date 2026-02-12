@@ -715,10 +715,12 @@ def _add_duration(temporal: CypherValue, duration: CypherDuration) -> CypherValu
         else:
             td = duration_val
 
-        # Combine time with arbitrary date, add timedelta, extract time
-        dt = datetime.datetime.combine(datetime.date.today(), time_val)
+        # Combine time with fixed sentinel date, add timedelta, extract time with timezone
+        # Use fixed date (2000-01-01) for deterministic computation
+        dt = datetime.datetime.combine(datetime.date(2000, 1, 1), time_val)
         result_dt = dt + td
-        return CypherTime(result_dt.time())
+        # Preserve timezone with timetz()
+        return CypherTime(result_dt.timetz())
 
     else:
         raise TypeError(
@@ -791,10 +793,12 @@ def _subtract_duration(temporal: CypherValue, duration: CypherDuration) -> Cyphe
         else:
             td = duration_val
 
-        # Combine time with arbitrary date, subtract timedelta, extract time
-        dt = datetime.datetime.combine(datetime.date.today(), time_val)
+        # Combine time with fixed sentinel date, subtract timedelta, extract time with timezone
+        # Use fixed date (2000-01-01) for deterministic computation
+        dt = datetime.datetime.combine(datetime.date(2000, 1, 1), time_val)
         result_dt = dt - td
-        return CypherTime(result_dt.time())
+        # Preserve timezone with timetz()
+        return CypherTime(result_dt.timetz())
 
     else:
         raise TypeError(
@@ -829,6 +833,15 @@ def _duration_between(left: CypherValue, right: CypherValue) -> CypherDuration:
         right_dt = right.value
     else:
         raise TypeError(f"Cannot calculate duration to {type(right).__name__}")
+
+    # Normalize timezone awareness: if one is tz-aware and the other is naive,
+    # make both aware using the same timezone
+    if left_dt.tzinfo is not None and right_dt.tzinfo is None:
+        # Left is aware, right is naive - attach left's timezone to right
+        right_dt = right_dt.replace(tzinfo=left_dt.tzinfo)
+    elif left_dt.tzinfo is None and right_dt.tzinfo is not None:
+        # Left is naive, right is aware - attach right's timezone to left
+        left_dt = left_dt.replace(tzinfo=right_dt.tzinfo)
 
     # Calculate timedelta: left - right
     duration = left_dt - right_dt
@@ -887,7 +900,7 @@ def _truncate_temporal(temporal: CypherValue, unit: str) -> CypherValue:
                 dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, 0, tz
             )
         elif unit == "millisecond":
-            # Round microseconds to nearest millisecond
+            # Truncate microseconds to millisecond boundary
             ms = dt.microsecond // 1000 * 1000
             dt_result = datetime.datetime(
                 dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, ms, tz
@@ -930,7 +943,7 @@ def _truncate_temporal(temporal: CypherValue, unit: str) -> CypherValue:
         elif unit == "second":
             time_result = datetime.time(time_val.hour, time_val.minute, time_val.second, 0, tz)
         elif unit == "millisecond":
-            # Round microseconds to nearest millisecond
+            # Truncate microseconds to millisecond boundary
             ms = time_val.microsecond // 1000 * 1000
             time_result = datetime.time(time_val.hour, time_val.minute, time_val.second, ms, tz)
         elif unit == "microsecond":
