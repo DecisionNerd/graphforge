@@ -22,7 +22,7 @@ import pytest
 
 from graphforge import GraphForge
 from graphforge.datasets import get_dataset_info, list_datasets
-from graphforge.datasets.registry import _CACHE_DIR, _get_cache_path, _is_cache_valid
+from graphforge.datasets.registry import _get_cache_path, _is_cache_valid
 
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
@@ -41,6 +41,7 @@ def ensure_dataset_cached(tmp_path_factory):
     Returns:
         Function that takes a dataset name and ensures it's cached
     """
+
     def _ensure_cached(dataset_name: str) -> Path:
         """Ensure a dataset is cached, downloading if necessary.
 
@@ -219,7 +220,7 @@ class TestSNAPDatasetLoading:
             assert parsed.hostname == "snap.stanford.edu"
             assert dataset.category == category
 
-    def test_small_dataset_sample_from_each_category(self):
+    def test_small_dataset_sample_from_each_category(self, ensure_dataset_cached):
         """Test loading one small dataset from each major category."""
         # Map categories to their smallest datasets for quick testing
         test_datasets = {
@@ -230,6 +231,9 @@ class TestSNAPDatasetLoading:
         }
 
         for category, dataset_name in test_datasets.items():
+            # Ensure dataset is cached (with file locking for parallel execution)
+            ensure_dataset_cached(dataset_name)
+
             # Verify dataset exists and is in correct category
             info = get_dataset_info(dataset_name)
             assert info.category == category
@@ -257,8 +261,9 @@ class TestSNAPDatasetLoading:
             )
 
     @pytest.mark.slow
-    def test_load_medium_dataset(self):
+    def test_load_medium_dataset(self, ensure_dataset_cached):
         """Test loading a medium-sized dataset (~10-50 MB)."""
+        ensure_dataset_cached("snap-email-enron")
         # Test a medium dataset to verify loader handles larger files
         gf = GraphForge.from_dataset("snap-email-enron")
 
@@ -277,8 +282,13 @@ class TestSNAPDatasetLoading:
         )
         assert result[0]["edges"].value > 170000  # Expected ~183831 edges
 
-    def test_csv_loader_handles_different_formats(self):
+    def test_csv_loader_handles_different_formats(self, ensure_dataset_cached):
         """Test that CSV loader handles different SNAP file formats."""
+        # Ensure all datasets are cached before testing
+        ensure_dataset_cached("snap-ego-facebook")
+        ensure_dataset_cached("snap-soc-bitcoin-alpha")
+        ensure_dataset_cached("snap-lastfm-asia")
+
         # Test .txt.gz format (most common)
         gf1 = GraphForge.from_dataset("snap-ego-facebook")
         result1 = gf1.execute("MATCH (n) RETURN count(n) as count")
@@ -306,8 +316,9 @@ class TestSNAPDatasetMetadataAccuracy:
             "snap-wiki-vote",
         ],
     )
-    def test_metadata_node_count_accuracy(self, dataset_name):
+    def test_metadata_node_count_accuracy(self, dataset_name, ensure_dataset_cached):
         """Test that reported node counts are accurate (within tolerance)."""
+        ensure_dataset_cached(dataset_name)
         info = get_dataset_info(dataset_name)
         gf = GraphForge.from_dataset(dataset_name)
 
@@ -329,12 +340,13 @@ class TestSNAPDatasetMetadataAccuracy:
             "snap-ca-grqc",
         ],
     )
-    def test_metadata_edge_count_accuracy(self, dataset_name):
+    def test_metadata_edge_count_accuracy(self, dataset_name, ensure_dataset_cached):
         """Test that reported edge counts are accurate (within tolerance).
 
         Note: SNAP datasets are undirected but loaded as bidirectional,
         so actual edge count may be 2x the reported count.
         """
+        ensure_dataset_cached(dataset_name)
         info = get_dataset_info(dataset_name)
         gf = GraphForge.from_dataset(dataset_name)
 
