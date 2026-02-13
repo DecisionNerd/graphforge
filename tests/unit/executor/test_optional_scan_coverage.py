@@ -33,9 +33,7 @@ class TestOptionalScanBoundVariables:
             "no_label_requirements",
         ],
     )
-    def test_bound_variable_label_matching(
-        self, node_labels, required_labels, should_match
-    ):
+    def test_bound_variable_label_matching(self, node_labels, required_labels, should_match):
         """Test OptionalScanNodes validates bound variables against label requirements."""
         gf = GraphForge()
         node = gf.create_node(node_labels, name="Alice")
@@ -94,7 +92,7 @@ class TestOptionalScanUnboundVariables:
                 ["Person"],
                 "p",
                 1,
-                lambda res, nodes: isinstance(res[0].get("p"), CypherNull),
+                lambda res, _nodes: isinstance(res[0].get("p"), CypherNull),
             ),
             # No label filter - scans all
             (
@@ -106,16 +104,15 @@ class TestOptionalScanUnboundVariables:
                 [],
                 "n",
                 3,
-                lambda res, nodes: {r.get("n").id for r in res}
-                == {n.id for n in nodes},
+                lambda res, nodes: {r.get("n").id for r in res} == {n.id for n in nodes},
             ),
             # Empty graph - returns NULL
             (
-                lambda gf: (),
+                lambda _gf: (),
                 ["Person"],
                 "n",
                 1,
-                lambda res, nodes: isinstance(res[0].get("n"), CypherNull),
+                lambda res, _nodes: isinstance(res[0].get("n"), CypherNull),
             ),
         ],
         ids=[

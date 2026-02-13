@@ -414,9 +414,7 @@ class TestRelationshipPatternValidation:
         ],
         ids=["bounded_pattern", "unbounded_pattern"],
     )
-    def test_valid_variable_length_pattern(
-        self, min_hops, max_hops, expected_min, expected_max
-    ):
+    def test_valid_variable_length_pattern(self, min_hops, max_hops, expected_min, expected_max):
         """Valid variable-length patterns should be accepted."""
         pattern = RelationshipPattern(
             variable="r",
