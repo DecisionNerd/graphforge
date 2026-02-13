@@ -501,9 +501,9 @@ print(results)
 ## Resources
 
 - [GraphForge Documentation](../index.md)
-- [openCypher Tutorial](../tutorial.md)
+- [openCypher Tutorial](../getting-started/tutorial.md)
 - [API Reference](../reference/api.md)
-- [Example: E-commerce Agent](../../examples/agent_grounding/ecommerce_agent.ipynb)
+- [Example: E-commerce Agent](https://github.com/DecisionNerd/graphforge/blob/main/examples/agent_grounding/ecommerce_agent.ipynb)
 
 ## Conclusion
 
