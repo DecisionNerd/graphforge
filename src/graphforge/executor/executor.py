@@ -1488,12 +1488,25 @@ class QueryExecutor:
                             if src_pattern.variable:
                                 new_ctx.bindings[src_pattern.variable] = src_node
 
-                    # Relationship and destination node
-                    if len(pattern_parts) >= 3 and isinstance(
-                        pattern_parts[1], RelationshipPattern
-                    ):
-                        rel_pattern = pattern_parts[1]
-                        dst_pattern = pattern_parts[2]
+                    # Process all relationships in the pattern (multi-hop support)
+                    # Pattern structure: node, rel, node, rel, node, ...
+                    # Process pairs: (node[0], rel[1], node[2]), (node[2], rel[3], node[4]), ...
+                    # Keep track of the last destination node for chaining
+                    last_dst_node = src_node
+
+                    for i in range(1, len(pattern_parts), 2):
+                        if i + 1 >= len(pattern_parts):
+                            break  # Need both relationship and destination node
+
+                        if not isinstance(pattern_parts[i], RelationshipPattern):
+                            continue  # Skip if not a relationship
+
+                        rel_pattern = pattern_parts[i]
+                        dst_pattern = pattern_parts[i + 1]
+
+                        # Source node is the last created destination node from previous iteration
+                        # (or the initial src_node for i==1)
+                        src_node = last_dst_node
 
                         # Check if destination variable already bound
                         if dst_pattern.variable and dst_pattern.variable in new_ctx.bindings:
@@ -1510,6 +1523,9 @@ class QueryExecutor:
                         )
                         if rel_pattern.variable:
                             new_ctx.bindings[rel_pattern.variable] = edge
+
+                        # Update last_dst_node for next iteration
+                        last_dst_node = dst_node
 
             result.append(new_ctx)
 
@@ -1669,6 +1685,10 @@ class QueryExecutor:
             for var_name in op.variables:
                 if var_name in ctx.bindings:
                     element = ctx.bindings[var_name]
+
+                    # Skip NULL values - they don't exist in the graph
+                    if isinstance(element, CypherNull):
+                        continue
 
                     # Delete from graph
                     if isinstance(element, NodeRef):
