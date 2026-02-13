@@ -684,7 +684,18 @@ TEMPORAL_FUNCTIONS = {
 SPATIAL_FUNCTIONS = {"POINT", "DISTANCE"}
 GRAPH_FUNCTIONS = {"ID", "LABELS"}
 PATH_FUNCTIONS = {"LENGTH", "NODES", "RELATIONSHIPS", "HEAD", "LAST"}
-AGGREGATE_FUNCTIONS = {"COUNT", "SUM", "AVG", "MAX", "MIN", "COLLECT"}
+AGGREGATE_FUNCTIONS = {
+    "COUNT",
+    "SUM",
+    "AVG",
+    "MAX",
+    "MIN",
+    "COLLECT",
+    "PERCENTILEDISC",
+    "PERCENTILECONT",
+    "STDEV",
+    "STDEVP",
+}
 
 
 def is_aggregate_function(expr: Any) -> bool:
