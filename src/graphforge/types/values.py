@@ -97,7 +97,27 @@ class CypherValue:
         if self.type == CypherType.STRING and other.type == CypherType.STRING:
             return CypherBool(self.value < other.value)
 
-        # Temporal comparison (DATE, DATETIME, TIME)
+        # Boolean comparison (False < True)
+        if self.type == CypherType.BOOLEAN and other.type == CypherType.BOOLEAN:
+            return CypherBool(self.value < other.value)
+
+        # List comparison (lexicographic)
+        if self.type == CypherType.LIST and other.type == CypherType.LIST:
+            for a, b in zip(self.value, other.value):
+                a_lt_b = a.less_than(b)
+                if isinstance(a_lt_b, CypherNull):
+                    return CypherNull()
+                if a_lt_b.value:
+                    return CypherBool(True)
+                b_lt_a = b.less_than(a)
+                if isinstance(b_lt_a, CypherNull):
+                    return CypherNull()
+                if b_lt_a.value:
+                    return CypherBool(False)
+            # All elements equal so far, shorter list is less
+            return CypherBool(len(self.value) < len(other.value))
+
+        # Temporal comparison (DATE, DATETIME, TIME, DURATION)
         if self._is_temporal() and other._is_temporal():
             # Only allow comparison of same temporal types
             if self.type == other.type:
@@ -113,7 +133,12 @@ class CypherValue:
 
     def _is_temporal(self) -> bool:
         """Check if this value is a temporal type."""
-        return self.type in (CypherType.DATE, CypherType.DATETIME, CypherType.TIME)
+        return self.type in (
+            CypherType.DATE,
+            CypherType.DATETIME,
+            CypherType.TIME,
+            CypherType.DURATION,
+        )
 
     def _deep_equals(self, other: "CypherValue") -> "CypherValue":
         """Deep equality check for collections."""
