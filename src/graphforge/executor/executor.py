@@ -205,6 +205,26 @@ class QueryExecutor:
 
         raise TypeError(f"Unknown operator type: {type(op).__name__}")
 
+    def _node_matches_labels(self, node: "NodeRef", label_spec: list[list[str]]) -> bool:
+        """Check if a node matches a label specification.
+
+        Args:
+            node: The node to check
+            label_spec: List of label groups (disjunction of conjunctions)
+                       Example: [['Person']] - node must have 'Person'
+                       Example: [['Person', 'Employee']] - node must have both
+                       Example: [['Person'], ['Company']] - node must have Person OR Company
+
+        Returns:
+            True if node matches any label group, False otherwise
+        """
+        # Check if ANY label group matches (OR between groups)
+        for label_group in label_spec:
+            # Check if ALL labels in this group are present (AND within group)
+            if all(label in node.labels for label in label_group):
+                return True
+        return False
+
     def _execute_scan(
         self, op: ScanNodes, input_rows: list[ExecutionContext]
     ) -> list[ExecutionContext]:
@@ -224,7 +244,7 @@ class QueryExecutor:
 
                 # Check if bound node has required labels
                 if op.labels:
-                    if all(label in bound_node.labels for label in op.labels):
+                    if self._node_matches_labels(bound_node, op.labels):
                         # Node matches pattern - keep the context
                         # Bind path variable if requested
                         if op.path_var:
@@ -252,16 +272,24 @@ class QueryExecutor:
             else:
                 # Variable not bound - do normal scan
                 if op.labels:
-                    # Scan by first label for efficiency
-                    nodes = self.graph.get_nodes_by_label(op.labels[0])
+                    # Collect nodes from all label groups (disjunction)
+                    all_nodes = set()
+                    for label_group in op.labels:
+                        # Scan by first label in the group for efficiency
+                        group_nodes = self.graph.get_nodes_by_label(label_group[0])
 
-                    # Filter to only nodes with ALL required labels
-                    if len(op.labels) > 1:
-                        nodes = [
-                            node
-                            for node in nodes
-                            if all(label in node.labels for label in op.labels)
-                        ]
+                        # Filter to nodes with ALL labels in this group (conjunction)
+                        if len(label_group) > 1:
+                            group_nodes = [
+                                node
+                                for node in group_nodes
+                                if all(label in node.labels for label in label_group)
+                            ]
+
+                        # Add to result set
+                        all_nodes.update(group_nodes)
+
+                    nodes = list(all_nodes)
                 else:
                     # Scan all nodes
                     nodes = self.graph.get_all_nodes()
@@ -301,7 +329,7 @@ class QueryExecutor:
 
                 # Check if bound node has required labels
                 if op.labels:
-                    if all(label in bound_node.labels for label in op.labels):
+                    if self._node_matches_labels(bound_node, op.labels):
                         # Node matches pattern - keep the context
                         result.append(ctx)
                     else:
@@ -316,16 +344,24 @@ class QueryExecutor:
             else:
                 # Variable not bound - do normal scan
                 if op.labels:
-                    # Scan by first label for efficiency
-                    nodes = self.graph.get_nodes_by_label(op.labels[0])
+                    # Collect nodes from all label groups (disjunction)
+                    all_nodes = set()
+                    for label_group in op.labels:
+                        # Scan by first label in the group for efficiency
+                        group_nodes = self.graph.get_nodes_by_label(label_group[0])
 
-                    # Filter to only nodes with ALL required labels
-                    if len(op.labels) > 1:
-                        nodes = [
-                            node
-                            for node in nodes
-                            if all(label in node.labels for label in op.labels)
-                        ]
+                        # Filter to nodes with ALL labels in this group (conjunction)
+                        if len(label_group) > 1:
+                            group_nodes = [
+                                node
+                                for node in group_nodes
+                                if all(label in node.labels for label in label_group)
+                            ]
+
+                        # Add to result set
+                        all_nodes.update(group_nodes)
+
+                    nodes = list(all_nodes)
                 else:
                     # Scan all nodes
                     nodes = self.graph.get_all_nodes()
@@ -1541,8 +1577,12 @@ class QueryExecutor:
         Returns:
             Created NodeRef
         """
-        # Extract labels
-        labels = list(node_pattern.labels) if node_pattern.labels else []
+        # Extract labels - flatten label groups for CREATE
+        # For CREATE, we apply all labels from all groups
+        labels = []
+        if node_pattern.labels:
+            for label_group in node_pattern.labels:
+                labels.extend(label_group)
 
         # Extract and evaluate properties
         properties = {}
@@ -1810,14 +1850,26 @@ class QueryExecutor:
                     found_node = None
 
                     if node_pattern.labels:
-                        # Get candidate nodes by first label
-                        first_label = node_pattern.labels[0]
-                        candidates = self.graph.get_nodes_by_label(first_label)
+                        # Collect candidate nodes from all label groups (disjunction)
+                        all_candidates = set()
+                        for label_group in node_pattern.labels:
+                            # Get nodes by first label in the group
+                            group_candidates = self.graph.get_nodes_by_label(label_group[0])
+
+                            # Filter to nodes with ALL labels in this group (conjunction)
+                            if len(label_group) > 1:
+                                group_candidates = [
+                                    node
+                                    for node in group_candidates
+                                    if all(label in node.labels for label in label_group)
+                                ]
+
+                            all_candidates.update(group_candidates)
+
+                        candidates = list(all_candidates)
 
                         for node in candidates:
-                            # Check if all required labels are present
-                            if not all(label in node.labels for label in node_pattern.labels):
-                                continue
+                            # Node already matches labels (filtered above)
 
                             # Check if properties match
                             if node_pattern.properties:

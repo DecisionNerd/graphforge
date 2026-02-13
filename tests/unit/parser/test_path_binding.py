@@ -66,7 +66,7 @@ class TestPathBindingParsing:
         parts = pattern["parts"]
         assert len(parts) == 1
         assert isinstance(parts[0], NodePattern)
-        assert parts[0].labels == ["Person"]
+        assert parts[0].labels == [["Person"]]  # Labels are now list of label groups
 
     def test_parse_path_binding_long_path(self):
         """Test parsing path binding with longer path: p = (a)-[:R1]->(b)-[:R2]->(c)"""
@@ -121,7 +121,7 @@ class TestPathBindingParsing:
 
         parts = pattern["parts"]
         # First node
-        assert parts[0].labels == ["Person"]
+        assert parts[0].labels == [["Person"]]  # Labels are now list of label groups
         assert "name" in parts[0].properties
 
         # Relationship
@@ -129,7 +129,7 @@ class TestPathBindingParsing:
         assert "since" in parts[1].properties
 
         # Second node
-        assert parts[2].labels == ["Person"]
+        assert parts[2].labels == [["Person"]]  # Labels are now list of label groups
 
     def test_parse_path_binding_undirected(self):
         """Test path binding with undirected relationship."""

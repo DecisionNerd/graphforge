@@ -27,12 +27,15 @@ class NodePattern(BaseModel):
 
     Attributes:
         variable: Variable name to bind the node (None for anonymous)
-        labels: List of labels the node must have
+        labels: List of label groups (disjunction of conjunctions)
+               Example: [['Person']] - must have 'Person'
+               Example: [['Person', 'Employee']] - must have both
+               Example: [['Person'], ['Company']] - must have Person OR Company
         properties: Dict of property constraints (property_name -> Expression)
     """
 
     variable: str | None = Field(default=None, description="Variable name (None for anonymous)")
-    labels: list[str] = Field(default_factory=list, description="Node labels")
+    labels: list[list[str]] = Field(default_factory=list, description="Label groups (disjunction of conjunctions)")
     properties: dict[str, Any] = Field(default_factory=dict, description="Property constraints")
 
     @field_validator("variable")
