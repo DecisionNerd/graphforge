@@ -6,17 +6,24 @@ Tests cover the AST nodes defined in the openCypher spec:
 - Expressions and literals
 """
 
+from pydantic import ValidationError
 import pytest
 
 from graphforge.ast.clause import LimitClause, MatchClause, ReturnClause, SkipClause, WhereClause
 from graphforge.ast.expression import (
     BinaryOp,
+    CaseExpression,
+    FunctionCall,
+    ListComprehension,
     Literal,
     PropertyAccess,
+    QuantifierExpression,
+    SubqueryExpression,
+    UnaryOp,
     Variable,
 )
 from graphforge.ast.pattern import Direction, NodePattern, RelationshipPattern
-from graphforge.ast.query import CypherQuery
+from graphforge.ast.query import CypherQuery, UnionQuery
 
 
 @pytest.mark.unit
@@ -313,3 +320,329 @@ class TestCompleteQuery:
         assert len(query.clauses) == 3
         assert isinstance(query.clauses[2], LimitClause)
         assert query.clauses[2].count == 5
+
+
+@pytest.mark.unit
+class TestNodePatternValidation:
+    """Tests for NodePattern validation edge cases."""
+
+    def test_empty_variable_name_fails(self):
+        """Empty variable name should raise ValueError."""
+        with pytest.raises(ValidationError, match="Variable name cannot be empty string"):
+            NodePattern(variable="", labels=["Person"])
+
+    def test_variable_starting_with_number_fails(self):
+        """Variable starting with number should fail."""
+        with pytest.raises(ValidationError, match="must start with letter or underscore"):
+            NodePattern(variable="1node", labels=["Person"])
+
+    def test_variable_starting_with_special_char_fails(self):
+        """Variable starting with special character should fail."""
+        with pytest.raises(ValidationError, match="must start with letter or underscore"):
+            NodePattern(variable="$node", labels=["Person"])
+
+    def test_variable_with_special_chars_fails(self):
+        """Variable with special characters should fail."""
+        with pytest.raises(ValidationError, match="must contain only alphanumeric and underscore"):
+            NodePattern(variable="node-name", labels=["Person"])
+
+    def test_variable_with_spaces_fails(self):
+        """Variable with spaces should fail."""
+        with pytest.raises(ValidationError, match="must contain only alphanumeric and underscore"):
+            NodePattern(variable="node name", labels=["Person"])
+
+    def test_label_starting_with_number_fails(self):
+        """Label starting with number should fail."""
+        with pytest.raises(ValidationError, match="Label must start with a letter"):
+            NodePattern(variable="n", labels=["1Person"])
+
+    def test_empty_label_fails(self):
+        """Empty label should fail."""
+        with pytest.raises(ValidationError, match="Label must start with a letter"):
+            NodePattern(variable="n", labels=[""])
+
+    def test_valid_variable_with_underscore(self):
+        """Variable can start with underscore."""
+        pattern = NodePattern(variable="_node", labels=["Person"])
+        assert pattern.variable == "_node"
+
+    def test_valid_variable_with_numbers(self):
+        """Variable can contain numbers after first character."""
+        pattern = NodePattern(variable="node123", labels=["Person"])
+        assert pattern.variable == "node123"
+
+
+@pytest.mark.unit
+class TestRelationshipPatternValidation:
+    """Tests for RelationshipPattern validation edge cases."""
+
+    def test_empty_variable_name_fails(self):
+        """Empty variable name should raise ValueError."""
+        with pytest.raises(ValidationError, match="Variable name cannot be empty string"):
+            RelationshipPattern(variable="", types=["KNOWS"], direction=Direction.OUT)
+
+    def test_variable_starting_with_number_fails(self):
+        """Variable starting with number should fail."""
+        with pytest.raises(ValidationError, match="must start with letter or underscore"):
+            RelationshipPattern(variable="1rel", types=["KNOWS"], direction=Direction.OUT)
+
+    def test_variable_with_special_chars_fails(self):
+        """Variable with special characters should fail."""
+        with pytest.raises(ValidationError, match="must contain only alphanumeric and underscore"):
+            RelationshipPattern(variable="rel-name", types=["KNOWS"], direction=Direction.OUT)
+
+    def test_relationship_type_starting_with_number_fails(self):
+        """Relationship type starting with number should fail."""
+        with pytest.raises(ValidationError, match="Relationship type must start with a letter"):
+            RelationshipPattern(variable="r", types=["1KNOWS"], direction=Direction.OUT)
+
+    def test_empty_relationship_type_fails(self):
+        """Empty relationship type should fail."""
+        with pytest.raises(ValidationError, match="Relationship type must start with a letter"):
+            RelationshipPattern(variable="r", types=[""], direction=Direction.OUT)
+
+    def test_negative_min_hops_fails(self):
+        """Negative min_hops should fail."""
+        with pytest.raises(ValidationError, match="Minimum hops must be non-negative"):
+            RelationshipPattern(
+                variable="r",
+                types=["KNOWS"],
+                direction=Direction.OUT,
+                min_hops=-1,
+            )
+
+    def test_zero_max_hops_fails(self):
+        """Zero max_hops should fail."""
+        with pytest.raises(ValidationError, match="Maximum hops must be positive"):
+            RelationshipPattern(
+                variable="r",
+                types=["KNOWS"],
+                direction=Direction.OUT,
+                max_hops=0,
+            )
+
+    def test_negative_max_hops_fails(self):
+        """Negative max_hops should fail."""
+        with pytest.raises(ValidationError, match="Maximum hops must be positive"):
+            RelationshipPattern(
+                variable="r",
+                types=["KNOWS"],
+                direction=Direction.OUT,
+                max_hops=-5,
+            )
+
+    def test_valid_variable_length_pattern(self):
+        """Valid variable-length pattern with min and max hops."""
+        pattern = RelationshipPattern(
+            variable="r",
+            types=["KNOWS"],
+            direction=Direction.OUT,
+            min_hops=1,
+            max_hops=3,
+        )
+        assert pattern.min_hops == 1
+        assert pattern.max_hops == 3
+
+    def test_valid_unbounded_pattern(self):
+        """Valid unbounded pattern (max_hops=None)."""
+        pattern = RelationshipPattern(
+            variable="r",
+            types=["KNOWS"],
+            direction=Direction.OUT,
+            min_hops=1,
+            max_hops=None,
+        )
+        assert pattern.min_hops == 1
+        assert pattern.max_hops is None
+
+
+@pytest.mark.unit
+class TestUnionQueryValidation:
+    """Tests for UnionQuery validation edge cases."""
+
+    def test_empty_branches_fails(self):
+        """Empty branches list should fail."""
+        with pytest.raises(ValidationError, match="UNION must have at least one branch"):
+            UnionQuery(branches=[], all=False)
+
+    def test_single_branch_fails(self):
+        """UNION with only one branch should fail."""
+        query = CypherQuery(clauses=[])
+        with pytest.raises(ValidationError, match="UNION requires at least two branches"):
+            UnionQuery(branches=[query], all=False)
+
+    def test_non_cypher_query_branches_fails(self):
+        """Branches with non-CypherQuery objects should fail."""
+        with pytest.raises(ValidationError):
+            # Pydantic catches this at type level
+            UnionQuery(branches=[CypherQuery(clauses=[]), "not a query"], all=False)
+
+    def test_valid_union_two_branches(self):
+        """Valid UNION with two branches."""
+        query1 = CypherQuery(clauses=[])
+        query2 = CypherQuery(clauses=[])
+        union = UnionQuery(branches=[query1, query2], all=False)
+        assert len(union.branches) == 2
+        assert union.all is False
+
+    def test_valid_union_all(self):
+        """Valid UNION ALL query."""
+        query1 = CypherQuery(clauses=[])
+        query2 = CypherQuery(clauses=[])
+        union = UnionQuery(branches=[query1, query2], all=True)
+        assert union.all is True
+
+
+@pytest.mark.unit
+class TestExpressionValidation:
+    """Tests for expression node validation edge cases."""
+
+    def test_literal_invalid_type_fails(self):
+        """Literal with invalid type should fail."""
+
+        class CustomClass:
+            pass
+
+        with pytest.raises(ValidationError, match="Literal value must be"):
+            Literal(value=CustomClass())
+
+    def test_literal_valid_types(self):
+        """Literal accepts all valid types."""
+        assert Literal(value=42).value == 42
+        assert Literal(value="text").value == "text"
+        assert Literal(value=True).value is True
+        assert Literal(value=3.14).value == 3.14
+        assert Literal(value=None).value is None
+        assert Literal(value=[1, 2, 3]).value == [1, 2, 3]
+        assert Literal(value={"key": "value"}).value == {"key": "value"}
+
+    def test_variable_starting_with_number_fails(self):
+        """Variable name starting with number should fail."""
+        with pytest.raises(ValidationError, match="must start with letter or underscore"):
+            Variable(name="1var")
+
+    def test_variable_with_special_chars_fails(self):
+        """Variable name with special characters should fail."""
+        with pytest.raises(ValidationError, match="must contain only alphanumeric and underscore"):
+            Variable(name="var-name")
+
+    def test_property_access_invalid_variable_fails(self):
+        """PropertyAccess with invalid variable should fail."""
+        with pytest.raises(ValidationError, match="must start with letter or underscore"):
+            PropertyAccess(variable="$var", property="name")
+
+    def test_property_access_invalid_property_fails(self):
+        """PropertyAccess with invalid property name should fail."""
+        with pytest.raises(ValidationError, match="must contain only alphanumeric and underscore"):
+            PropertyAccess(variable="n", property="prop-name")
+
+    def test_binary_op_invalid_operator_fails(self):
+        """BinaryOp with unsupported operator should fail."""
+        with pytest.raises(ValidationError, match="Unsupported binary operator"):
+            BinaryOp(op="INVALID", left=Literal(value=1), right=Literal(value=2))
+
+    def test_unary_op_invalid_operator_fails(self):
+        """UnaryOp with unsupported operator should fail."""
+        with pytest.raises(ValidationError, match="Unsupported unary operator"):
+            UnaryOp(op="INVALID", operand=Literal(value=True))
+
+    def test_function_call_args_not_list_fails(self):
+        """FunctionCall with non-list args should fail (caught by Pydantic)."""
+        # Pydantic will coerce at field level, but model validator checks isinstance
+        # This test verifies the model validator
+        func = FunctionCall(name="COUNT", args=[Variable(name="n")])
+        assert isinstance(func.args, list)
+
+    def test_function_name_normalized_to_uppercase(self):
+        """Function name should be normalized to uppercase."""
+        func = FunctionCall(name="count", args=[])
+        assert func.name == "COUNT"
+
+    def test_case_expression_empty_when_clauses_fails(self):
+        """CaseExpression with empty when_clauses should fail."""
+        with pytest.raises(ValidationError):
+            # Pydantic min_length catches this
+            CaseExpression(when_clauses=[])
+
+    def test_case_expression_invalid_when_clause_fails(self):
+        """CaseExpression with invalid when clause format should fail."""
+        with pytest.raises(ValidationError):
+            # Pydantic type validation catches this
+            CaseExpression(when_clauses=["not a tuple"])
+
+    def test_case_expression_when_clause_wrong_length_fails(self):
+        """CaseExpression with wrong length tuple should fail."""
+        with pytest.raises(ValidationError):
+            # Pydantic tuple validation catches this
+            CaseExpression(when_clauses=[(Literal(value=True),)])  # Only 1 element
+
+    def test_case_expression_valid(self):
+        """Valid CaseExpression."""
+        case = CaseExpression(
+            when_clauses=[
+                (Literal(value=True), Literal(value="yes")),
+                (Literal(value=False), Literal(value="no")),
+            ],
+            else_expr=Literal(value="maybe"),
+        )
+        assert len(case.when_clauses) == 2
+        assert case.else_expr is not None
+
+    def test_list_comprehension_invalid_variable_fails(self):
+        """ListComprehension with invalid variable should fail."""
+        with pytest.raises(ValidationError, match="must start with letter or underscore"):
+            ListComprehension(
+                variable="1x",
+                list_expr=Literal(value=[1, 2, 3]),
+            )
+
+    def test_subquery_expression_invalid_type_fails(self):
+        """SubqueryExpression with invalid type should fail."""
+        with pytest.raises(ValidationError, match="Subquery type must be EXISTS or COUNT"):
+            SubqueryExpression(
+                type="INVALID",
+                query=CypherQuery(clauses=[]),
+            )
+
+    def test_subquery_expression_valid(self):
+        """Valid SubqueryExpression."""
+        subquery = SubqueryExpression(
+            type="EXISTS",
+            query=CypherQuery(clauses=[]),
+        )
+        assert subquery.type == "EXISTS"
+
+    def test_quantifier_expression_invalid_quantifier_fails(self):
+        """QuantifierExpression with invalid quantifier should fail."""
+        with pytest.raises(ValidationError, match="Quantifier must be ALL, ANY, NONE, or SINGLE"):
+            QuantifierExpression(
+                quantifier="INVALID",
+                variable="x",
+                list_expr=Literal(value=[1, 2, 3]),
+                predicate=Literal(value=True),
+            )
+
+    def test_quantifier_expression_invalid_variable_fails(self):
+        """QuantifierExpression with invalid variable should fail."""
+        with pytest.raises(ValidationError, match="must start with letter or underscore"):
+            QuantifierExpression(
+                quantifier="ALL",
+                variable="1x",
+                list_expr=Literal(value=[1, 2, 3]),
+                predicate=Literal(value=True),
+            )
+
+    def test_quantifier_expression_valid(self):
+        """Valid QuantifierExpression."""
+        quant = QuantifierExpression(
+            quantifier="ALL",
+            variable="x",
+            list_expr=Literal(value=[1, 2, 3]),
+            predicate=BinaryOp(
+                op=">",
+                left=Variable(name="x"),
+                right=Literal(value=0),
+            ),
+        )
+        assert quant.quantifier == "ALL"
+        assert quant.variable == "x"

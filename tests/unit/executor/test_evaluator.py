@@ -753,3 +753,1275 @@ class TestFunctionCalls:
 
         with pytest.raises(TypeError, match="TRIM expects string"):
             evaluate_expression(expr, ctx)
+
+
+@pytest.mark.unit
+class TestQuantifierExpressions:
+    """Tests for quantifier expressions (ALL, ANY, NONE, SINGLE)."""
+
+    def test_all_with_all_true(self):
+        """ALL returns true when all predicates are true."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        # ALL(x IN [1, 2, 3] WHERE x > 0)
+        expr = QuantifierExpression(
+            quantifier="ALL",
+            variable="x",
+            list_expr=Literal(value=[1, 2, 3]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is True
+
+    def test_all_with_one_false(self):
+        """ALL returns false when one predicate is false."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        # ALL(x IN [1, -2, 3] WHERE x > 0)
+        expr = QuantifierExpression(
+            quantifier="ALL",
+            variable="x",
+            list_expr=Literal(value=[1, -2, 3]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is False
+
+    def test_all_with_null_predicate(self):
+        """ALL returns NULL when no false but at least one NULL."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        # ALL(x IN [1, NULL, 3] WHERE x > 0)
+        expr = QuantifierExpression(
+            quantifier="ALL",
+            variable="x",
+            list_expr=Literal(value=[1, None, 3]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_all_with_empty_list(self):
+        """ALL returns true for empty list."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        expr = QuantifierExpression(
+            quantifier="ALL",
+            variable="x",
+            list_expr=Literal(value=[]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is True
+
+    def test_any_with_one_true(self):
+        """ANY returns true when at least one predicate is true."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        # ANY(x IN [1, -2, 3] WHERE x > 0)
+        expr = QuantifierExpression(
+            quantifier="ANY",
+            variable="x",
+            list_expr=Literal(value=[1, -2, 3]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is True
+
+    def test_any_with_all_false(self):
+        """ANY returns false when all predicates are false."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        # ANY(x IN [-1, -2, -3] WHERE x > 0)
+        expr = QuantifierExpression(
+            quantifier="ANY",
+            variable="x",
+            list_expr=Literal(value=[-1, -2, -3]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is False
+
+    def test_any_with_null_and_no_true(self):
+        """ANY returns NULL when no true but at least one NULL."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        # ANY(x IN [-1, NULL, -3] WHERE x > 0)
+        expr = QuantifierExpression(
+            quantifier="ANY",
+            variable="x",
+            list_expr=Literal(value=[-1, None, -3]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_none_with_all_false(self):
+        """NONE returns true when all predicates are false."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        # NONE(x IN [-1, -2, -3] WHERE x > 0)
+        expr = QuantifierExpression(
+            quantifier="NONE",
+            variable="x",
+            list_expr=Literal(value=[-1, -2, -3]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is True
+
+    def test_none_with_one_true(self):
+        """NONE returns false when at least one predicate is true."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        # NONE(x IN [1, -2, -3] WHERE x > 0)
+        expr = QuantifierExpression(
+            quantifier="NONE",
+            variable="x",
+            list_expr=Literal(value=[1, -2, -3]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is False
+
+    def test_none_with_null_and_no_true(self):
+        """NONE returns NULL when no true but at least one NULL."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        # NONE(x IN [-1, NULL, -3] WHERE x > 0)
+        expr = QuantifierExpression(
+            quantifier="NONE",
+            variable="x",
+            list_expr=Literal(value=[-1, None, -3]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_single_with_exactly_one_true(self):
+        """SINGLE returns true when exactly one predicate is true."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        # SINGLE(x IN [1, -2, -3] WHERE x > 0)
+        expr = QuantifierExpression(
+            quantifier="SINGLE",
+            variable="x",
+            list_expr=Literal(value=[1, -2, -3]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is True
+
+    def test_single_with_multiple_true(self):
+        """SINGLE returns false when more than one predicate is true."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        # SINGLE(x IN [1, 2, -3] WHERE x > 0)
+        expr = QuantifierExpression(
+            quantifier="SINGLE",
+            variable="x",
+            list_expr=Literal(value=[1, 2, -3]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is False
+
+    def test_single_with_zero_true_and_null(self):
+        """SINGLE returns NULL when zero true and at least one NULL."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        # SINGLE(x IN [-1, NULL, -3] WHERE x > 0)
+        expr = QuantifierExpression(
+            quantifier="SINGLE",
+            variable="x",
+            list_expr=Literal(value=[-1, None, -3]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_single_with_all_false(self):
+        """SINGLE returns false when all predicates are false."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        # SINGLE(x IN [-1, -2, -3] WHERE x > 0)
+        expr = QuantifierExpression(
+            quantifier="SINGLE",
+            variable="x",
+            list_expr=Literal(value=[-1, -2, -3]),
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is False
+
+    def test_quantifier_with_non_list_raises_error(self):
+        """Quantifier with non-list raises TypeError."""
+        from graphforge.ast.expression import QuantifierExpression
+
+        ctx = ExecutionContext()
+        expr = QuantifierExpression(
+            quantifier="ALL",
+            variable="x",
+            list_expr=Literal(value=123),  # Not a list
+            predicate=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+        )
+
+        with pytest.raises(TypeError, match="Quantifier requires a list"):
+            evaluate_expression(expr, ctx)
+
+
+@pytest.mark.unit
+class TestListFunctions:
+    """Tests for list functions."""
+
+    def test_tail_function(self):
+        """TAIL returns all elements except first."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="TAIL",
+            args=[Literal(value=[1, 2, 3, 4])],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherList
+
+        assert isinstance(result, CypherList)
+        assert len(result.value) == 3
+
+    def test_tail_empty_list(self):
+        """TAIL of empty list returns empty list."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="TAIL",
+            args=[Literal(value=[])],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherList
+
+        assert isinstance(result, CypherList)
+        assert len(result.value) == 0
+
+    def test_tail_with_null(self):
+        """TAIL with NULL returns NULL."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="TAIL",
+            args=[Literal(value=None)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_head_list_function(self):
+        """HEAD returns first element of list."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="HEAD",
+            args=[Literal(value=[1, 2, 3])],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherInt)
+        assert result.value == 1
+
+    def test_head_empty_list(self):
+        """HEAD of empty list returns NULL."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="HEAD",
+            args=[Literal(value=[])],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_last_list_function(self):
+        """LAST returns last element of list."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="LAST",
+            args=[Literal(value=[1, 2, 3])],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherInt)
+        assert result.value == 3
+
+    def test_last_empty_list(self):
+        """LAST of empty list returns NULL."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="LAST",
+            args=[Literal(value=[])],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_reverse_list_function(self):
+        """REVERSE returns list in reverse order."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="REVERSE",
+            args=[Literal(value=[1, 2, 3])],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherList
+
+        assert isinstance(result, CypherList)
+        assert len(result.value) == 3
+        assert result.value[0].value == 3
+        assert result.value[2].value == 1
+
+    def test_range_function_basic(self):
+        """RANGE generates list of integers."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RANGE",
+            args=[Literal(value=1), Literal(value=5)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherList
+
+        assert isinstance(result, CypherList)
+        assert len(result.value) == 5  # 1, 2, 3, 4, 5
+
+    def test_range_with_step(self):
+        """RANGE with step."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RANGE",
+            args=[Literal(value=0), Literal(value=10), Literal(value=2)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherList
+
+        assert isinstance(result, CypherList)
+        assert len(result.value) == 6  # 0, 2, 4, 6, 8, 10
+
+    def test_range_with_negative_step(self):
+        """RANGE with negative step."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RANGE",
+            args=[Literal(value=10), Literal(value=0), Literal(value=-2)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherList
+
+        assert isinstance(result, CypherList)
+        assert len(result.value) == 6  # 10, 8, 6, 4, 2, 0
+
+    def test_range_with_zero_step_raises_error(self):
+        """RANGE with step=0 raises ValueError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RANGE",
+            args=[Literal(value=1), Literal(value=5), Literal(value=0)],
+        )
+
+        with pytest.raises(ValueError, match="RANGE step cannot be zero"):
+            evaluate_expression(expr, ctx)
+
+    def test_range_with_non_integer_start_raises_error(self):
+        """RANGE with non-integer start raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RANGE",
+            args=[Literal(value="1"), Literal(value=5)],
+        )
+
+        with pytest.raises(TypeError, match="RANGE start must be integer"):
+            evaluate_expression(expr, ctx)
+
+    def test_range_with_non_integer_end_raises_error(self):
+        """RANGE with non-integer end raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RANGE",
+            args=[Literal(value=1), Literal(value="5")],
+        )
+
+        with pytest.raises(TypeError, match="RANGE end must be integer"):
+            evaluate_expression(expr, ctx)
+
+    def test_range_with_non_integer_step_raises_error(self):
+        """RANGE with non-integer step raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RANGE",
+            args=[Literal(value=1), Literal(value=5), Literal(value="2")],
+        )
+
+        with pytest.raises(TypeError, match="RANGE step must be integer"):
+            evaluate_expression(expr, ctx)
+
+    def test_size_function_list(self):
+        """SIZE returns length of list."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SIZE",
+            args=[Literal(value=[1, 2, 3])],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherInt)
+        assert result.value == 3
+
+    def test_size_function_string(self):
+        """SIZE returns length of string."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SIZE",
+            args=[Literal(value="hello")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherInt)
+        assert result.value == 5
+
+
+@pytest.mark.unit
+class TestStringFunctions:
+    """Tests for string functions."""
+
+    def test_split_function(self):
+        """SPLIT splits string by delimiter."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SPLIT",
+            args=[Literal(value="a,b,c"), Literal(value=",")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherList
+
+        assert isinstance(result, CypherList)
+        assert len(result.value) == 3
+        assert result.value[0].value == "a"
+        assert result.value[2].value == "c"
+
+    def test_split_with_wrong_arg_count_raises_error(self):
+        """SPLIT with wrong arg count raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SPLIT",
+            args=[Literal(value="a,b,c")],
+        )
+
+        with pytest.raises(TypeError, match="SPLIT expects 2 arguments"):
+            evaluate_expression(expr, ctx)
+
+    def test_split_with_non_string_first_arg_raises_error(self):
+        """SPLIT with non-string first arg raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SPLIT",
+            args=[Literal(value=123), Literal(value=",")],
+        )
+
+        with pytest.raises(TypeError, match="SPLIT expects string as first argument"):
+            evaluate_expression(expr, ctx)
+
+    def test_split_with_non_string_delimiter_raises_error(self):
+        """SPLIT with non-string delimiter raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SPLIT",
+            args=[Literal(value="a,b,c"), Literal(value=123)],
+        )
+
+        with pytest.raises(TypeError, match="SPLIT expects string as delimiter"):
+            evaluate_expression(expr, ctx)
+
+    def test_replace_function(self):
+        """REPLACE replaces all occurrences."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="REPLACE",
+            args=[Literal(value="hello world"), Literal(value="world"), Literal(value="there")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "hello there"
+
+    def test_replace_with_wrong_arg_count_raises_error(self):
+        """REPLACE with wrong arg count raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="REPLACE",
+            args=[Literal(value="hello"), Literal(value="world")],
+        )
+
+        with pytest.raises(TypeError, match="REPLACE expects 3 arguments"):
+            evaluate_expression(expr, ctx)
+
+    def test_replace_with_non_string_first_arg_raises_error(self):
+        """REPLACE with non-string first arg raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="REPLACE",
+            args=[Literal(value=123), Literal(value="a"), Literal(value="b")],
+        )
+
+        with pytest.raises(TypeError, match="REPLACE expects string as first argument"):
+            evaluate_expression(expr, ctx)
+
+    def test_replace_with_non_string_search_raises_error(self):
+        """REPLACE with non-string search raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="REPLACE",
+            args=[Literal(value="hello"), Literal(value=123), Literal(value="b")],
+        )
+
+        with pytest.raises(TypeError, match="REPLACE expects string as search argument"):
+            evaluate_expression(expr, ctx)
+
+    def test_replace_with_non_string_replacement_raises_error(self):
+        """REPLACE with non-string replacement raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="REPLACE",
+            args=[Literal(value="hello"), Literal(value="a"), Literal(value=123)],
+        )
+
+        with pytest.raises(TypeError, match="REPLACE expects string as replacement argument"):
+            evaluate_expression(expr, ctx)
+
+    def test_left_function(self):
+        """LEFT returns leftmost characters."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="LEFT",
+            args=[Literal(value="hello"), Literal(value=2)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "he"
+
+    def test_left_with_negative_length(self):
+        """LEFT with negative length returns empty string."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="LEFT",
+            args=[Literal(value="hello"), Literal(value=-1)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == ""
+
+    def test_left_with_wrong_arg_count_raises_error(self):
+        """LEFT with wrong arg count raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="LEFT",
+            args=[Literal(value="hello")],
+        )
+
+        with pytest.raises(TypeError, match="LEFT expects 2 arguments"):
+            evaluate_expression(expr, ctx)
+
+    def test_left_with_non_string_raises_error(self):
+        """LEFT with non-string raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="LEFT",
+            args=[Literal(value=123), Literal(value=2)],
+        )
+
+        with pytest.raises(TypeError, match="LEFT expects string as first argument"):
+            evaluate_expression(expr, ctx)
+
+    def test_left_with_non_integer_length_raises_error(self):
+        """LEFT with non-integer length raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="LEFT",
+            args=[Literal(value="hello"), Literal(value="2")],
+        )
+
+        with pytest.raises(TypeError, match="LEFT expects integer as length"):
+            evaluate_expression(expr, ctx)
+
+    def test_right_function(self):
+        """RIGHT returns rightmost characters."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RIGHT",
+            args=[Literal(value="hello"), Literal(value=2)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "lo"
+
+    def test_right_with_negative_length(self):
+        """RIGHT with negative length returns empty string."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RIGHT",
+            args=[Literal(value="hello"), Literal(value=-1)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == ""
+
+    def test_right_with_length_exceeding_string(self):
+        """RIGHT with length > string length returns entire string."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RIGHT",
+            args=[Literal(value="hello"), Literal(value=10)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "hello"
+
+    def test_right_with_wrong_arg_count_raises_error(self):
+        """RIGHT with wrong arg count raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RIGHT",
+            args=[Literal(value="hello")],
+        )
+
+        with pytest.raises(TypeError, match="RIGHT expects 2 arguments"):
+            evaluate_expression(expr, ctx)
+
+    def test_right_with_non_string_raises_error(self):
+        """RIGHT with non-string raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RIGHT",
+            args=[Literal(value=123), Literal(value=2)],
+        )
+
+        with pytest.raises(TypeError, match="RIGHT expects string as first argument"):
+            evaluate_expression(expr, ctx)
+
+    def test_right_with_non_integer_length_raises_error(self):
+        """RIGHT with non-integer length raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RIGHT",
+            args=[Literal(value="hello"), Literal(value="2")],
+        )
+
+        with pytest.raises(TypeError, match="RIGHT expects integer as length"):
+            evaluate_expression(expr, ctx)
+
+    def test_ltrim_function(self):
+        """LTRIM removes leading whitespace."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="LTRIM",
+            args=[Literal(value="  hello  ")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "hello  "
+
+    def test_ltrim_with_wrong_arg_count_raises_error(self):
+        """LTRIM with wrong arg count raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="LTRIM",
+            args=[Literal(value="hello"), Literal(value="extra")],
+        )
+
+        with pytest.raises(TypeError, match="LTRIM expects 1 argument"):
+            evaluate_expression(expr, ctx)
+
+    def test_ltrim_with_non_string_raises_error(self):
+        """LTRIM with non-string raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="LTRIM",
+            args=[Literal(value=123)],
+        )
+
+        with pytest.raises(TypeError, match="LTRIM expects string"):
+            evaluate_expression(expr, ctx)
+
+    def test_rtrim_function(self):
+        """RTRIM removes trailing whitespace."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RTRIM",
+            args=[Literal(value="  hello  ")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "  hello"
+
+    def test_rtrim_with_wrong_arg_count_raises_error(self):
+        """RTRIM with wrong arg count raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RTRIM",
+            args=[Literal(value="hello"), Literal(value="extra")],
+        )
+
+        with pytest.raises(TypeError, match="RTRIM expects 1 argument"):
+            evaluate_expression(expr, ctx)
+
+    def test_rtrim_with_non_string_raises_error(self):
+        """RTRIM with non-string raises TypeError."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="RTRIM",
+            args=[Literal(value=123)],
+        )
+
+        with pytest.raises(TypeError, match="RTRIM expects string"):
+            evaluate_expression(expr, ctx)
+
+    def test_reverse_string_function(self):
+        """REVERSE reverses a string."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="REVERSE",
+            args=[Literal(value="hello")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "olleh"
+
+    def test_substring_without_length(self):
+        """SUBSTRING without length returns substring to end."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="SUBSTRING",
+            args=[Literal(value="hello"), Literal(value=2)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "llo"
+
+
+@pytest.mark.unit
+class TestTypeConversionEdgeCases:
+    """Tests for edge cases in type conversion functions."""
+
+    def test_toboolean_with_list_returns_null(self):
+        """toBoolean with list returns NULL."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toBoolean",
+            args=[Literal(value=[1, 2, 3])],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_toboolean_with_map_returns_null(self):
+        """toBoolean with map returns NULL."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toBoolean",
+            args=[Literal(value={"key": "value"})],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_toboolean_with_invalid_string_returns_null(self):
+        """toBoolean with invalid string returns NULL."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toBoolean",
+            args=[Literal(value="maybe")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(result, CypherNull)
+
+    def test_toboolean_with_true_string(self):
+        """toBoolean with 'true' string returns true."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toBoolean",
+            args=[Literal(value="true")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is True
+
+    def test_toboolean_with_false_string(self):
+        """toBoolean with 'false' string returns false."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toBoolean",
+            args=[Literal(value="false")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is False
+
+    def test_toboolean_with_mixed_case_true(self):
+        """toBoolean is case-insensitive for 'true'."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toBoolean",
+            args=[Literal(value="TrUe")],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is True
+
+    def test_toboolean_with_boolean_identity(self):
+        """toBoolean with boolean returns same value."""
+        ctx = ExecutionContext()
+        expr = FunctionCall(
+            name="toBoolean",
+            args=[Literal(value=True)],
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is True
+
+
+@pytest.mark.unit
+class TestAdditionalEdgeCases:
+    """Tests for additional edge cases and error paths."""
+
+    def test_property_access_on_null_returns_null(self):
+        """Property access on NULL returns NULL."""
+        ctx = ExecutionContext()
+        ctx.bind("n", CypherNull())
+
+        expr = PropertyAccess(variable="n", property="name")
+        result = evaluate_expression(expr, ctx)
+
+        assert isinstance(result, CypherNull)
+
+    def test_property_access_on_non_node_raises_error(self):
+        """Property access on non-node/edge raises TypeError."""
+        ctx = ExecutionContext()
+        ctx.bind("x", CypherInt(42))
+
+        expr = PropertyAccess(variable="x", property="name")
+
+        with pytest.raises(TypeError, match="Cannot access property"):
+            evaluate_expression(expr, ctx)
+
+    def test_unary_not_on_non_boolean_raises_error(self):
+        """NOT operator on non-boolean raises TypeError."""
+        from graphforge.ast.expression import UnaryOp
+
+        ctx = ExecutionContext()
+        expr = UnaryOp(op="NOT", operand=Literal(value=42))
+
+        with pytest.raises(TypeError, match="NOT requires boolean operand"):
+            evaluate_expression(expr, ctx)
+
+    def test_unary_minus_on_null_returns_null(self):
+        """Unary minus on NULL returns NULL."""
+        from graphforge.ast.expression import UnaryOp
+
+        ctx = ExecutionContext()
+        expr = UnaryOp(op="-", operand=Literal(value=None))
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherNull)
+
+    def test_unary_minus_on_non_numeric_raises_error(self):
+        """Unary minus on non-numeric raises TypeError."""
+        from graphforge.ast.expression import UnaryOp
+
+        ctx = ExecutionContext()
+        expr = UnaryOp(op="-", operand=Literal(value="hello"))
+
+        with pytest.raises(TypeError, match="Unary minus requires numeric operand"):
+            evaluate_expression(expr, ctx)
+
+    def test_and_with_non_boolean_right_raises_error(self):
+        """AND with non-boolean right operand raises TypeError."""
+        ctx = ExecutionContext()
+        expr = BinaryOp(
+            op="AND",
+            left=Literal(value=True),
+            right=Literal(value=42),  # Not a boolean
+        )
+
+        with pytest.raises(TypeError, match="AND requires boolean operands"):
+            evaluate_expression(expr, ctx)
+
+    def test_and_with_non_boolean_left_raises_error(self):
+        """AND with non-boolean left operand raises TypeError."""
+        ctx = ExecutionContext()
+        expr = BinaryOp(
+            op="AND",
+            left=Literal(value=42),  # Not a boolean
+            right=Literal(value=True),
+        )
+
+        with pytest.raises(TypeError, match="AND requires boolean operands"):
+            evaluate_expression(expr, ctx)
+
+    def test_or_with_non_boolean_right_raises_error(self):
+        """OR with non-boolean right operand raises TypeError."""
+        ctx = ExecutionContext()
+        expr = BinaryOp(
+            op="OR",
+            left=Literal(value=False),
+            right=Literal(value=42),  # Not a boolean
+        )
+
+        with pytest.raises(TypeError, match="OR requires boolean operands"):
+            evaluate_expression(expr, ctx)
+
+    def test_or_with_non_boolean_left_raises_error(self):
+        """OR with non-boolean left operand raises TypeError."""
+        ctx = ExecutionContext()
+        expr = BinaryOp(
+            op="OR",
+            left=Literal(value=42),  # Not a boolean
+            right=Literal(value=False),
+        )
+
+        with pytest.raises(TypeError, match="OR requires boolean operands"):
+            evaluate_expression(expr, ctx)
+
+    def test_greater_than_or_equal(self):
+        """Greater than or equal comparison."""
+        ctx = ExecutionContext()
+        expr = BinaryOp(op=">=", left=Literal(value=10), right=Literal(value=10))
+        result = evaluate_expression(expr, ctx)
+
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is True
+
+    def test_less_than_or_equal(self):
+        """Less than or equal comparison."""
+        ctx = ExecutionContext()
+        expr = BinaryOp(op="<=", left=Literal(value=5), right=Literal(value=10))
+        result = evaluate_expression(expr, ctx)
+
+        from graphforge.types.values import CypherBool
+
+        assert isinstance(result, CypherBool)
+        assert result.value is True
+
+    def test_modulo_operator(self):
+        """Modulo operator."""
+        ctx = ExecutionContext()
+        expr = BinaryOp(op="%", left=Literal(value=10), right=Literal(value=3))
+        result = evaluate_expression(expr, ctx)
+
+        assert isinstance(result, CypherInt)
+        assert result.value == 1
+
+    def test_modulo_by_zero_returns_null(self):
+        """Modulo by zero returns NULL."""
+        ctx = ExecutionContext()
+        expr = BinaryOp(op="%", left=Literal(value=10), right=Literal(value=0))
+        result = evaluate_expression(expr, ctx)
+
+        assert isinstance(result, CypherNull)
+
+    def test_string_concatenation_with_plus(self):
+        """String concatenation with + operator."""
+        ctx = ExecutionContext()
+        expr = BinaryOp(op="+", left=Literal(value="hello"), right=Literal(value=" world"))
+        result = evaluate_expression(expr, ctx)
+
+        assert isinstance(result, CypherString)
+        assert result.value == "hello world"
+
+    def test_string_concatenation_with_mixed_types(self):
+        """String concatenation with mixed types."""
+        ctx = ExecutionContext()
+        expr = BinaryOp(op="+", left=Literal(value="value: "), right=Literal(value=42))
+        result = evaluate_expression(expr, ctx)
+
+        assert isinstance(result, CypherString)
+        assert result.value == "value: 42"
+
+    def test_arithmetic_with_non_numeric_raises_error(self):
+        """Arithmetic with non-numeric operands raises TypeError."""
+        ctx = ExecutionContext()
+        expr = BinaryOp(op="*", left=Literal(value="hello"), right=Literal(value=2))
+
+        with pytest.raises(TypeError, match="Arithmetic operator .* requires numeric operands"):
+            evaluate_expression(expr, ctx)
+
+    def test_case_expression_no_match_no_else(self):
+        """CASE with no match and no ELSE returns NULL."""
+        from graphforge.ast.expression import CaseExpression
+
+        ctx = ExecutionContext()
+        expr = CaseExpression(
+            when_clauses=[
+                (Literal(value=False), Literal(value="result1")),
+            ],
+            else_expr=None,
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherNull)
+
+    def test_case_expression_with_match(self):
+        """CASE returns first matching WHEN result."""
+        from graphforge.ast.expression import CaseExpression
+
+        ctx = ExecutionContext()
+        expr = CaseExpression(
+            when_clauses=[
+                (Literal(value=False), Literal(value="result1")),
+                (Literal(value=True), Literal(value="result2")),
+                (Literal(value=True), Literal(value="result3")),
+            ],
+            else_expr=Literal(value="default"),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "result2"
+
+    def test_case_expression_with_else(self):
+        """CASE returns ELSE when no match."""
+        from graphforge.ast.expression import CaseExpression
+
+        ctx = ExecutionContext()
+        expr = CaseExpression(
+            when_clauses=[
+                (Literal(value=False), Literal(value="result1")),
+            ],
+            else_expr=Literal(value="default"),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "default"
+
+    def test_case_expression_null_condition_treated_as_false(self):
+        """CASE treats NULL condition as false."""
+        from graphforge.ast.expression import CaseExpression
+
+        ctx = ExecutionContext()
+        expr = CaseExpression(
+            when_clauses=[
+                (Literal(value=None), Literal(value="result1")),
+            ],
+            else_expr=Literal(value="default"),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        assert isinstance(result, CypherString)
+        assert result.value == "default"
+
+    def test_list_comprehension_with_filter(self):
+        """List comprehension with filter expression."""
+        from graphforge.ast.expression import ListComprehension
+
+        ctx = ExecutionContext()
+        # [x IN [1, 2, 3, 4] WHERE x > 2]
+        expr = ListComprehension(
+            variable="x",
+            list_expr=Literal(value=[1, 2, 3, 4]),
+            filter_expr=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=2)),
+            map_expr=None,
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherList
+
+        assert isinstance(result, CypherList)
+        assert len(result.value) == 2  # 3 and 4
+
+    def test_list_comprehension_with_map(self):
+        """List comprehension with map expression."""
+        from graphforge.ast.expression import ListComprehension
+
+        ctx = ExecutionContext()
+        # [x IN [1, 2, 3] | x * 2]
+        expr = ListComprehension(
+            variable="x",
+            list_expr=Literal(value=[1, 2, 3]),
+            filter_expr=None,
+            map_expr=BinaryOp(op="*", left=Variable(name="x"), right=Literal(value=2)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherList
+
+        assert isinstance(result, CypherList)
+        assert len(result.value) == 3
+        assert result.value[0].value == 2
+        assert result.value[2].value == 6
+
+    def test_list_comprehension_with_filter_and_map(self):
+        """List comprehension with both filter and map."""
+        from graphforge.ast.expression import ListComprehension
+
+        ctx = ExecutionContext()
+        # [x IN [1, 2, 3, 4] WHERE x > 2 | x * 2]
+        expr = ListComprehension(
+            variable="x",
+            list_expr=Literal(value=[1, 2, 3, 4]),
+            filter_expr=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=2)),
+            map_expr=BinaryOp(op="*", left=Variable(name="x"), right=Literal(value=2)),
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherList
+
+        assert isinstance(result, CypherList)
+        assert len(result.value) == 2
+        assert result.value[0].value == 6  # 3 * 2
+        assert result.value[1].value == 8  # 4 * 2
+
+    def test_list_comprehension_filter_with_null_skips(self):
+        """List comprehension skips items where filter is NULL."""
+        from graphforge.ast.expression import ListComprehension
+
+        ctx = ExecutionContext()
+        # [x IN [1, NULL, 3] WHERE x > 0]
+        expr = ListComprehension(
+            variable="x",
+            list_expr=Literal(value=[1, None, 3]),
+            filter_expr=BinaryOp(op=">", left=Variable(name="x"), right=Literal(value=0)),
+            map_expr=None,
+        )
+
+        result = evaluate_expression(expr, ctx)
+        from graphforge.types.values import CypherList
+
+        assert isinstance(result, CypherList)
+        assert len(result.value) == 2  # NULL is skipped
+
+    def test_list_comprehension_with_non_list_raises_error(self):
+        """List comprehension with non-list raises TypeError."""
+        from graphforge.ast.expression import ListComprehension
+
+        ctx = ExecutionContext()
+        expr = ListComprehension(
+            variable="x",
+            list_expr=Literal(value=42),  # Not a list
+            filter_expr=None,
+            map_expr=None,
+        )
+
+        with pytest.raises(TypeError, match="IN requires a list"):
+            evaluate_expression(expr, ctx)
+
+    def test_unknown_expression_type_raises_error(self):
+        """Unknown expression type raises TypeError."""
+        ctx = ExecutionContext()
+
+        # Create a fake expression type
+        class UnknownExpr:
+            pass
+
+        expr = UnknownExpr()
+
+        with pytest.raises(TypeError, match="Cannot evaluate expression type"):
+            evaluate_expression(expr, ctx)
