@@ -18,8 +18,8 @@ class TestLabelDisjunctionBasic:
         result = gf.execute("MATCH (n:Person|Company) RETURN n.name AS name ORDER BY name")
 
         assert len(result) == 2
-        assert result[0]['name'].value == 'Acme'
-        assert result[1]['name'].value == 'Alice'
+        assert result[0]["name"].value == "Acme"
+        assert result[1]["name"].value == "Alice"
 
     def test_disjunction_matches_second_label(self):
         """Label disjunction matches nodes with second label."""
@@ -30,7 +30,7 @@ class TestLabelDisjunctionBasic:
 
         result = gf.execute("MATCH (n:Person|Company) RETURN count(*) AS count")
 
-        assert result[0]['count'].value == 2
+        assert result[0]["count"].value == 2
 
     def test_disjunction_with_three_labels(self):
         """Label disjunction with three labels."""
@@ -41,7 +41,7 @@ class TestLabelDisjunctionBasic:
 
         result = gf.execute("MATCH (n:Person|Company|Product) RETURN count(*) AS count")
 
-        assert result[0]['count'].value == 3
+        assert result[0]["count"].value == 3
 
     def test_disjunction_no_matches(self):
         """Label disjunction with no matching nodes."""
@@ -67,7 +67,7 @@ class TestLabelDisjunctionWithConjunction:
         result = gf.execute("MATCH (n:Person:Employee) RETURN n.name AS name")
 
         assert len(result) == 1
-        assert result[0]['name'].value == 'Bob'
+        assert result[0]["name"].value == "Bob"
 
     def test_disjunction_of_conjunctions(self):
         """Disjunction of conjunction groups."""
@@ -76,11 +76,13 @@ class TestLabelDisjunctionWithConjunction:
         gf.execute("CREATE (:Company:Startup {name: 'TechCo'})")
         gf.execute("CREATE (:Person {name: 'Alice'})")
 
-        result = gf.execute("MATCH (n:Person:Employee|Company:Startup) RETURN n.name AS name ORDER BY name")
+        result = gf.execute(
+            "MATCH (n:Person:Employee|Company:Startup) RETURN n.name AS name ORDER BY name"
+        )
 
         assert len(result) == 2
-        assert result[0]['name'].value == 'Bob'
-        assert result[1]['name'].value == 'TechCo'
+        assert result[0]["name"].value == "Bob"
+        assert result[1]["name"].value == "TechCo"
 
 
 @pytest.mark.integration
@@ -103,8 +105,8 @@ class TestLabelDisjunctionInPatterns:
         """)
 
         assert len(result) == 2
-        assert result[0]['name'].value == 'Acme'
-        assert result[1]['name'].value == 'Widget'
+        assert result[0]["name"].value == "Acme"
+        assert result[1]["name"].value == "Widget"
 
     def test_disjunction_in_multiple_patterns(self):
         """Label disjunction in multiple MATCH patterns."""
@@ -118,10 +120,10 @@ class TestLabelDisjunctionInPatterns:
             RETURN count(*) AS count
         """)
 
-        # Person × (Product, Company) = 2
-        # Company × (Product, Company) = 2
+        # Person x (Product, Company) = 2
+        # Company x (Product, Company) = 2
         # Total = 4
-        assert result[0]['count'].value == 4
+        assert result[0]["count"].value == 4
 
     def test_disjunction_in_where_clause(self):
         """Label disjunction works correctly with WHERE clause."""
@@ -138,8 +140,8 @@ class TestLabelDisjunctionInPatterns:
         """)
 
         assert len(result) == 2
-        assert result[0]['name'].value == 'Alice'
-        assert result[1]['name'].value == 'Bob'
+        assert result[0]["name"].value == "Alice"
+        assert result[1]["name"].value == "Bob"
 
 
 @pytest.mark.integration
@@ -154,7 +156,7 @@ class TestLabelDisjunctionEdgeCases:
         result = gf.execute("MATCH (n:Person) RETURN n.name AS name")
 
         assert len(result) == 1
-        assert result[0]['name'].value == 'Alice'
+        assert result[0]["name"].value == "Alice"
 
     def test_disjunction_with_node_having_both_labels(self):
         """Node with both labels matches disjunction once."""
@@ -165,7 +167,7 @@ class TestLabelDisjunctionEdgeCases:
 
         # Should match once even though it has both labels
         assert len(result) == 1
-        assert result[0]['name'].value == 'Alice'
+        assert result[0]["name"].value == "Alice"
 
     def test_disjunction_with_properties(self):
         """Label disjunction with inline properties."""

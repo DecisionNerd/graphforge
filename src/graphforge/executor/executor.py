@@ -33,6 +33,7 @@ from graphforge.planner.operators import (
     With,
 )
 from graphforge.storage.memory import Graph
+from graphforge.types.graph import NodeRef
 from graphforge.types.values import (
     CypherBool,
     CypherFloat,

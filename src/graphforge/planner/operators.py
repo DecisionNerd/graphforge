@@ -39,7 +39,9 @@ class ScanNodes(BaseModel):
     """
 
     variable: str = Field(..., min_length=1, description="Variable name to bind nodes")
-    labels: list[list[str]] | None = Field(default=None, description="Optional label filter (disjunction of conjunctions)")
+    labels: list[list[str]] | None = Field(
+        default=None, description="Optional label filter (disjunction of conjunctions)"
+    )
     path_var: str | None = Field(default=None, description="Path variable name")
 
     @field_validator("variable")
@@ -66,7 +68,9 @@ class OptionalScanNodes(BaseModel):
     """
 
     variable: str = Field(..., min_length=1, description="Variable name to bind nodes")
-    labels: list[list[str]] | None = Field(default=None, description="Optional label filter (disjunction of conjunctions)")
+    labels: list[list[str]] | None = Field(
+        default=None, description="Optional label filter (disjunction of conjunctions)"
+    )
     path_var: str | None = Field(default=None, description="Path variable name")
 
     @field_validator("variable")

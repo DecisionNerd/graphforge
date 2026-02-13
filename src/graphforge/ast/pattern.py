@@ -35,7 +35,9 @@ class NodePattern(BaseModel):
     """
 
     variable: str | None = Field(default=None, description="Variable name (None for anonymous)")
-    labels: list[list[str]] = Field(default_factory=list, description="Label groups (disjunction of conjunctions)")
+    labels: list[list[str]] = Field(
+        default_factory=list, description="Label groups (disjunction of conjunctions)"
+    )
     properties: dict[str, Any] = Field(default_factory=dict, description="Property constraints")
 
     @field_validator("variable")

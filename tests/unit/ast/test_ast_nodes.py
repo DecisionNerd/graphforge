@@ -53,7 +53,7 @@ class TestMatchClause:
 
     def test_match_clause_creation(self):
         """Match clause can be created with patterns."""
-        pattern = NodePattern(variable="n", labels=["Person"], properties={})
+        pattern = NodePattern(variable="n", labels=[["Person"]], properties={})
         match = MatchClause(patterns=[pattern])
         assert len(match.patterns) == 1
         assert match.patterns[0].variable == "n"
@@ -72,27 +72,26 @@ class TestNodePattern:
 
     def test_node_with_variable_and_label(self):
         """Node pattern with variable and label."""
-        pattern = NodePattern(variable="n", labels=["Person"], properties={})
+        pattern = NodePattern(variable="n", labels=[["Person"]], properties={})
         assert pattern.variable == "n"
-        assert "Person" in pattern.labels
+        assert ["Person"] in pattern.labels
         assert len(pattern.properties) == 0
 
     def test_node_no_variable(self):
         """Node pattern can have no variable (anonymous)."""
-        pattern = NodePattern(variable=None, labels=["Person"], properties={})
+        pattern = NodePattern(variable=None, labels=[["Person"]], properties={})
         assert pattern.variable is None
 
     def test_node_multiple_labels(self):
         """Node pattern can have multiple labels."""
-        pattern = NodePattern(variable="n", labels=["Person", "Employee"], properties={})
-        assert len(pattern.labels) == 2
-        assert "Person" in pattern.labels
-        assert "Employee" in pattern.labels
+        pattern = NodePattern(variable="n", labels=[["Person", "Employee"]], properties={})
+        assert len(pattern.labels) == 1
+        assert ["Person", "Employee"] in pattern.labels
 
     def test_node_with_properties(self):
         """Node pattern can have property constraints."""
         props = {"name": Literal(value="Alice"), "age": Literal(value=30)}
-        pattern = NodePattern(variable="n", labels=["Person"], properties=props)
+        pattern = NodePattern(variable="n", labels=[["Person"]], properties=props)
         assert len(pattern.properties) == 2
         assert "name" in pattern.properties
 
@@ -273,7 +272,7 @@ class TestCompleteQuery:
         """MATCH (n:Person) RETURN n"""
         from graphforge.ast.clause import ReturnItem
 
-        node = NodePattern(variable="n", labels=["Person"], properties={})
+        node = NodePattern(variable="n", labels=[["Person"]], properties={})
         match = MatchClause(patterns=[node])
         return_clause = ReturnClause(items=[ReturnItem(expression=Variable(name="n"))])
         query = CypherQuery(clauses=[match, return_clause])
@@ -284,7 +283,7 @@ class TestCompleteQuery:
 
     def test_match_where_return(self):
         """MATCH (n:Person) WHERE n.age > 30 RETURN n.name"""
-        node = NodePattern(variable="n", labels=["Person"], properties={})
+        node = NodePattern(variable="n", labels=[["Person"]], properties={})
         match = MatchClause(patterns=[node])
 
         predicate = BinaryOp(
@@ -329,13 +328,13 @@ class TestNodePatternValidation:
     @pytest.mark.parametrize(
         "variable,labels,expected_error",
         [
-            ("", ["Person"], "Variable name cannot be empty string"),
-            ("1node", ["Person"], "must start with letter or underscore"),
-            ("$node", ["Person"], "must start with letter or underscore"),
-            ("node-name", ["Person"], "must contain only alphanumeric and underscore"),
-            ("node name", ["Person"], "must contain only alphanumeric and underscore"),
-            ("n", ["1Person"], "Label must start with a letter"),
-            ("n", [""], "Label must start with a letter"),
+            ("", [["Person"]], "Variable name cannot be empty string"),
+            ("1node", [["Person"]], "must start with letter or underscore"),
+            ("$node", [["Person"]], "must start with letter or underscore"),
+            ("node-name", [["Person"]], "must contain only alphanumeric and underscore"),
+            ("node name", [["Person"]], "must contain only alphanumeric and underscore"),
+            ("n", [["1Person"]], "Label must start with a letter"),
+            ("n", [[""]], "Label must start with a letter"),
         ],
         ids=[
             "empty_variable",
@@ -362,7 +361,7 @@ class TestNodePatternValidation:
     )
     def test_valid_node_pattern_variable(self, variable, expected):
         """Valid variable names should be accepted."""
-        pattern = NodePattern(variable=variable, labels=["Person"])
+        pattern = NodePattern(variable=variable, labels=[["Person"]])
         assert pattern.variable == expected
 
 
