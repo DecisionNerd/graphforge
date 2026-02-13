@@ -8,6 +8,12 @@ GraphForge is an embedded, openCypher-compatible graph database for Python, desi
 
 **Not a production database** - optimized for interactive analysis on small-to-medium graphs (< 10M nodes).
 
+**Core Use Cases:**
+- **AI Agent Grounding**: Ground LLM agents in ontologies with tool definitions for semantic, deterministic action (see `docs/use-cases/agent-grounding.md`)
+- **Knowledge Graph Construction**: Extract and refine entities/relationships from unstructured data
+- **Network Analysis**: Analyze social networks, dependencies, citation graphs in notebooks
+- **LLM-Powered Workflows**: Store and query structured outputs from language models
+
 ## Agent Teams Workflow
 
 **Agent teams let you coordinate multiple Claude Code sessions working together on complex tasks.** Enable by setting `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `~/.claude/settings.json`.

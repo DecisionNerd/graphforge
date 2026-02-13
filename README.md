@@ -71,6 +71,14 @@ See [CHANGELOG.md](CHANGELOG.md) for complete release notes.
 
 ### Use Cases
 
+**AI Agent Grounding with Ontologies** ⭐ NEW
+- Ground LLM agents in structured knowledge graphs
+- Annotate ontologies with tool definitions for semantic action
+- Enable deterministic, grounded tool selection (no hallucinated APIs)
+- Build agents that reason over domain knowledge and execute verifiable actions
+- Perfect for LangChain/LlamaIndex integration with zero server overhead
+- [Complete guide →](docs/use-cases/agent-grounding.md) | [Example notebook →](examples/agent_grounding/ecommerce_agent.ipynb)
+
 **Knowledge Graph Construction**
 - Extract entities and relationships from unstructured text
 - Build and query knowledge graphs from documents

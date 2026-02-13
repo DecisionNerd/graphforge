@@ -135,6 +135,9 @@ unfixable = []
     "N806",    # Variable name conventions (G for graph is common)
     "F841",    # Unused variable (examples show patterns)
 ]
+"examples/**/*.ipynb" = [
+    "E501",    # Line too long (notebooks contain long strings/queries)
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["graphforge"]
