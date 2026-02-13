@@ -18,181 +18,129 @@ from graphforge.types.values import CypherNull, CypherString
 class TestOptionalScanBoundVariables:
     """Test OptionalScanNodes with already-bound variables."""
 
-    def test_bound_variable_matches_labels(self):
-        """Test OptionalScanNodes when bound variable has matching labels."""
+    @pytest.mark.parametrize(
+        "node_labels,required_labels,should_match",
+        [
+            (["Person", "Employee"], ["Person"], True),
+            (["Person", "Employee", "Manager"], ["Person", "Employee"], True),
+            (["Person"], ["Person", "Employee"], False),
+            (["Person"], [], True),
+        ],
+        ids=[
+            "single_label_match",
+            "multiple_labels_match",
+            "missing_required_label",
+            "no_label_requirements",
+        ],
+    )
+    def test_bound_variable_label_matching(
+        self, node_labels, required_labels, should_match
+    ):
+        """Test OptionalScanNodes validates bound variables against label requirements."""
         gf = GraphForge()
-        node = gf.create_node(["Person", "Employee"], name="Alice")
-
-        executor = QueryExecutor(gf.graph, gf)
-
-        # Create input context with variable already bound
-        ctx = ExecutionContext()
-        ctx.bind("n", node)
-
-        # OptionalScanNodes should validate the bound node matches pattern
-        op = OptionalScanNodes(variable="n", labels=["Person"])
-        result = executor._execute_optional_scan(op, [ctx])
-
-        # Should preserve context since node matches
-        assert len(result) == 1
-        assert result[0].get("n") == node
-
-    def test_bound_variable_matches_multiple_labels(self):
-        """Test OptionalScanNodes when bound variable has all required labels."""
-        gf = GraphForge()
-        node = gf.create_node(["Person", "Employee", "Manager"], name="Alice")
-
-        executor = QueryExecutor(gf.graph, gf)
-
-        ctx = ExecutionContext()
-        ctx.bind("n", node)
-
-        # OptionalScanNodes with multiple label requirements
-        op = OptionalScanNodes(variable="n", labels=["Person", "Employee"])
-        result = executor._execute_optional_scan(op, [ctx])
-
-        # Should preserve context since node has both labels
-        assert len(result) == 1
-        assert result[0].get("n") == node
-
-    def test_bound_variable_missing_required_label(self):
-        """Test OptionalScanNodes when bound variable missing a required label."""
-        gf = GraphForge()
-        # Node has only Person label, not Employee
-        node = gf.create_node(["Person"], name="Alice")
+        node = gf.create_node(node_labels, name="Alice")
 
         executor = QueryExecutor(gf.graph, gf)
 
         ctx = ExecutionContext()
         ctx.bind("n", node)
 
-        # OptionalScanNodes requires both Person and Employee
-        op = OptionalScanNodes(variable="n", labels=["Person", "Employee"])
+        op = OptionalScanNodes(variable="n", labels=required_labels)
         result = executor._execute_optional_scan(op, [ctx])
 
-        # Should preserve row with NULL binding (OPTIONAL semantics)
         assert len(result) == 1
-        assert isinstance(result[0].get("n"), CypherNull)
-
-    def test_bound_variable_no_label_requirements(self):
-        """Test OptionalScanNodes when bound variable and no label filter."""
-        gf = GraphForge()
-        node = gf.create_node(["Person"], name="Alice")
-
-        executor = QueryExecutor(gf.graph, gf)
-
-        ctx = ExecutionContext()
-        ctx.bind("n", node)
-
-        # OptionalScanNodes with no label requirements
-        op = OptionalScanNodes(variable="n", labels=[])
-        result = executor._execute_optional_scan(op, [ctx])
-
-        # Should preserve context (any node matches)
-        assert len(result) == 1
-        assert result[0].get("n") == node
+        if should_match:
+            # Should preserve node binding
+            assert result[0].get("n") == node
+        else:
+            # OPTIONAL semantics: Should preserve row with NULL binding
+            assert isinstance(result[0].get("n"), CypherNull)
 
 
 @pytest.mark.unit
 class TestOptionalScanUnboundVariables:
     """Test OptionalScanNodes with unbound variables (standard scan behavior)."""
 
-    def test_unbound_variable_with_label_filter(self):
-        """Test OptionalScanNodes scans nodes by label when variable unbound."""
+    @pytest.mark.parametrize(
+        "setup_func,labels,var_name,expected_count,check_func",
+        [
+            # Single label filter - finds matching nodes
+            (
+                lambda gf: (
+                    gf.create_node(["Person"], name="Alice"),
+                    gf.create_node(["Person"], name="Bob"),
+                    gf.create_node(["Company"], name="Acme"),
+                ),
+                ["Person"],
+                "p",
+                2,
+                lambda res, nodes: {r.get("p").id for r in res} == {nodes[0].id, nodes[1].id},
+            ),
+            # Multiple labels - requires all
+            (
+                lambda gf: (
+                    gf.create_node(["Person", "Employee"], name="Alice"),
+                    gf.create_node(["Person"], name="Bob"),
+                    gf.create_node(["Employee"], name="Charlie"),
+                ),
+                ["Person", "Employee"],
+                "p",
+                1,
+                lambda res, nodes: res[0].get("p").id == nodes[0].id,
+            ),
+            # No matches - returns NULL
+            (
+                lambda gf: (gf.create_node(["Company"], name="Acme"),),
+                ["Person"],
+                "p",
+                1,
+                lambda res, nodes: isinstance(res[0].get("p"), CypherNull),
+            ),
+            # No label filter - scans all
+            (
+                lambda gf: (
+                    gf.create_node(["Person"], name="Alice"),
+                    gf.create_node(["Company"], name="Acme"),
+                    gf.create_node(["Product"], name="Widget"),
+                ),
+                [],
+                "n",
+                3,
+                lambda res, nodes: {r.get("n").id for r in res}
+                == {n.id for n in nodes},
+            ),
+            # Empty graph - returns NULL
+            (
+                lambda gf: (),
+                ["Person"],
+                "n",
+                1,
+                lambda res, nodes: isinstance(res[0].get("n"), CypherNull),
+            ),
+        ],
+        ids=[
+            "single_label_filter",
+            "multiple_labels_required",
+            "no_matches_returns_null",
+            "no_label_filter_scans_all",
+            "empty_graph_returns_null",
+        ],
+    )
+    def test_unbound_variable_scan_behavior(
+        self, setup_func, labels, var_name, expected_count, check_func
+    ):
+        """Test OptionalScanNodes scanning behavior with unbound variables."""
         gf = GraphForge()
-        alice = gf.create_node(["Person"], name="Alice")
-        bob = gf.create_node(["Person"], name="Bob")
-        gf.create_node(["Company"], name="Acme Corp")
+        nodes = setup_func(gf)
 
         executor = QueryExecutor(gf.graph, gf)
-
-        # Start with empty context
         ctx = ExecutionContext()
 
-        # OptionalScanNodes should scan for Person nodes
-        op = OptionalScanNodes(variable="p", labels=["Person"])
+        op = OptionalScanNodes(variable=var_name, labels=labels)
         result = executor._execute_optional_scan(op, [ctx])
 
-        # Should find both Person nodes
-        assert len(result) == 2
-        nodes = {r.get("p").id for r in result}
-        assert nodes == {alice.id, bob.id}
-
-    def test_unbound_variable_with_multiple_labels(self):
-        """Test OptionalScanNodes filters by multiple labels when variable unbound."""
-        gf = GraphForge()
-        # Node with both Person and Employee labels
-        alice = gf.create_node(["Person", "Employee"], name="Alice")
-        # Node with only Person label
-        _bob = gf.create_node(["Person"], name="Bob")
-        # Node with only Employee label
-        _charlie = gf.create_node(["Employee"], name="Charlie")
-
-        executor = QueryExecutor(gf.graph, gf)
-
-        ctx = ExecutionContext()
-
-        # OptionalScanNodes requires both Person AND Employee
-        op = OptionalScanNodes(variable="p", labels=["Person", "Employee"])
-        result = executor._execute_optional_scan(op, [ctx])
-
-        # Should only find Alice (has both labels)
-        assert len(result) == 1
-        assert result[0].get("p").id == alice.id
-
-    def test_unbound_variable_no_matches_returns_null(self):
-        """Test OptionalScanNodes returns NULL binding when no nodes match."""
-        gf = GraphForge()
-        # Create only Company nodes, no Person nodes
-        gf.create_node(["Company"], name="Acme Corp")
-
-        executor = QueryExecutor(gf.graph, gf)
-
-        ctx = ExecutionContext()
-
-        # OptionalScanNodes looking for Person nodes
-        op = OptionalScanNodes(variable="p", labels=["Person"])
-        result = executor._execute_optional_scan(op, [ctx])
-
-        # OPTIONAL semantics: Should preserve row with NULL binding
-        assert len(result) == 1
-        assert isinstance(result[0].get("p"), CypherNull)
-
-    def test_unbound_variable_no_label_filter(self):
-        """Test OptionalScanNodes scans all nodes when no label filter."""
-        gf = GraphForge()
-        alice = gf.create_node(["Person"], name="Alice")
-        acme = gf.create_node(["Company"], name="Acme Corp")
-        product = gf.create_node(["Product"], name="Widget")
-
-        executor = QueryExecutor(gf.graph, gf)
-
-        ctx = ExecutionContext()
-
-        # OptionalScanNodes with no label requirements
-        op = OptionalScanNodes(variable="n", labels=[])
-        result = executor._execute_optional_scan(op, [ctx])
-
-        # Should find all nodes
-        assert len(result) == 3
-        node_ids = {r.get("n").id for r in result}
-        assert node_ids == {alice.id, acme.id, product.id}
-
-    def test_unbound_variable_empty_graph_returns_null(self):
-        """Test OptionalScanNodes returns NULL binding when graph is empty."""
-        gf = GraphForge()
-
-        executor = QueryExecutor(gf.graph, gf)
-
-        ctx = ExecutionContext()
-
-        # OptionalScanNodes on empty graph
-        op = OptionalScanNodes(variable="n", labels=["Person"])
-        result = executor._execute_optional_scan(op, [ctx])
-
-        # OPTIONAL semantics: Should preserve row with NULL binding
-        assert len(result) == 1
-        assert isinstance(result[0].get("n"), CypherNull)
+        assert len(result) == expected_count
+        assert check_func(result, nodes)
 
 
 @pytest.mark.unit
