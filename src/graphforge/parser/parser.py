@@ -584,6 +584,10 @@ class ASTTransformer(Transformer):
         """Transform CONTAINS operator."""
         return "CONTAINS"
 
+    def in_operator(self, items):
+        """Transform IN operator."""
+        return "IN"
+
     def is_null(self, items):
         """Transform IS NULL operator."""
         return "IS NULL"

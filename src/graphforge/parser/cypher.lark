@@ -139,7 +139,7 @@ and_expr: not_expr ("AND"i not_expr)*
 not_expr: "NOT"i not_expr     -> not_operation
         | comparison_expr     -> not_passthrough
 
-comparison_expr: add_expr (COMP_OP add_expr | string_match_op add_expr | null_check_op)?
+comparison_expr: add_expr (COMP_OP add_expr | string_match_op add_expr | null_check_op | in_op add_expr)?
 
 null_check_op: "IS"i "NOT"i "NULL"i  -> is_not_null
              | "IS"i "NULL"i          -> is_null
@@ -147,6 +147,8 @@ null_check_op: "IS"i "NOT"i "NULL"i  -> is_not_null
 string_match_op: "STARTS"i "WITH"i -> starts_with
                | "ENDS"i "WITH"i   -> ends_with
                | "CONTAINS"i       -> contains
+
+in_op: "IN"i  -> in_operator
 
 COMP_OP: "=" | "<>" | "<" | ">" | "<=" | ">="
 
@@ -210,8 +212,8 @@ property: IDENTIFIER ":" expression
         | list_literal
         | map_literal
 
-list_literal: "[" [expression ("," expression)*] "]"
-            | list_comprehension
+list_literal: list_comprehension
+            | "[" [expression ("," expression)*] "]"
 
 list_comprehension: "[" variable "IN"i expression comp_where_clause? comp_map_clause? "]"
 
