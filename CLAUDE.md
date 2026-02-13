@@ -8,221 +8,69 @@ GraphForge is an embedded, openCypher-compatible graph database for Python, desi
 
 **Not a production database** - optimized for interactive analysis on small-to-medium graphs (< 10M nodes).
 
-## Agent Teams Workflow (READ THIS FIRST)
+## Agent Teams Workflow
 
-**Agent teams let you coordinate multiple Claude Code sessions working together on complex tasks.** One session acts as the team lead, coordinating work and assigning tasks. Teammates work independently, each in its own context window, and communicate directly with each other.
+**Agent teams let you coordinate multiple Claude Code sessions working together on complex tasks.** Enable by setting `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `~/.claude/settings.json`.
 
 ### When to Use Agent Teams
 
-Agent teams are most effective for GraphForge tasks involving **parallel, independent work**:
-
 **Ideal for teams:**
-- **Adding new Cypher features** - Parser, planner, and executor changes can happen in parallel by different teammates
-- **Cross-layer refactoring** - One teammate per layer (parser, planner, executor, storage)
-- **Research and review** - Multiple teammates investigate different aspects (security, performance, correctness)
-- **Comprehensive testing** - Unit tests, integration tests, and TCK tests written in parallel
-- **Multi-module features** - Dataset loaders, new operators, and documentation worked on simultaneously
-- **Debugging complex issues** - Multiple teammates test competing hypotheses in parallel
-
-**NOT ideal for teams (use solo workflow instead):**
-- Single-file changes
-- Sequential work with many dependencies
-- Simple bug fixes
-- Small refactorings
-- Documentation-only changes
-- Routine maintenance tasks
-
-### Enable Agent Teams
-
-Agent teams are disabled by default. Enable by setting `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in your environment or `~/.claude/settings.json`:
-
-```json
-{
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  }
-}
-```
-
-### Starting Your First Team
-
-Tell Claude to create an agent team and describe the task structure:
-
-```
-Create an agent team to implement the UNWIND clause (#42). Spawn three teammates:
-- Parser agent: Add grammar rules to cypher.lark and update parser.py
-- Planner agent: Add UnwindClause AST node and planner logic
-- Executor agent: Implement _execute_unwind() and add tests
-
-Each teammate should work independently on their layer, then coordinate
-at the end to ensure integration works.
-```
-
-Claude creates the team, spawns teammates, and coordinates work based on your prompt.
-
-### Example: Adding a Cypher Feature with Agent Teams
-
-**Task:** Implement `UNWIND` clause for list iteration
-
-**Team structure:**
-```
-Team Lead (coordinates)
-  ├── Parser Teammate
-  │   └── Task: Add grammar + AST + transformer
-  ├── Planner Teammate
-  │   └── Task: Add operator + planning logic
-  └── Executor Teammate
-      └── Task: Implement execution + write tests
-```
-
-**Workflow:**
-1. Team lead creates issue #42, creates branch `feature/42-unwind-clause`
-2. Lead spawns three teammates with specific layer assignments
-3. Teammates work in parallel on their layers
-4. Each teammate runs their own tests (`make test-unit`)
-5. Lead coordinates integration testing (`make test-integration`)
-6. Lead runs `make pre-push` to validate everything
-7. Lead creates PR with "Closes #42"
-
-**Benefits over solo work:**
-- Parser, planner, executor work happens simultaneously
-- Each teammate focuses on one layer (reduces cognitive load)
-- Tests written in parallel with implementation
-- Integration issues caught when teammates coordinate
-
-### Controlling Your Agent Team
-
-**Choose display mode:**
-- **In-process**: All teammates in main terminal (use Shift+Up/Down to select)
-- **Split panes**: Each teammate gets own pane (requires tmux or iTerm2)
-
-**Talk to teammates directly:**
-- In-process: Shift+Up/Down to select, then type to message
-- Split panes: Click into teammate's pane
-
-**Assign tasks explicitly or let teammates self-claim:**
-```
-Assign the parser work to the parser-agent teammate
-```
-
-**Require plan approval for risky changes:**
-```
-Spawn an executor teammate to refactor the evaluator.
-Require plan approval before making changes.
-```
-
-**Use delegate mode** to prevent the lead from implementing:
-- Press Shift+Tab to cycle into delegate mode
-- Lead focuses on coordination only (no code changes)
-
-**Shut down teammates gracefully:**
-```
-Ask all teammates to shut down, then clean up the team
-```
-
-### Best Practices for GraphForge Teams
-
-**1. Split work by architectural layer:**
-- GraphForge's 4-layer architecture (parser → planner → executor → storage) naturally supports parallel work
-- Each teammate owns one layer and becomes the expert for that layer
-
-**2. Size tasks appropriately:**
-- **Good task size:** "Add UNWIND grammar rule + transformer method"
-- **Too small:** "Add single line to grammar file"
-- **Too large:** "Implement entire UNWIND feature including all tests"
-
-**3. Avoid file conflicts:**
-- Don't have multiple teammates edit the same file simultaneously
-- Use layer boundaries as natural file ownership boundaries
-
-**4. Coordinate at integration points:**
-- After layer-specific work completes, teammates coordinate for integration testing
-- Lead runs `make pre-push` to catch cross-layer issues
-
-**5. Give teammates context:**
-Teammates automatically load CLAUDE.md but don't inherit lead's conversation history. Include specifics in spawn prompts:
-
-```
-Spawn a parser teammate with prompt: "Add UNWIND grammar to cypher.lark.
-The clause syntax is: UNWIND <expression> AS <variable>. Update parser.py
-to create UnwindClause AST nodes. See src/graphforge/ast/clause.py for
-examples. Run unit tests with: pytest tests/unit/parser/ -v"
-```
-
-**6. Start with research/review for new team users:**
-- Review a PR (security, performance, test coverage)
-- Research openCypher semantics for new feature
-- Investigate TCK test failures across different modules
-
-### When Teams Add Value vs Overhead
-
-**Agent teams use significantly more tokens** than solo work. Each teammate has its own context window. Use teams when parallel exploration justifies the cost:
-
-✅ **Worth the cost:**
-- Implementing multi-layer features (parser + planner + executor)
-- Comprehensive code review from multiple perspectives
+- Adding new Cypher features (parser, planner, executor work in parallel)
+- Cross-layer refactoring
+- Comprehensive testing (unit, integration, TCK in parallel)
+- Multi-module features
+- Code review from multiple perspectives
 - Debugging with competing hypotheses
-- Writing extensive test suites in parallel
 
-❌ **Not worth the cost:**
-- Single-file bug fixes
-- Documentation updates
-- Simple refactorings
+**NOT ideal for teams:**
+- Single-file changes
+- Simple bug fixes
 - Sequential work with many dependencies
+- Documentation-only changes
 
-**Rule of thumb:** If teammates can work independently for 80%+ of the time, teams add value. If they need constant coordination, solo work is faster.
+**Rule of thumb:** If teammates can work independently for 80%+ of the time, teams add value. Otherwise, solo work is faster.
 
-## Development Workflow (CRITICAL - Follow This Always)
+### Team Best Practices
+
+1. **Split by architectural layer** - GraphForge's 4-layer architecture (parser → planner → executor → storage) naturally supports parallel work
+2. **Avoid file conflicts** - Use layer boundaries as natural file ownership
+3. **Give teammates context** - Include specifics in spawn prompts (teammates don't inherit lead's history)
+4. **Token awareness** - Teams use ~2-3x more tokens but complete 2-3x faster
+
+**Example spawn prompt:**
+```
+Create an agent team to implement UNWIND (#42). Spawn teammates:
+- parser-agent: Add grammar to cypher.lark, create UnwindClause AST
+- planner-agent: Add Unwind operator to planner
+- executor-agent: Implement _execute_unwind() + tests
+
+Each works independently on their layer, then coordinate at end.
+```
+
+## Development Workflow (CRITICAL)
 
 **Every piece of work MUST follow this workflow. No exceptions.**
 
 ### 1. Create an Issue First
 
-Before starting ANY work, create an issue:
-
 ```bash
-gh issue create --title "feat: add UNWIND clause support" --body "Description of the work..." --label "enhancement"
+gh issue create --title "feat: add UNWIND clause support" \
+  --body "Description..." --label "enhancement"
 ```
 
-**Even if you discover something mid-work:**
-- If it's in scope: Continue with current issue
-- If it's out of scope: Create a NEW issue, note it, continue with current work
+Never start work without an issue. If you discover out-of-scope work, create a NEW issue and continue with current work.
 
-**Never:**
-- Start work without an issue
-- Close issues manually (PRs do this automatically)
-- Expand scope mid-work without creating new issues
-
-### 2. Create a Branch Associated with the Issue
-
-**REQUIRED:** Branch name MUST include issue number.
+### 2. Create Branch with Issue Number
 
 **Format:** `<type>/<issue-number>-<short-description>`
 
 ```bash
-# For issue #42: Add UNWIND clause
-git checkout main
-git pull origin main
 git checkout -b feature/42-unwind-clause
 
-# Branch types:
-# feature/  - New features
-# fix/      - Bug fixes
-# docs/     - Documentation only
-# refactor/ - Code refactoring
-# test/     - Test additions/fixes
+# Branch types: feature/, fix/, docs/, refactor/, test/
 ```
 
-**Examples:**
-- `feature/42-unwind-clause` ✅
-- `fix/89-null-handling-bug` ✅
-- `docs/80-add-claude-md` ✅
-- `feature/add-unwind` ❌ (missing issue number)
-- `42-unwind` ❌ (missing type prefix)
-
 ### 3. Do the Work with Comprehensive Tests
-
-Write code following the architecture patterns below. **Always include comprehensive tests:**
 
 - Unit tests for each layer (parser, planner, executor)
 - Integration tests for end-to-end behavior
@@ -230,37 +78,15 @@ Write code following the architecture patterns below. **Always include comprehen
 
 ### 4. Run Pre-Push Checks
 
-Before committing:
-
 ```bash
 make pre-push
 ```
 
-This catches issues before CI:
-- Format checks
-- Linting
-- Type checking
-- All tests
-- Coverage validation (85% total, 90% patch)
+Runs: format-check, lint, type-check, coverage (85% total, 90% patch).
 
-### 5. Commit and Push
-
-**Commit message format:**
-
-```
-<type>: <subject> (#<issue-number>)
-
-<body>
-
-<footer>
-```
-
-**Types:** feat, fix, docs, refactor, test, chore
-
-**Examples:**
+### 5. Commit with Issue Number
 
 ```bash
-# Good commit messages
 git commit -m "feat: implement UNWIND clause (#42)
 
 - Add UNWIND grammar rule to cypher.lark
@@ -270,744 +96,152 @@ git commit -m "feat: implement UNWIND clause (#42)
 - Add 15 unit tests + 8 integration tests
 
 All tests passing, coverage at 100% for new code."
-
-git commit -m "fix: handle NULL in AND operator (#89)
-
-Fixes ternary logic for NULL AND expressions.
-Previously returned NULL for any NULL operand.
-Now correctly handles: NULL AND false → false
-
-Closes #89"
-
-# Bad commit messages
-git commit -m "fix bug" ❌ (no issue number, vague)
-git commit -m "changes" ❌ (not descriptive)
-git commit -m "WIP" ❌ (not final commit message)
 ```
 
-### 6. Create PR Referencing the Issue
+### 6. Create PR with "Closes #XX"
 
 ```bash
-git push origin feature/42-unwind-clause
-
-gh pr create --title "feat: implement UNWIND clause" \
-  --body "## Summary
-
-Implements UNWIND clause for list iteration...
-
-## Changes
-- Grammar updates
-- AST changes
-- Planner logic
-- Executor implementation
-- Comprehensive tests
-
-## Testing
-- 15 unit tests
-- 8 integration tests
-- 100% coverage on new code
-- All pre-push checks passing
-
-Closes #42" \
-  --label "enhancement"
-```
-
-**CRITICAL:** Use "Closes #XX" or "Fixes #XX" in PR body so GitHub automatically closes the issue when PR merges.
-
-### 7. Handling Discovered Issues
-
-If you discover problems while working:
-
-**In Scope (related to current work):**
-- Fix it as part of current PR
-- Mention in commit message
-- Document in PR description
-
-**Out of Scope (different feature/bug):**
-```bash
-# Create new issue for tracking
-gh issue create --title "bug: parser fails on nested lists" \
-  --body "Discovered while working on #42..." \
-  --label "bug"
-# Created issue #43
-
-# Continue with current work (#42)
-# Don't try to fix #43 in this PR
-```
-
-**When to create new issues:**
-- Missing features blocking your work
-- Bugs discovered during development
-- Technical debt worth tracking
-- Documentation gaps
-- Future enhancements
-
-**Never:**
-- Expand PR scope to fix discovered issues
-- Close issues you didn't fully address
-- Leave discoveries untracked
-
-### Example Workflows
-
-#### Solo Workflow (Simple Features)
-
-```bash
-# User asks: "Add support for LIMIT clause"
-
-# 1. Create issue
-gh issue create --title "feat: add LIMIT clause support" \
-  --body "Add LIMIT to restrict result count..." \
-  --label "enhancement"
-# Created issue #45
-
-# 2. Create branch
-git checkout -b feature/45-limit-clause
-
-# 3. Do work (parser, AST, planner, executor, tests)
-# Edit files...
-make pre-push  # Verify everything passes
-
-# 4. Commit and push
-git add .
-git commit -m "feat: implement LIMIT clause (#45)"
-git push origin feature/45-limit-clause
-
-# 5. Create PR
-gh pr create --title "feat: implement LIMIT clause" \
-  --body "Closes #45"
-
-# Issue #45 automatically closes when PR merges
-```
-
-#### Team Workflow (Complex Features)
-
-```bash
-# User asks: "Add support for UNWIND clause - this spans all 4 layers"
-
-# 1. Create issue (lead does this)
-gh issue create --title "feat: add UNWIND clause support" \
-  --body "Implement UNWIND for list iteration..." \
-  --label "enhancement"
-# Created issue #42
-
-# 2. Create branch (lead does this)
-git checkout -b feature/42-unwind-clause
-
-# 3. Start agent team
-# Tell Claude: "Create an agent team to implement UNWIND (#42).
-# Spawn three teammates: parser-agent for grammar/AST,
-# planner-agent for operators, executor-agent for execution/tests."
-
-# Team lead spawns teammates and assigns tasks:
-# - Task 1: Add UNWIND grammar + UnwindClause AST node
-# - Task 2: Add Unwind operator to planner
-# - Task 3: Implement _execute_unwind() + write tests
-
-# 4. Teammates work in parallel
-# - parser-agent edits cypher.lark, parser.py, ast/clause.py
-# - planner-agent edits planner.py, operators.py
-# - executor-agent edits executor.py, tests/
-
-# 5. Lead coordinates integration
-# After teammates finish, lead runs:
-make pre-push  # Verify everything passes
-
-# 6. Commit and push (lead does this)
-git add .
-git commit -m "feat: implement UNWIND clause (#42)
-
-- Add UNWIND grammar rule to cypher.lark (parser-agent)
-- Implement UnwindClause AST node (parser-agent)
-- Add planner support for Unwind operator (planner-agent)
-- Implement executor logic for list iteration (executor-agent)
-- Add 15 unit tests + 8 integration tests (executor-agent)
-
-All tests passing, coverage at 100% for new code.
-
-Co-authored-by: parser-agent
-Co-authored-by: planner-agent
-Co-authored-by: executor-agent"
-
-git push origin feature/42-unwind-clause
-
-# 7. Create PR (lead does this)
 gh pr create --title "feat: implement UNWIND clause" \
   --body "Closes #42"
-
-# 8. Clean up team
-# Tell lead: "Shut down all teammates and clean up the team"
-
-# Issue #42 automatically closes when PR merges
 ```
 
-**When to use each approach:**
-- **Solo workflow**: Simple features, single-layer changes, documentation
-- **Team workflow**: Multi-layer features, cross-cutting refactorings, comprehensive testing
+GitHub automatically closes the issue when PR merges.
 
 ## Development Commands
 
-### Primary Workflow
-
 ```bash
-# Run all pre-push checks (mirrors CI)
-make pre-push
+make pre-push          # Run all checks (mirrors CI)
+make test              # All tests
+make test-unit         # Unit tests only
+make test-integration  # Integration tests only
+make coverage          # Run with coverage
+make coverage-report   # View HTML coverage report
+make coverage-diff     # Coverage for changed files only
 
-# This runs in order:
-# 1. format-check - ruff format --check .
-# 2. lint         - ruff check .
-# 3. type-check   - mypy src/graphforge --strict-optional --show-error-codes
-# 4. coverage     - pytest with coverage measurement
-# 5. check-coverage - validate 85% total coverage
-# 6. check-patch-coverage - validate 90% coverage on changed files
+# Run tests in parallel (4x faster for TCK)
+pytest tests/ -n auto
 ```
 
-### Testing
-
-```bash
-# Run all tests (unit + integration)
-make test
-
-# Run specific test categories
-make test-unit           # Unit tests only (~200 tests)
-make test-integration    # Integration tests only (~300 tests)
-
-# Run single test file
-pytest tests/unit/parser/test_parser.py -v
-
-# Run single test function
-pytest tests/unit/parser/test_parser.py::TestMatchParsing::test_simple_match -v
-
-# Run tests in parallel (much faster for large test suites)
-pytest tests/ -n auto          # Auto-detect CPU count
-pytest tests/tck/ -n 8          # Use 8 workers
-# Note: TCK tests run ~4x faster with parallel execution (54s vs 3.5min)
-
-# Run with coverage
-make coverage
-
-# View coverage report in browser
-make coverage-report
-
-# Check coverage for changed files only
-make coverage-diff
-```
-
-### Code Quality
-
-```bash
-# Format code
-make format
-
-# Check formatting without modifying
-make format-check
-
-# Run linter
-make lint
-
-# Run type checker
-make type-check
-```
-
-### Coverage Requirements
-
-- **Total coverage:** 85% minimum (enforced by `make pre-push`)
-- **Patch coverage:** 90% minimum for changed files (enforced by `make pre-push`)
-- **Best practice:** Aim for 100% coverage on new code to satisfy both thresholds
-
-If patch coverage fails, run `make coverage-report` to see detailed line-by-line coverage.
-
-### Coverage Configuration
-
-Coverage is measured using `pytest-cov` with branch coverage enabled:
-
-```bash
-# Run tests with coverage
-pytest --cov=src/graphforge --cov-report=html --cov-report=term
-
-# Or use make target
-make coverage
-```
-
-**Branch coverage**: Ensures both `if` and `else` branches are tested:
-```python
-# This function requires 2 tests for 100% branch coverage:
-def absolute_value(x):
-    if x < 0:
-        return -x  # Branch 1
-    else:
-        return x   # Branch 2
-```
-
-**Excluding lines from coverage**:
-```python
-def debug_only():
-    if __name__ == "__main__":  # Excluded by pyproject.toml
-        print("Debug mode")
-    raise NotImplementedError  # Excluded by pyproject.toml
-```
-
-**Coverage thresholds**:
-- Total coverage: 85% minimum (`make check-coverage`)
-- Patch coverage: 90% minimum (`make check-patch-coverage`)
-- Both enforced by `make pre-push` (runs before every push)
-
-**CI/CD coverage**:
-- GitHub Actions checks total coverage (85% threshold) on all PRs
-- Results uploaded to CodeCov for project (85%) and patch (80%) analysis
-- CodeCov comments on PRs with coverage reports (informational, non-blocking)
-- **Local enforcement**: Always run `make pre-push` to ensure 90% patch coverage before pushing
-
-### Understanding Coverage Metrics
-
-GraphForge tracks **two types of coverage**:
-
-1. **Total Coverage** (~90% currently)
-   - Measures: All lines covered / All lines in source
-   - Reported by: Local pytest with `make coverage`
-   - Target: 85% minimum (enforced by `make pre-push`)
-   - Purpose: Ensure overall codebase health
-
-2. **Patch Coverage** (varies by PR)
-   - Measures: Covered lines in diff / Changed lines in diff
-   - Reported by: CodeCov on pull requests
-   - Target: 90% minimum (enforced by `make check-patch-coverage`)
-   - Purpose: Ensure new code is well-tested
-
-**Why they differ**:
-- New features may have 100% integration coverage but miss unit-level edge cases
-- Defensive error handling branches often lack explicit tests
-- Complex operator combinations may not exercise all code paths
-
-**How to improve patch coverage**:
-```bash
-# 1. Run coverage on your branch
-make coverage
-
-# 2. View HTML report to see uncovered lines
-make coverage-report
-# Opens htmlcov/index.html in browser
-
-# 3. Check patch coverage for changed files only
-make coverage-diff
-# Shows coverage for files modified in current branch
-
-# 4. Add unit tests for uncovered branches
-# Focus on:
-# - Error handling paths (missing variables, invalid types)
-# - Edge cases (empty lists, NULL values, cycle detection)
-# - Operator combinations (filter+map, ALL with mixed True/False/NULL)
-```
-
-**Best practices**:
-- Integration tests validate end-to-end behavior
-- Unit tests validate edge cases and error paths
-- Aim for 100% coverage on new code to satisfy both metrics
-- Use property-based tests (Hypothesis) for exhaustive edge case testing
+**Coverage Requirements:**
+- Total: 85% minimum
+- Patch: 90% minimum for changed files
+- Best practice: Aim for 100% on new code
 
 ## Architecture: 4-Layer System
-
-GraphForge is built as a pipeline with four distinct layers. **Understanding this flow is critical** for making changes:
 
 ```
 User Code (Python API / Cypher)
           ↓
 ┌─────────────────────────────────────────────────┐
 │ 1. Parser (src/graphforge/parser/)             │
-│    - cypher.lark: Lark grammar definition       │
-│    - parser.py: Transformer (Lark tree → AST)  │
-│    Output: AST nodes (src/graphforge/ast/)     │
+│    - cypher.lark: Grammar                       │
+│    - parser.py: Transformer (Lark → AST)        │
 └─────────────────────────────────────────────────┘
           ↓
 ┌─────────────────────────────────────────────────┐
 │ 2. Planner (src/graphforge/planner/)           │
 │    - planner.py: AST → Logical operators        │
 │    - operators.py: Operator definitions         │
-│    Output: Logical plan (list of operators)     │
 └─────────────────────────────────────────────────┘
           ↓
 ┌─────────────────────────────────────────────────┐
 │ 3. Executor (src/graphforge/executor/)         │
-│    - executor.py: Operator execution engine     │
+│    - executor.py: Operator execution            │
 │    - evaluator.py: Expression evaluation        │
-│    Output: Query results (list of dicts)        │
 └─────────────────────────────────────────────────┘
           ↓
 ┌─────────────────────────────────────────────────┐
 │ 4. Storage (src/graphforge/storage/)           │
-│    - memory.py: In-memory graph (adjacency)     │
+│    - memory.py: In-memory graph                 │
 │    - sqlite_backend.py: SQLite persistence      │
 │    - serialization.py: MessagePack encoding     │
 └─────────────────────────────────────────────────┘
 ```
 
-### Key Architectural Principles
+### Key Principles
 
-1. **Each layer is independent** - Parser knows nothing about execution, executor knows nothing about storage implementation
-2. **AST is the contract** - Parser produces AST, planner consumes AST. Changing grammar requires AST changes
-3. **Operators are composable** - Planner emits list of operators, executor chains them together
-4. **Storage is pluggable** - Executor operates on Graph interface, doesn't care about SQLite vs in-memory
+1. **Each layer is independent** - Parser knows nothing about execution
+2. **AST is the contract** - Parser produces AST, planner consumes it
+3. **Operators are composable** - Planner emits list, executor chains them
+4. **Storage is pluggable** - Executor uses Graph interface
 
-### When Adding Cypher Features
+### Adding Cypher Features
 
 **You must modify ALL four layers:**
 
-1. **Parser:** Add grammar rules to `cypher.lark` + transformer methods in `parser.py`
-2. **AST:** Add/modify dataclasses in `src/graphforge/ast/` (clause.py, expression.py, pattern.py)
-3. **Planner:** Update `planner.py` to handle new AST nodes → emit operators
-4. **Executor:** Update `executor.py` to execute new operators
-
-**Example:** Adding `UNWIND` clause requires:
-- Grammar: `unwind_clause: "UNWIND"i expression "AS" variable`
-- AST: `@dataclass class UnwindClause: expression: Expression, variable: str`
-- Planner: Convert `UnwindClause` → `Unwind` operator
-- Executor: Implement `_execute_unwind()` method
-
-**Solo vs Team Approach:**
-
-**Solo approach (good for simple features):**
-- Work through layers sequentially: parser → AST → planner → executor → tests
-- Best for: Simple functions, straightforward operators, small enhancements
-- Advantages: Lower coordination overhead, simpler to reason about
-- Disadvantages: Slower for complex features, context switching between layers
-
-**Team approach (good for complex features):**
-- Spawn teammates for each layer, work in parallel
-- Best for: New clauses, complex operators, multi-layer refactorings
-- Advantages: Faster completion, each teammate becomes layer expert, natural parallelism
-- Disadvantages: Higher token cost, requires coordination for integration
-- **Pattern:**
-  ```
-  Create an agent team to add UNWIND clause. Spawn teammates:
-  - parser-agent: Grammar + AST + transformer
-  - planner-agent: Operator definition + planning logic
-  - executor-agent: Execution implementation + tests
-  ```
+1. **Parser:** Add grammar to `cypher.lark` + transformer in `parser.py`
+2. **AST:** Add/modify dataclasses in `src/graphforge/ast/`
+3. **Planner:** Update `planner.py` to emit operators
+4. **Executor:** Implement execution in `executor.py`
 
 **Decision matrix:**
-- **1-2 layers affected:** Use solo workflow
-- **3-4 layers affected:** Consider agent team
-- **Extensive tests needed:** Use agent team (test writing happens in parallel)
-- **New to the feature:** Use solo workflow (learn as you go)
-- **Time-critical:** Use agent team (parallel work is faster)
+- 1-2 layers affected: Use solo workflow
+- 3-4 layers affected: Consider agent team
+- Extensive tests needed: Use agent team
+- New to feature: Use solo workflow
 
 ## Critical Code Patterns
 
 ### Value Types System
 
-All query results use `CypherValue` wrappers (not raw Python types):
+All query results use `CypherValue` wrappers:
 
 ```python
 # src/graphforge/types/values.py
 CypherString, CypherInt, CypherFloat, CypherBool, CypherNull
-CypherList, CypherMap  # Nested structures
-```
+CypherList, CypherMap
 
-**Why:** Preserves type information, handles NULL semantics, enables property access chains
-
-**Usage in executor:**
-```python
-# Always wrap results
+# Always wrap results in executor
 return CypherString("hello")
-# Access underlying value
-result.value  # Returns Python type
 ```
 
-### Pydantic Validation System
+### Pydantic Validation
 
-All AST nodes, operators, and dataset metadata use **Pydantic v2 BaseModel** for validation:
+All AST nodes, operators, and metadata use **Pydantic v2 BaseModel**:
 
 ```python
-# AST nodes (src/graphforge/ast/)
 class BinaryOp(BaseModel):
-    op: str = Field(..., description="Operator")
-    left: Any = Field(..., description="Left expression")
-    right: Any = Field(..., description="Right expression")
+    op: str = Field(...)
+    left: Any = Field(...)
+    right: Any = Field(...)
 
     @field_validator("op")
     @classmethod
     def validate_op(cls, v: str) -> str:
-        valid_ops = {"=", "<>", "<", ">", "<=", ">=", "AND", "OR", "+", "-", "*", "/", ...}
-        if v not in valid_ops:
-            raise ValueError(f"Unsupported binary operator: {v}")
+        if v not in {"=", "<>", "<", ">", "<=", ">=", "AND", "OR", ...}:
+            raise ValueError(f"Unsupported operator: {v}")
         return v
 
-    model_config = {"frozen": True}  # Immutable after creation
+    model_config = {"frozen": True}  # Immutable
 ```
 
 **Key patterns:**
+- Always use keyword arguments (Pydantic v2 requirement)
+- Use `@field_validator` for single-field validation
+- Use `@model_validator(mode="after")` for cross-field validation
+- All AST nodes are frozen (immutable)
 
-1. **Always use keyword arguments** - Pydantic v2 requires keyword args:
-   ```python
-   # ✅ Correct
-   BinaryOp(op="=", left=Variable(name="x"), right=Literal(value=5))
+**When to use:**
+- Pydantic: AST nodes, operators, metadata (needs validation)
+- Dataclasses: NodeRef, EdgeRef, CypherValue (performance-critical)
 
-   # ❌ Wrong - will raise TypeError
-   BinaryOp("=", Variable("x"), Literal(5))
-   ```
+### Two Serialization Systems
 
-2. **Field validators** - Use `@field_validator` for single-field validation:
-   ```python
-   @field_validator("name")
-   @classmethod
-   def validate_name(cls, v: str) -> str:
-       if not v.strip():
-           raise ValueError("Name cannot be empty")
-       return v
-   ```
+**System 1: SQLite + MessagePack (Graph Data)**
+- Purpose: Store nodes, edges, properties
+- Location: `src/graphforge/storage/serialization.py`
+- Format: Binary (fast, compact)
+- Use for: Runtime graph operations
 
-3. **Model validators** - Use `@model_validator` for cross-field validation:
-   ```python
-   @model_validator(mode="after")
-   def validate_limits(self) -> "LimitClause":
-       if self.count < 0:
-           raise ValueError("LIMIT must be non-negative")
-       return self
-   ```
+**System 2: Pydantic + JSON (Metadata)**
+- Purpose: Store dataset metadata, schemas, ontologies
+- Location: `src/graphforge/storage/pydantic_serialization.py`
+- Format: JSON (human-readable, validatable)
+- Use for: Configuration, dataset definitions
 
-4. **Frozen models** - All AST nodes and operators are immutable:
-   ```python
-   model_config = {"frozen": True}
-   ```
-
-5. **API validation** - Validate user inputs with dedicated models:
-   ```python
-   # src/graphforge/api.py
-   class QueryInput(BaseModel):
-       query: str = Field(..., min_length=1)
-
-       @field_validator("query")
-       @classmethod
-       def validate_query(cls, v: str) -> str:
-           if not v.strip():
-               raise ValueError("Query cannot be empty")
-           return v
-
-   def execute(self, query: str) -> list[dict]:
-       QueryInput(query=query)  # Validates input
-       # ... proceed with execution
-   ```
-
-6. **Serialization** - Use Pydantic's built-in serialization for metadata:
-   ```python
-   from graphforge.storage import serialize_model, deserialize_model
-
-   # Serialize to dict
-   data = serialize_model(dataset_info)
-
-   # Deserialize from dict
-   restored = deserialize_model(DatasetInfo, data)
-
-   # Save to JSON file
-   save_model_to_file(dataset_info, "dataset.json")
-
-   # Load from JSON file
-   loaded = load_model_from_file(DatasetInfo, "dataset.json")
-   ```
-
-**When to use Pydantic vs plain classes:**
-- **Use Pydantic:** AST nodes, operators, dataset metadata, API inputs (anything that needs validation)
-- **Use dataclasses:** NodeRef, EdgeRef, CypherValue types (performance-critical, no validation needed)
-
-**Testing Pydantic models:**
-```python
-from pydantic import ValidationError
-import pytest
-
-def test_invalid_operator():
-    # Pydantic validates at construction time
-    with pytest.raises(ValidationError, match="Unsupported binary operator"):
-        BinaryOp(op="INVALID", left=Literal(value=1), right=Literal(value=2))
-```
-
-### Two Serialization Systems (Critical Architecture)
-
-GraphForge uses **two separate serialization systems** for different purposes. Understanding this separation is critical for maintaining correctness and performance.
-
-#### System 1: SQLite + MessagePack (Graph Data Storage)
-
-**Purpose:** Store actual graph data (nodes, edges, properties)
-
-**Location:** `src/graphforge/storage/serialization.py`
-
-**Format:** Binary MessagePack (compact, fast)
-
-**What it serializes:**
-- CypherValue types (CypherInt, CypherString, CypherBool, etc.)
-- Node labels (frozenset of strings)
-- Node/edge properties (dict of CypherValues)
-- Graph structure stored in SQLite tables
-
-**Used by:**
-- `SQLiteBackend` (src/graphforge/storage/sqlite_backend.py)
-- Persistent graph storage
-- Transaction management
-- Graph snapshots for rollback
-
-**Example:**
-```python
-# User creates a node
-gf = GraphForge("my-graph.db")
-gf.create_node(['Person'], name='Alice', age=30)
-
-# Behind the scenes:
-# 1. Properties converted to CypherValues: {name: CypherString('Alice'), age: CypherInt(30)}
-# 2. Serialized with MessagePack: serialize_properties({...})
-# 3. Stored in SQLite: INSERT INTO nodes (id, labels, properties) VALUES (...)
-# 4. Binary format optimized for speed and space
-
-gf.close()  # Commits to SQLite
-```
-
-**Why MessagePack:**
-- Binary format (smaller than JSON)
-- Fast serialization/deserialization
-- Efficient for frequent read/write operations
-- No human readability needed (internal storage)
-
-**Do NOT use for:** Metadata, schemas, dataset definitions (use Pydantic instead)
-
-#### System 2: Pydantic + JSON (Metadata & Schema Storage)
-
-**Purpose:** Store metadata, schemas, dataset definitions, ontologies
-
-**Location:** `src/graphforge/storage/pydantic_serialization.py`
-
-**Format:** JSON (human-readable, validatable)
-
-**What it serializes:**
-- DatasetInfo models (dataset metadata)
-- AST nodes (query plan caching - future)
-- Ontology definitions (schemas, constraints - future)
-- LDBC dataset metadata (future)
-- User-defined class schemas (future)
-
-**Used by:**
-- Dataset registry (metadata files)
-- Configuration files
-- Schema definitions
-- Future ontology system
-
-**Example:**
-```python
-from graphforge.storage import save_model_to_file, load_model_from_file
-
-# Define dataset metadata
-dataset_info = DatasetInfo(
-    name="ldbc-snb-sf0.1",
-    description="LDBC Social Network Benchmark",
-    url="https://repository.surfsara.nl/...",
-    nodes=327588,
-    edges=1800000,
-    labels=["Person", "Post", "Comment"],
-    size_mb=50.0,
-    license="CC BY 4.0",
-    category="social",
-    loader_class="ldbc"
-)
-
-# Save to JSON file (human-readable)
-save_model_to_file(dataset_info, "datasets/ldbc-sf0.1.json")
-
-# Later, load with validation
-loaded = load_model_from_file(DatasetInfo, "datasets/ldbc-sf0.1.json")
-# Pydantic validates: URL scheme, field types, required fields, etc.
-```
-
-**Why Pydantic + JSON:**
-- Human-readable (can edit metadata files)
-- Validatable (catches errors at load time)
-- Versionable (can track changes in git)
-- Self-documenting (field names and descriptions)
-- Extensible (easy to add new fields)
-
-**Do NOT use for:** Actual graph data (use SQLite + MessagePack instead)
-
-#### Critical: Never Mix These Systems
-
-**❌ Wrong - Don't serialize graph data with Pydantic:**
-```python
-# DON'T DO THIS - Performance disaster
-node = gf.create_node(['Person'], name='Alice')
-save_model_to_file(node, "node.json")  # Wrong! Use SQLite instead
-```
-
-**❌ Wrong - Don't serialize metadata with MessagePack:**
-```python
-# DON'T DO THIS - Loses validation and readability
-dataset_info = DatasetInfo(...)
-blob = msgpack.packb(serialize_model(dataset_info))  # Wrong! Use JSON instead
-```
-
-**✅ Correct - Use the right system for each purpose:**
-```python
-# Graph data → SQLite + MessagePack
-gf = GraphForge("graph.db")
-gf.create_node(['Person'], name='Alice')
-gf.close()  # Stored efficiently in SQLite
-
-# Metadata → Pydantic + JSON
-dataset_info = DatasetInfo(...)
-save_model_to_file(dataset_info, "metadata.json")  # Readable and validated
-```
-
-#### Future: Ontology Support
-
-When ontology support is added, the separation becomes even more important:
-
-**Ontology Schema (Pydantic + JSON):**
-```python
-# Define a Person class schema (future)
-person_schema = ClassSchema(
-    name="Person",
-    properties=[
-        PropertyDef(name="name", type="string", required=True),
-        PropertyDef(name="age", type="integer", min=0, max=150),
-        PropertyDef(name="email", type="string", format="email"),
-    ],
-    constraints=[
-        UniqueConstraint(property="email"),
-    ]
-)
-
-# Save schema definition (human-readable, validatable)
-save_model_to_file(person_schema, "ontologies/person.json")
-```
-
-**Graph Instances (SQLite + MessagePack):**
-```python
-# Create actual Person nodes (uses schema for validation)
-gf = GraphForge("graph.db", ontology="ontologies/")
-gf.create_node(['Person'], name='Alice', age=30, email='alice@example.com')
-# Still stored in SQLite with MessagePack (unchanged)
-gf.close()
-```
-
-**Benefits:**
-1. **Schema definitions** are versioned, readable, shareable (JSON)
-2. **Graph data** remains fast and compact (MessagePack)
-3. **Validation** happens at graph operation time (Pydantic models)
-4. **Storage** remains optimized for graph operations (SQLite)
-
-#### Summary Table
-
-| Aspect | SQLite + MessagePack | Pydantic + JSON |
-|--------|---------------------|----------------|
-| **Purpose** | Graph data storage | Metadata & schemas |
-| **Data Types** | CypherValues, nodes, edges | DatasetInfo, AST, ontologies |
-| **Format** | Binary (MessagePack) | Text (JSON) |
-| **Readable** | No (binary) | Yes (human-readable) |
-| **Validation** | At write time | At load time |
-| **Performance** | Optimized for speed | Optimized for safety |
-| **Versioning** | Not intended | Git-friendly |
-| **Use Case** | Runtime graph operations | Configuration & definitions |
-| **Files** | `serialization.py` | `pydantic_serialization.py` |
-| **Storage** | `*.db` SQLite files | `*.json` metadata files |
-
-**Key Takeaway:** These systems are complementary, not competing. Use MessagePack for data, JSON for metadata. Never mix them.
+**CRITICAL:** Never mix these systems. Graph data → MessagePack. Metadata → JSON.
 
 ### Graph Storage Duality
-
-Storage has TWO modes (no configuration required):
 
 ```python
 # In-memory (fast, volatile)
@@ -1017,72 +251,34 @@ gf = GraphForge()
 gf = GraphForge("path/to/db.db")
 ```
 
-**Implementation:** Both use `Graph` interface (`src/graphforge/storage/memory.py`). SQLite backend (`sqlite_backend.py`) serializes graph state with MessagePack on commit.
-
 ### Transaction Handling
 
-**Auto-commit by default** - each `execute()` is implicitly committed:
-
 ```python
-gf.execute("CREATE (n:Person)")  # Automatically committed
-```
+# Auto-commit (default)
+gf.execute("CREATE (n:Person)")
 
-**Explicit transactions** for atomic updates:
-
-```python
+# Explicit transactions
 gf.begin()
 gf.execute("CREATE (n:Person)")
 gf.execute("CREATE (m:Person)")
 gf.commit()  # or rollback()
 ```
 
-**Critical:** Executor must respect transaction boundaries. Never auto-commit inside `_execute_*()` methods.
-
 ### Dataset System
 
-Datasets are loaded via registry pattern (`src/graphforge/datasets/`):
+Registry pattern in `src/graphforge/datasets/`:
 
 ```
 datasets/
-├── base.py          # DatasetInfo Pydantic model
-├── registry.py      # Global registry + API functions
+├── base.py          # DatasetInfo model
+├── registry.py      # Global registry
 ├── loaders/         # Format-specific loaders
-│   ├── csv.py       # Edge list format (SNAP)
-│   └── cypher.py    # Cypher script format
+│   ├── csv.py
+│   └── cypher.py
 └── sources/         # Dataset registrations
-    ├── snap.py      # Stanford datasets
-    └── __init__.py  # Auto-registers on import
+    ├── snap.py
+    └── __init__.py  # Auto-registers
 ```
-
-**To add datasets (solo approach):**
-1. Create loader in `loaders/` if needed
-2. Register loader: `register_loader("name", LoaderClass)`
-3. Register datasets: `register_dataset(DatasetInfo(...))`
-4. Sources auto-register on import via `datasets/sources/__init__.py`
-
-**To add datasets (team approach for multiple datasets/loaders):**
-
-```
-Create an agent team to add LDBC dataset support (#56). Spawn teammates:
-
-- loader-teammate: Implement LDBC loader in loaders/ldbc.py. Handle Person,
-  Post, Comment, knows/likes edges. Support multiple scale factors (SF0.1, SF1).
-
-- registry-teammate: Create sources/ldbc.py with DatasetInfo for all scale
-  factors. Register loader and datasets. Ensure metadata is accurate (node/edge counts).
-
-- test-teammate: Write tests in tests/integration/datasets/test_ldbc.py.
-  Verify loading, graph structure, and queries work correctly.
-
-Each teammate works independently on their module. Lead coordinates final
-integration testing with make test-integration.
-```
-
-**When to use teams for dataset work:**
-- Adding multiple dataset sources simultaneously
-- Implementing complex loaders requiring extensive testing
-- Large-scale dataset refactoring (multiple loaders affected)
-- NOT needed for single dataset additions or small loader fixes
 
 ## Testing Strategy
 
@@ -1090,75 +286,30 @@ integration testing with make test-integration.
 
 ```
 tests/
-├── unit/              # Fast, isolated (< 1ms each)
-│   ├── parser/        # Grammar + AST validation
-│   ├── planner/       # Logical plan generation
-│   ├── executor/      # Operator execution
-│   └── storage/       # Graph operations
+├── unit/              # Fast, isolated (< 1ms)
+│   ├── parser/
+│   ├── planner/
+│   ├── executor/
+│   └── storage/
 ├── integration/       # End-to-end Cypher queries
-│   ├── test_*.py      # Feature-based integration tests
-│   └── datasets/      # Dataset loading tests
 ├── tck/               # OpenCypher TCK compliance
-│   ├── features/      # Gherkin scenarios (.feature)
-│   └── steps/         # pytest-bdd step definitions
+│   ├── features/      # Gherkin scenarios
+│   └── steps/         # pytest-bdd steps
 └── property/          # Hypothesis property tests
-```
-
-### Solo vs Team Testing Approaches
-
-**Solo testing (default):**
-- Write tests as you implement each layer
-- Run `make test` or `make pre-push` to validate
-- Good for: Most development work
-
-**Team-based testing (for comprehensive test suites):**
-```
-Create an agent team to add comprehensive tests for the new UNWIND clause.
-Spawn three testing teammates:
-- unit-tester: Write unit tests for parser, planner, executor
-- integration-tester: Write integration tests for end-to-end behavior
-- tck-tester: Ensure TCK compliance and add missing scenarios
-
-Target: 100% coverage on new code with all three test types.
-```
-
-**Benefits of team-based testing:**
-- Unit, integration, and TCK tests written in parallel
-- Each teammate focuses on one test type (deeper coverage)
-- Faster test development for complex features
-- Natural division of work by test category
-
-**When to use team-based testing:**
-- Large features requiring extensive test suites
-- TCK compliance work (many scenarios to implement)
-- Coverage improvement initiatives (multiple teammates tackle different modules)
-- Test refactoring (one teammate per test directory)
-
-### Test Markers
-
-```python
-@pytest.mark.unit         # Fast unit tests
-@pytest.mark.integration  # Slower integration tests
-@pytest.mark.tck          # TCK compliance tests
-@pytest.mark.slow         # Tests > 1s
 ```
 
 ### Writing Tests
 
-**Unit tests** should test ONE component in isolation:
-
+**Unit tests** - Test ONE component in isolation:
 ```python
-# tests/unit/parser/test_match.py
 def test_parse_simple_match():
     query = "MATCH (n:Person) RETURN n"
     ast = parse_cypher(query)
     assert isinstance(ast.clauses[0], MatchClause)
 ```
 
-**Integration tests** should test end-to-end behavior:
-
+**Integration tests** - Test end-to-end:
 ```python
-# tests/integration/test_match.py
 def test_match_returns_nodes():
     gf = GraphForge()
     gf.execute("CREATE (:Person {name: 'Alice'})")
@@ -1166,10 +317,7 @@ def test_match_returns_nodes():
     assert results[0]['name'].value == 'Alice'
 ```
 
-### TCK Tests
-
-OpenCypher TCK tests use Gherkin syntax (`tests/tck/features/*.feature`):
-
+**TCK tests** - Gherkin syntax:
 ```gherkin
 Scenario: Match simple node
   Given an empty graph
@@ -1180,64 +328,15 @@ Scenario: Match simple node
   Then the result should be empty
 ```
 
-Step definitions in `tests/tck/steps/` map Gherkin to pytest code.
+### Test Parametrization
 
-**Current status:** ~950/3,837 TCK scenarios passing (~25%)
-
-## Advanced Testing Patterns
-
-### Fixture Scoping & Dependencies
-
-**Function scope** (default) - Use for most fixtures:
-```python
-@pytest.fixture
-def empty_graph():
-    """Fresh GraphForge instance for each test."""
-    return GraphForge()
-```
-
-**Module scope** - Use for expensive setup shared across test class:
-```python
-@pytest.fixture(scope="module")
-def loaded_dataset():
-    """Load LDBC dataset once for all tests in module."""
-    gf = GraphForge()
-    load_dataset(gf, "ldbc-snb-sf0.1")
-    return gf
-```
-
-**Session scope** - Use for global resources (rare):
-```python
-@pytest.fixture(scope="session")
-def test_data_dir():
-    """Path to test data directory."""
-    return Path(__file__).parent / "data"
-```
-
-**Fixture dependencies**:
-```python
-@pytest.fixture
-def graph_with_person(empty_graph):
-    """Graph with a Person node (depends on empty_graph)."""
-    empty_graph.execute("CREATE (:Person {name: 'Alice'})")
-    return empty_graph
-```
-
-### Test Parametrization Patterns
-
-**Use parametrize for**:
-- Testing same logic with different inputs
-- Boundary conditions and edge cases
-- Operator variations (=, <>, <, >, etc.)
+Use for testing same logic with different inputs:
 
 ```python
 @pytest.mark.parametrize("op,left,right,expected", [
     ("=", 5, 5, True),
     ("<>", 5, 10, True),
     ("<", 5, 10, True),
-    ("<=", 5, 5, True),
-    (">", 10, 5, True),
-    (">=", 5, 5, True),
 ])
 def test_comparison_operators(op, left, right, expected):
     gf = GraphForge()
@@ -1245,32 +344,10 @@ def test_comparison_operators(op, left, right, expected):
     assert result[0]['result'].value == expected
 ```
 
-**Use separate tests for**:
-- Different features or behaviors
-- Complex setup that doesn't share logic
-- Tests with different failure modes
+### Property-Based Testing
 
-**Parametrize IDs for readability**:
-```python
-@pytest.mark.parametrize("query,expected", [
-    ("MATCH (n) RETURN n", []),
-    ("MATCH (n:Person) RETURN n", []),
-], ids=["match-all", "match-label"])
-def test_match_patterns(query, expected):
-    ...
-```
+Use Hypothesis for testing invariants:
 
-### Property-Based Testing with Hypothesis
-
-Use Hypothesis (`tests/property/`) for testing invariants and edge cases:
-
-**When to use property tests**:
-- Testing mathematical properties (commutativity, associativity)
-- Serialization round-trips (serialize → deserialize → equal)
-- Parser fuzzing (generate random valid/invalid queries)
-- NULL handling across all operators
-
-**Example - Serialization round-trip**:
 ```python
 from hypothesis import given
 from hypothesis import strategies as st
@@ -1278,353 +355,94 @@ from hypothesis import strategies as st
 @given(st.integers(), st.text(), st.booleans())
 def test_cypher_value_roundtrip(int_val, str_val, bool_val):
     """CypherValues serialize and deserialize correctly."""
-    values = [
-        CypherInt(int_val),
-        CypherString(str_val),
-        CypherBool(bool_val),
-    ]
+    values = [CypherInt(int_val), CypherString(str_val), CypherBool(bool_val)]
     for val in values:
         serialized = serialize_value(val)
         deserialized = deserialize_value(serialized)
         assert deserialized == val
 ```
 
-**Example - NULL propagation property**:
-```python
-@given(st.sampled_from(["AND", "OR", "+", "-", "*", "/"]))
-def test_binary_op_null_propagation(op):
-    """Binary operators with NULL operand return NULL (except AND/OR)."""
-    gf = GraphForge()
-    result = gf.execute(f"RETURN null {op} 5 AS result")
+### Test Isolation
 
-    if op in ["AND", "OR"]:
-        # Three-valued logic
-        assert result[0]['result'] in [CypherBool(False), CypherNull()]
-    else:
-        # NULL propagation
-        assert isinstance(result[0]['result'], CypherNull)
-```
+Always use fresh fixtures:
 
-**Running property tests**:
-```bash
-# Run property tests with more examples
-pytest tests/property/ --hypothesis-show-statistics
-
-# Reproduce a failure
-pytest tests/property/ --hypothesis-seed=12345
-```
-
-### Test Isolation Best Practices
-
-**Always use fresh fixtures**:
 ```python
 # ✅ Good - Each test gets fresh graph
 def test_create_node(empty_graph):
     empty_graph.execute("CREATE (:Person)")
     assert len(empty_graph.execute("MATCH (n) RETURN n")) == 1
 
-def test_create_another_node(empty_graph):
-    empty_graph.execute("CREATE (:Company)")
-    # Independent - starts with empty graph
-    assert len(empty_graph.execute("MATCH (n) RETURN n")) == 1
-
 # ❌ Bad - Shared mutable state
 graph = GraphForge()
-
 def test_create_node():
-    graph.execute("CREATE (:Person)")
-    assert len(graph.execute("MATCH (n) RETURN n")) == 1
-
-def test_create_another_node():
-    graph.execute("CREATE (:Company)")
-    # FAILS - sees node from previous test
-    assert len(graph.execute("MATCH (n) RETURN n")) == 1
-```
-
-**Transaction isolation**:
-```python
-@pytest.fixture
-def transactional_graph():
-    """Graph that rolls back after each test."""
-    gf = GraphForge("test.db")
-    gf.begin()
-    yield gf
-    gf.rollback()  # Undo all changes
-    gf.close()
-```
-
-**File system isolation**:
-```python
-@pytest.fixture
-def temp_db(tmp_path):
-    """Temporary database file."""
-    db_path = tmp_path / "test.db"
-    gf = GraphForge(str(db_path))
-    yield gf
-    gf.close()
-    # tmp_path automatically cleaned up by pytest
-```
-
-### TCK Testing with pytest-bdd
-
-GraphForge uses pytest-bdd for openCypher TCK compliance testing.
-
-**File structure**:
-```
-tests/tck/
-├── features/          # Gherkin scenarios (.feature files)
-│   ├── Match.feature
-│   └── Create.feature
-└── steps/            # Step definitions (.py files)
-    └── steps.py      # Shared step implementations
-```
-
-**Writing Gherkin scenarios**:
-```gherkin
-# tests/tck/features/Example.feature
-Feature: Example Feature
-
-  Scenario: Simple node creation
-    Given an empty graph
-    When executing query:
-      """
-      CREATE (n:Person {name: 'Alice'})
-      """
-    Then the result should be empty
-
-  Scenario: Match returns created node
-    Given an empty graph
-    And having executed:
-      """
-      CREATE (n:Person {name: 'Alice'})
-      """
-    When executing query:
-      """
-      MATCH (p:Person) RETURN p.name AS name
-      """
-    Then the result should be:
-      | name    |
-      | 'Alice' |
-```
-
-**Implementing step definitions**:
-```python
-# tests/tck/steps/steps.py
-from pytest_bdd import given, when, then, parsers
-
-@given("an empty graph")
-def empty_graph():
-    return GraphForge()
-
-@when(parsers.parse('executing query:\n{query}'))
-def execute_query(empty_graph, query):
-    empty_graph._last_result = empty_graph.execute(query)
-    return empty_graph
-
-@then("the result should be empty")
-def result_is_empty(empty_graph):
-    assert len(empty_graph._last_result) == 0
-```
-
-**Running TCK tests**:
-```bash
-# Run all TCK tests
-pytest tests/tck/ -v
-
-# Run specific feature
-pytest tests/tck/features/Match.feature
-
-# Run specific scenario
-pytest tests/tck/features/Match.feature -k "simple_node_creation"
-
-# Parallel execution
-pytest tests/tck/ -n auto
-```
-
-**TCK coverage reporting**:
-```bash
-# Count passing scenarios
-pytest tests/tck/ --tb=no -q | grep passed
+    graph.execute("CREATE (:Person)")  # Pollutes state
 ```
 
 ## Common Development Tasks
 
 ### Adding a New Cypher Clause
 
-**Solo approach (sequential):**
+**Sequential (solo):**
+1. Grammar: Add to `cypher.lark`
+2. AST: Add dataclass to `ast/clause.py`
+3. Transformer: Add method to `parser.py`
+4. Planner: Update to emit operator
+5. Operator: Add to `operators.py`
+6. Executor: Implement execution
+7. Tests: Unit + integration tests
 
-1. **Grammar:** Add to `src/graphforge/parser/cypher.lark`
-2. **AST:** Add dataclass to `src/graphforge/ast/clause.py`
-3. **Transformer:** Add method to `src/graphforge/parser/parser.py`
-4. **Planner:** Update `src/graphforge/planner/planner.py` to emit operator
-5. **Operator:** Add to `src/graphforge/planner/operators.py`
-6. **Executor:** Implement in `src/graphforge/executor/executor.py`
-7. **Tests:** Unit tests for each layer + integration test
-
-**Team approach (parallel):**
-
+**Parallel (team):**
 ```
-Create an agent team to implement the WITH clause (#47). Spawn teammates:
-
-- parser-teammate: Add WITH grammar to cypher.lark, create WithClause AST
-  node, update parser.py transformer. Run: pytest tests/unit/parser/ -k with
-
-- planner-teammate: Add With operator to operators.py, update planner.py to
-  handle WithClause and emit With operator. Run: pytest tests/unit/planner/ -k with
-
-- executor-teammate: Implement _execute_with() in executor.py to handle
-  variable projection. Write unit and integration tests. Run: pytest
-  tests/unit/executor/ tests/integration/ -k with
-
-Each teammate works independently on their layer, then we coordinate for
-integration testing with make pre-push.
+Create agent team for WITH clause (#47):
+- parser-agent: Grammar + AST + transformer
+- planner-agent: Operator definition + planning logic
+- executor-agent: Execution + tests
 ```
-
-**Advantages of team approach:**
-- Parser, planner, executor work happens simultaneously
-- Each teammate becomes expert in their layer
-- Tests written in parallel with implementation
-- Faster completion for complex clauses
 
 ### Adding a New Function
 
-**Solo approach (sequential):**
-
-1. **Grammar:** Add to `function_call` rule in `cypher.lark`
-2. **Evaluator:** Implement in `src/graphforge/executor/evaluator.py`
-3. **Tests:** Unit tests in `tests/unit/executor/test_functions.py`
-4. **Integration:** Test in `tests/integration/test_functions.py`
-
-**Team approach (for multiple functions):**
-
-```
-Create an agent team to add string manipulation functions (#52):
-- function-impl-teammate: Implement toLower(), toUpper(), trim(), replace()
-  in evaluator.py. Focus on correct NULL handling and type checking.
-- function-test-teammate: Write comprehensive unit tests covering edge cases,
-  NULL propagation, and type errors. Target 100% coverage.
-
-After both finish, lead runs integration tests to ensure functions work
-end-to-end in queries.
-```
-
-**When to use teams for functions:**
-- Adding multiple related functions (string, math, list functions)
-- Complex functions requiring extensive tests
-- Functions that need TCK compliance verification
-- NOT needed for single, simple function additions
+1. Grammar: Add to `function_call` rule in `cypher.lark`
+2. Evaluator: Implement in `executor/evaluator.py`
+3. Tests: Unit + integration tests
 
 ### Fixing Parser Issues
 
-**Check grammar first:** `src/graphforge/parser/cypher.lark`
-- Lark uses EBNF syntax with PEG semantics
-- Rules are case-insensitive by default (use `i` suffix)
-- Use `?` prefix to inline rules (avoid extra tree nodes)
-
-**Then check transformer:** `src/graphforge/parser/parser.py`
-- Methods match grammar rule names
-- Must handle all children in parse tree
-- Return AST nodes, not Lark trees
-
-**Debugging tips:**
-```python
-from lark import Lark
-grammar = open("src/graphforge/parser/cypher.lark").read()
-parser = Lark(grammar, start="query", debug=True)
-tree = parser.parse("MATCH (n) RETURN n")
-print(tree.pretty())  # See parse tree structure
-```
+1. Check grammar: `src/graphforge/parser/cypher.lark` (EBNF syntax)
+2. Check transformer: `parser.py` (methods match rule names)
+3. Debug with: `tree.pretty()` to see parse tree structure
 
 ### Fixing Executor Issues
 
 **Common problems:**
-1. **Not wrapping values:** All results must be `CypherValue` instances
-2. **Not handling NULL:** Use ternary logic (AND/OR/NOT with NULL)
-3. **Mutating input rows:** Always create new contexts, never modify in-place
-4. **Not checking bound variables:** Variables must exist before use
+1. Not wrapping values as `CypherValue` instances
+2. Not handling NULL (use ternary logic)
+3. Mutating input rows (always create new contexts)
+4. Not checking bound variables
 
-**Debugging:**
+**Debug with logging:**
 ```python
-# Add logging to see operator execution
 import logging
 logging.basicConfig(level=logging.DEBUG)
 gf.execute("MATCH (n) RETURN n")  # See operator pipeline
 ```
 
-### Code Review with Agent Teams
-
-Use agent teams for comprehensive PR reviews from multiple perspectives:
-
-```
-Create an agent team to review PR #142 (implements optional MATCH). Spawn reviewers:
-
-- correctness-reviewer: Verify openCypher semantics match spec. Check NULL
-  handling, optional node behavior, and pattern matching correctness.
-
-- test-reviewer: Ensure comprehensive test coverage. Check unit tests for all
-  layers, integration tests for end-to-end, and TCK compliance.
-
-- performance-reviewer: Identify potential performance issues. Check for
-  unnecessary graph traversals, inefficient operators, or missing optimizations.
-
-Each reviewer works independently, then share findings with each other to
-identify patterns or contradictions.
-```
-
-**Benefits:**
-- Multiple perspectives catch more issues
-- Reviewers can challenge each other's findings
-- Comprehensive coverage across correctness, tests, performance
-- Natural division by review criteria
-
-### Debugging with Agent Teams
-
-Use agent teams when root cause is unclear:
-
-```
-Query results are incorrect for nested OPTIONAL MATCH patterns. Create an
-agent team with competing hypotheses:
-
-- parser-debugger: Hypothesis: Grammar doesn't handle nested optionals.
-  Check AST generation for nested patterns.
-
-- planner-debugger: Hypothesis: Planner emits wrong operator sequence.
-  Verify operator ordering and context passing.
-
-- executor-debugger: Hypothesis: Optional matching logic is broken.
-  Test _execute_optional_match() with edge cases.
-
-Have teammates share findings and try to disprove each other's theories.
-The hypothesis that survives scrutiny is likely the root cause.
-```
-
-**Benefits:**
-- Parallel hypothesis testing is faster than sequential
-- Teammates challenge each other's assumptions
-- Scientific debate structure prevents anchoring bias
-- Root cause emerges from convergence of evidence
-
 ## Important Files
 
 ### Entry Points
-
-- `src/graphforge/api.py` - Main `GraphForge` class (user-facing API)
+- `src/graphforge/api.py` - Main `GraphForge` class
 - `src/graphforge/__init__.py` - Public exports
 
 ### Core Grammar
-
-- `src/graphforge/parser/cypher.lark` - Complete Cypher grammar (Lark EBNF)
+- `src/graphforge/parser/cypher.lark` - Complete Cypher grammar
 
 ### Type Definitions
-
 - `src/graphforge/types/values.py` - CypherValue type system
 - `src/graphforge/types/graph.py` - NodeRef/EdgeRef handles
 
 ### Storage
-
-- `src/graphforge/storage/memory.py` - Graph interface + in-memory implementation
-- `src/graphforge/storage/sqlite_backend.py` - SQLite persistence layer
-- `src/graphforge/storage/serialization.py` - MessagePack encoding/decoding
+- `src/graphforge/storage/memory.py` - Graph interface + in-memory
+- `src/graphforge/storage/sqlite_backend.py` - SQLite persistence
+- `src/graphforge/storage/serialization.py` - MessagePack encoding
 
 ## Documentation
 
@@ -1650,53 +468,41 @@ All tests must pass + coverage thresholds met before merge.
 2. **Inspectability** - Simple, debuggable code over clever optimizations
 3. **Modularity** - Each layer independent and replaceable
 4. **Developer experience** - Clear errors, good defaults, zero config
-5. **Right tool for the task** - Use agent teams for parallel work, solo sessions for sequential work
+5. **Right tool for the task** - Use agent teams for parallel work, solo for sequential
 
 **Not goals:** High throughput, massive graphs, production deployment
 
-### Agent Teams vs Solo: Decision Framework
+## Agent Teams vs Solo: Decision Framework
 
 **Use agent teams when:**
-- Work naturally parallelizes across GraphForge's 4 layers
-- Multiple independent perspectives add value (review, research)
-- Different teammates can own different files/modules
+- Work parallelizes across GraphForge's 4 layers
+- Multiple perspectives add value (review, research)
+- Different teammates own different files/modules
 - Comprehensive test suites need parallel development
-- Debugging requires testing competing hypotheses
 - Time-to-completion matters and parallel work is faster
 
 **Use solo workflow when:**
 - Single file or single layer changes
-- Sequential work with many cross-layer dependencies
-- Simple bug fixes or maintenance tasks
+- Sequential work with cross-layer dependencies
+- Simple bug fixes or maintenance
 - Learning a new area of the codebase
-- Documentation-only changes
 - Token cost matters more than speed
 
-**How GraphForge's architecture enables agent teams:**
-
-GraphForge's 4-layer system (Parser → Planner → Executor → Storage) has clean boundaries between layers, making it naturally suited for agent teams:
-
-- **Clear interfaces:** Each layer has well-defined inputs/outputs (AST, operators, results)
-- **Minimal coupling:** Changes in one layer rarely require changes in others
-- **File ownership:** Each layer lives in separate directories with minimal shared files
-- **Independent testing:** Unit tests for each layer can run in isolation
-- **Natural parallelism:** New Cypher features require all 4 layers, perfect for 4 teammates
-
 **Token cost awareness:**
+- Solo workflow: ~50K tokens (sequential)
+- Team workflow: ~120K tokens (parallel, 2-3x faster)
 
-Agent teams use significantly more tokens than solo work. Each teammate has its own context window. Example token usage for implementing UNWIND clause:
-
-- **Solo workflow:** ~50K tokens (1 session, sequential work)
-- **Team workflow:** ~120K tokens (3 teammates working in parallel)
-
-The team approach costs 2.4x more tokens but completes 2-3x faster. Use teams when speed justifies the cost.
+**GraphForge's architecture enables teams:**
+- Clear interfaces (AST, operators, results)
+- Minimal coupling between layers
+- File ownership (separate directories)
+- Independent testing (unit tests per layer)
+- Natural parallelism (4 layers = 4 teammates)
 
 **Start simple, scale to teams:**
-
-If you're new to the codebase or agent teams:
-1. Start with solo workflow to learn GraphForge architecture
+1. Start with solo workflow to learn architecture
 2. Try team-based code review (low risk, high value)
 3. Graduate to team-based feature implementation
 4. Use teams routinely for multi-layer work
 
-**Remember:** Agent teams are a tool, not a requirement. Many tasks are faster and cheaper with solo work. Choose based on the task structure, not habit.
+**Remember:** Agent teams are a tool, not a requirement. Choose based on task structure, not habit.
