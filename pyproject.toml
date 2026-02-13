@@ -177,6 +177,7 @@ markers = [
     "tck: openCypher TCK compliance tests",
     "property: Property-based tests",
     "slow: Tests that take >1s",
+    "snap: SNAP dataset tests (requires network, may download large files, skipped in CI)",
 ]
 
 [tool.coverage.run]
