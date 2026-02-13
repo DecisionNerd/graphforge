@@ -290,40 +290,52 @@ class TestEdgeCases:
         assert with_op.skip_count == 5
         assert with_op.limit_count is None
 
-    def test_all_aggregation_function_types(self):
-        """Test detection of all aggregation function types."""
+    @pytest.mark.parametrize(
+        "func_name,is_aggregate",
+        [
+            ("COUNT", True),
+            ("SUM", True),
+            ("AVG", True),
+            ("MIN", True),
+            ("MAX", True),
+            ("COLLECT", True),
+            ("PERCENTILEDISC", True),
+            ("PERCENTILECONT", True),
+            ("STDEV", True),
+            ("STDEVP", True),
+            ("toInteger", False),
+            ("toString", False),
+            ("size", False),
+            ("length", False),
+            ("type", False),
+            ("labels", False),
+        ],
+        ids=[
+            "count",
+            "sum",
+            "avg",
+            "min",
+            "max",
+            "collect",
+            "percentiledisc",
+            "percentilecont",
+            "stdev",
+            "stdevp",
+            "to_integer",
+            "to_string",
+            "size",
+            "length",
+            "type",
+            "labels",
+        ],
+    )
+    def test_function_aggregate_detection(self, func_name, is_aggregate):
+        """Test detection of aggregation vs non-aggregation functions."""
         from graphforge.ast.expression import FunctionCall
 
         planner = QueryPlanner()
-
-        agg_functions = [
-            "COUNT",
-            "SUM",
-            "AVG",
-            "MIN",
-            "MAX",
-            "COLLECT",
-            "PERCENTILEDISC",
-            "PERCENTILECONT",
-            "STDEV",
-            "STDEVP",
-        ]
-
-        for func_name in agg_functions:
-            expr = FunctionCall(name=func_name, args=[Variable(name="n")], distinct=False)
-            assert planner._contains_aggregate(expr) is True
-
-    def test_non_aggregation_functions(self):
-        """Test that non-aggregation functions are not detected as aggregates."""
-        from graphforge.ast.expression import FunctionCall
-
-        planner = QueryPlanner()
-
-        non_agg_functions = ["toInteger", "toString", "size", "length", "type", "labels"]
-
-        for func_name in non_agg_functions:
-            expr = FunctionCall(name=func_name, args=[Variable(name="n")], distinct=False)
-            assert planner._contains_aggregate(expr) is False
+        expr = FunctionCall(name=func_name, args=[Variable(name="n")], distinct=False)
+        assert planner._contains_aggregate(expr) is is_aggregate
 
     def test_match_with_both_old_and_new_format_patterns(self):
         """Plan MATCH with mixed old (list) and new (dict) format patterns."""

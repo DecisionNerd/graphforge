@@ -81,17 +81,21 @@ class TestExpandEdgesValidation:
                 direction="INVALID",
             )
 
-    def test_valid_directions(self):
+    @pytest.mark.parametrize(
+        "direction",
+        ["OUT", "IN", "UNDIRECTED"],
+        ids=["outgoing", "incoming", "undirected"],
+    )
+    def test_valid_directions(self, direction):
         """ExpandEdges accepts valid directions."""
-        for direction in ["OUT", "IN", "UNDIRECTED"]:
-            op = ExpandEdges(
-                src_var="a",
-                edge_var="r",
-                dst_var="b",
-                edge_types=[],
-                direction=direction,
-            )
-            assert op.direction == direction
+        op = ExpandEdges(
+            src_var="a",
+            edge_var="r",
+            dst_var="b",
+            edge_types=[],
+            direction=direction,
+        )
+        assert op.direction == direction
 
 
 @pytest.mark.unit
@@ -109,17 +113,21 @@ class TestOptionalExpandEdgesValidation:
                 direction="SIDEWAYS",
             )
 
-    def test_valid_directions(self):
+    @pytest.mark.parametrize(
+        "direction",
+        ["OUT", "IN", "UNDIRECTED"],
+        ids=["outgoing", "incoming", "undirected"],
+    )
+    def test_valid_directions(self, direction):
         """OptionalExpandEdges accepts valid directions."""
-        for direction in ["OUT", "IN", "UNDIRECTED"]:
-            op = OptionalExpandEdges(
-                src_var="a",
-                edge_var="r",
-                dst_var="b",
-                edge_types=[],
-                direction=direction,
-            )
-            assert op.direction == direction
+        op = OptionalExpandEdges(
+            src_var="a",
+            edge_var="r",
+            dst_var="b",
+            edge_types=[],
+            direction=direction,
+        )
+        assert op.direction == direction
 
 
 @pytest.mark.unit
@@ -354,14 +362,18 @@ class TestSubqueryValidation:
                 expression_type="INVALID",
             )
 
-    def test_valid_expression_types(self):
+    @pytest.mark.parametrize(
+        "expr_type",
+        ["EXISTS", "COUNT"],
+        ids=["exists", "count"],
+    )
+    def test_valid_expression_types(self, expr_type):
         """Subquery accepts valid expression types."""
-        for expr_type in ["EXISTS", "COUNT"]:
-            op = Subquery(
-                operators=[ScanNodes(variable="n", labels=None)],
-                expression_type=expr_type,
-            )
-            assert op.expression_type == expr_type
+        op = Subquery(
+            operators=[ScanNodes(variable="n", labels=None)],
+            expression_type=expr_type,
+        )
+        assert op.expression_type == expr_type
 
 
 @pytest.mark.unit

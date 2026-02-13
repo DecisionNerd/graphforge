@@ -1590,100 +1590,48 @@ class TestStringFunctions:
 class TestTypeConversionEdgeCases:
     """Tests for edge cases in type conversion functions."""
 
-    def test_toboolean_with_list_returns_null(self):
-        """toBoolean with list returns NULL."""
+    @pytest.mark.parametrize(
+        "input_value,expected_type,expected_value",
+        [
+            # NULL-returning cases
+            ([1, 2, 3], "CypherNull", None),
+            ({"key": "value"}, "CypherNull", None),
+            ("maybe", "CypherNull", None),
+            # Valid conversions
+            ("true", "CypherBool", True),
+            ("false", "CypherBool", False),
+            ("TrUe", "CypherBool", True),  # case-insensitive
+            (True, "CypherBool", True),  # identity
+            (False, "CypherBool", False),  # identity
+        ],
+        ids=[
+            "list_returns_null",
+            "map_returns_null",
+            "invalid_string_returns_null",
+            "true_string",
+            "false_string",
+            "mixed_case_true",
+            "boolean_identity_true",
+            "boolean_identity_false",
+        ],
+    )
+    def test_toboolean_conversion(self, input_value, expected_type, expected_value):
+        """Test toBoolean function with various inputs."""
+        from graphforge.types.values import CypherBool, CypherNull
+
         ctx = ExecutionContext()
         expr = FunctionCall(
             name="toBoolean",
-            args=[Literal(value=[1, 2, 3])],
+            args=[Literal(value=input_value)],
         )
 
         result = evaluate_expression(expr, ctx)
-        from graphforge.types.values import CypherNull
 
-        assert isinstance(result, CypherNull)
-
-    def test_toboolean_with_map_returns_null(self):
-        """toBoolean with map returns NULL."""
-        ctx = ExecutionContext()
-        expr = FunctionCall(
-            name="toBoolean",
-            args=[Literal(value={"key": "value"})],
-        )
-
-        result = evaluate_expression(expr, ctx)
-        from graphforge.types.values import CypherNull
-
-        assert isinstance(result, CypherNull)
-
-    def test_toboolean_with_invalid_string_returns_null(self):
-        """toBoolean with invalid string returns NULL."""
-        ctx = ExecutionContext()
-        expr = FunctionCall(
-            name="toBoolean",
-            args=[Literal(value="maybe")],
-        )
-
-        result = evaluate_expression(expr, ctx)
-        from graphforge.types.values import CypherNull
-
-        assert isinstance(result, CypherNull)
-
-    def test_toboolean_with_true_string(self):
-        """toBoolean with 'true' string returns true."""
-        ctx = ExecutionContext()
-        expr = FunctionCall(
-            name="toBoolean",
-            args=[Literal(value="true")],
-        )
-
-        result = evaluate_expression(expr, ctx)
-        from graphforge.types.values import CypherBool
-
-        assert isinstance(result, CypherBool)
-        assert result.value is True
-
-    def test_toboolean_with_false_string(self):
-        """toBoolean with 'false' string returns false."""
-        ctx = ExecutionContext()
-        expr = FunctionCall(
-            name="toBoolean",
-            args=[Literal(value="false")],
-        )
-
-        result = evaluate_expression(expr, ctx)
-        from graphforge.types.values import CypherBool
-
-        assert isinstance(result, CypherBool)
-        assert result.value is False
-
-    def test_toboolean_with_mixed_case_true(self):
-        """toBoolean is case-insensitive for 'true'."""
-        ctx = ExecutionContext()
-        expr = FunctionCall(
-            name="toBoolean",
-            args=[Literal(value="TrUe")],
-        )
-
-        result = evaluate_expression(expr, ctx)
-        from graphforge.types.values import CypherBool
-
-        assert isinstance(result, CypherBool)
-        assert result.value is True
-
-    def test_toboolean_with_boolean_identity(self):
-        """toBoolean with boolean returns same value."""
-        ctx = ExecutionContext()
-        expr = FunctionCall(
-            name="toBoolean",
-            args=[Literal(value=True)],
-        )
-
-        result = evaluate_expression(expr, ctx)
-        from graphforge.types.values import CypherBool
-
-        assert isinstance(result, CypherBool)
-        assert result.value is True
+        if expected_type == "CypherNull":
+            assert isinstance(result, CypherNull)
+        elif expected_type == "CypherBool":
+            assert isinstance(result, CypherBool)
+            assert result.value is expected_value
 
 
 @pytest.mark.unit

@@ -16,41 +16,36 @@ from graphforge.planner.operators import Create, Delete, Merge, Set
 class TestExecutorErrorPaths:
     """Test error paths in executor operations."""
 
-    def test_create_without_graphforge_instance(self):
-        """Test CREATE operator raises error when GraphForge instance not provided."""
+    @pytest.mark.parametrize(
+        "op_type,error_match",
+        [
+            ("CREATE", "CREATE requires GraphForge instance"),
+            ("MERGE", "MERGE requires GraphForge instance"),
+        ],
+        ids=["create", "merge"],
+    )
+    def test_operation_without_graphforge_instance(self, op_type, error_match):
+        """Test operations raise error when GraphForge instance not provided."""
+        from graphforge.ast.pattern import NodePattern
+
         gf = GraphForge()
 
         # Create executor WITHOUT graphforge reference
         executor = QueryExecutor(gf.graph, graphforge=None)
 
-        # Attempt CREATE operation
-        from graphforge.ast.pattern import NodePattern
-
         pattern = [NodePattern(variable="n", labels=["Person"], properties={})]
-        op = Create(patterns=[pattern])
+
+        if op_type == "CREATE":
+            op = Create(patterns=[pattern])
+            execute_fn = executor._execute_create
+        else:  # MERGE
+            op = Merge(patterns=[pattern], on_create=None, on_match=None)
+            execute_fn = executor._execute_merge
 
         ctx = ExecutionContext()
 
-        with pytest.raises(RuntimeError, match="CREATE requires GraphForge instance"):
-            executor._execute_create(op, [ctx])
-
-    def test_merge_without_graphforge_instance(self):
-        """Test MERGE operator raises error when GraphForge instance not provided."""
-        gf = GraphForge()
-
-        # Create executor WITHOUT graphforge reference
-        executor = QueryExecutor(gf.graph, graphforge=None)
-
-        # Attempt MERGE operation
-        from graphforge.ast.pattern import NodePattern
-
-        pattern = [NodePattern(variable="n", labels=["Person"], properties={})]
-        op = Merge(patterns=[pattern], on_create=None, on_match=None)
-
-        ctx = ExecutionContext()
-
-        with pytest.raises(RuntimeError, match="MERGE requires GraphForge instance"):
-            executor._execute_merge(op, [ctx])
+        with pytest.raises(RuntimeError, match=error_match):
+            execute_fn(op, [ctx])
 
     def test_delete_node_with_relationships_no_detach(self):
         """Test DELETE raises error when deleting node with relationships without DETACH."""
@@ -175,66 +170,46 @@ class TestExecutorEdgeCases:
         with pytest.raises(TypeError, match="Unknown operator type"):
             executor._execute_operator(unknown_op, [ctx], 0, 1)
 
-    def test_set_on_unbound_variable(self):
-        """Test SET operator handles unbound variable gracefully."""
+    @pytest.mark.parametrize(
+        "op_type,expected_result",
+        [
+            ("SET", "non_empty"),  # Returns input rows
+            ("REMOVE", "non_empty"),  # Returns input rows
+            ("DELETE", "empty"),  # Returns empty list
+        ],
+        ids=["set", "remove", "delete"],
+    )
+    def test_operation_on_unbound_variable(self, op_type, expected_result):
+        """Test operations handle unbound variables gracefully."""
         gf = GraphForge()
-
         executor = QueryExecutor(gf.graph, gf)
-
-        from graphforge.ast.expression import Literal, PropertyAccess
-
-        # SET operation on unbound variable (use string for variable name in PropertyAccess)
-        prop_access = PropertyAccess(variable="n", property="name")
-        op = Set(items=[(prop_access, Literal(value="Alice"))])
-
         ctx = ExecutionContext()
-        # Variable "n" is not bound
+        # Variable is not bound in context
 
-        result = executor._execute_set(op, [ctx])
+        if op_type == "SET":
+            from graphforge.ast.expression import Literal, PropertyAccess
 
-        # Should not crash, just skip the SET
-        assert len(result) == 1
+            prop_access = PropertyAccess(variable="n", property="name")
+            op = Set(items=[(prop_access, Literal(value="Alice"))])
+            result = executor._execute_set(op, [ctx])
+        elif op_type == "REMOVE":
+            from graphforge.planner.operators import Remove
 
-    def test_remove_property_on_unbound_variable(self):
-        """Test REMOVE property on unbound variable."""
-        gf = GraphForge()
+            class RemoveItemStruct:
+                def __init__(self, variable, name, item_type):
+                    self.variable = variable
+                    self.name = name
+                    self.item_type = item_type
 
-        executor = QueryExecutor(gf.graph, gf)
+            remove_item = RemoveItemStruct(variable="n", name="age", item_type="property")
+            op = Remove(items=[remove_item])
+            result = executor._execute_remove(op, [ctx])
+        else:  # DELETE
+            op = Delete(variables=["nonexistent"], detach=False)
+            result = executor._execute_delete(op, [ctx])
 
-        # Build RemoveItem manually using dict-like structure
-        from graphforge.planner.operators import Remove
-
-        # Create a simple object with the required attributes
-        class RemoveItemStruct:
-            def __init__(self, variable, name, item_type):
-                self.variable = variable
-                self.name = name
-                self.item_type = item_type
-
-        remove_item = RemoveItemStruct(variable="n", name="age", item_type="property")
-        op = Remove(items=[remove_item])
-
-        ctx = ExecutionContext()
-        # Variable "n" is not bound
-
-        result = executor._execute_remove(op, [ctx])
-
-        # Should not crash, just skip
-        assert len(result) == 1
-
-    def test_delete_unbound_variable(self):
-        """Test DELETE on unbound variable."""
-        gf = GraphForge()
-
-        executor = QueryExecutor(gf.graph, gf)
-
-        # DELETE operation on unbound variable
-        op = Delete(variables=["nonexistent"], detach=False)
-
-        ctx = ExecutionContext()
-        # Variable "nonexistent" is not bound
-
-        result = executor._execute_delete(op, [ctx])
-
-        # Should not crash, just skip
-        assert result == []
+        # Should not crash, operations handle unbound variables gracefully
+        if expected_result == "non_empty":
+            assert len(result) == 1
+        else:  # empty
+            assert result == []
