@@ -316,10 +316,6 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
 
         # IN operator: value IN list
         if expr.op == "IN":
-            # NULL IN anything → NULL
-            if isinstance(left_val, CypherNull):
-                return CypherNull()
-
             # anything IN NULL → NULL
             if isinstance(right_val, CypherNull):
                 return CypherNull()
@@ -330,9 +326,14 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                     f"IN operator requires a list on the right side, got {type(right_val).__name__}"
                 )
 
-            # Empty list: value IN [] → false
+            # Empty list: value IN [] → false (even for NULL IN [])
+            # This must come before NULL check on left operand
             if not right_val.value:
                 return CypherBool(False)
+
+            # NULL IN non-empty-list → NULL
+            if isinstance(left_val, CypherNull):
+                return CypherNull()
 
             # Check if left_val is in the list
             # Use three-valued logic: if any comparison is NULL and no match found, return NULL

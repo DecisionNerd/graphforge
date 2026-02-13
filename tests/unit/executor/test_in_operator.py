@@ -33,6 +33,19 @@ class TestInOperator:
         result = gf.execute("RETURN 5 IN [] AS result")
         assert result[0]["result"].value is False
 
+    def test_in_operator_null_in_empty_list(self):
+        """NULL IN [] returns false (not NULL).
+
+        This is an edge case: checking if NULL is in an empty list should
+        return false because the list is empty, not NULL. The empty-list
+        check must occur before the NULL-value check in the evaluator.
+        """
+        gf = GraphForge()
+
+        result = gf.execute("RETURN null IN [] AS result")
+        # Should return false, not NULL, because empty list membership is always false
+        assert result[0]["result"].value is False
+
     def test_in_operator_null_value(self):
         """NULL IN list returns NULL."""
         gf = GraphForge()
