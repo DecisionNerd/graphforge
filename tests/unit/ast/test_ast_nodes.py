@@ -326,134 +326,107 @@ class TestCompleteQuery:
 class TestNodePatternValidation:
     """Tests for NodePattern validation edge cases."""
 
-    def test_empty_variable_name_fails(self):
-        """Empty variable name should raise ValueError."""
-        with pytest.raises(ValidationError, match="Variable name cannot be empty string"):
-            NodePattern(variable="", labels=["Person"])
+    @pytest.mark.parametrize(
+        "variable,labels,expected_error",
+        [
+            ("", ["Person"], "Variable name cannot be empty string"),
+            ("1node", ["Person"], "must start with letter or underscore"),
+            ("$node", ["Person"], "must start with letter or underscore"),
+            ("node-name", ["Person"], "must contain only alphanumeric and underscore"),
+            ("node name", ["Person"], "must contain only alphanumeric and underscore"),
+            ("n", ["1Person"], "Label must start with a letter"),
+            ("n", [""], "Label must start with a letter"),
+        ],
+        ids=[
+            "empty_variable",
+            "variable_starts_with_number",
+            "variable_starts_with_special_char",
+            "variable_with_dash",
+            "variable_with_space",
+            "label_starts_with_number",
+            "empty_label",
+        ],
+    )
+    def test_invalid_node_pattern(self, variable, labels, expected_error):
+        """Invalid NodePattern should raise ValidationError."""
+        with pytest.raises(ValidationError, match=expected_error):
+            NodePattern(variable=variable, labels=labels)
 
-    def test_variable_starting_with_number_fails(self):
-        """Variable starting with number should fail."""
-        with pytest.raises(ValidationError, match="must start with letter or underscore"):
-            NodePattern(variable="1node", labels=["Person"])
-
-    def test_variable_starting_with_special_char_fails(self):
-        """Variable starting with special character should fail."""
-        with pytest.raises(ValidationError, match="must start with letter or underscore"):
-            NodePattern(variable="$node", labels=["Person"])
-
-    def test_variable_with_special_chars_fails(self):
-        """Variable with special characters should fail."""
-        with pytest.raises(ValidationError, match="must contain only alphanumeric and underscore"):
-            NodePattern(variable="node-name", labels=["Person"])
-
-    def test_variable_with_spaces_fails(self):
-        """Variable with spaces should fail."""
-        with pytest.raises(ValidationError, match="must contain only alphanumeric and underscore"):
-            NodePattern(variable="node name", labels=["Person"])
-
-    def test_label_starting_with_number_fails(self):
-        """Label starting with number should fail."""
-        with pytest.raises(ValidationError, match="Label must start with a letter"):
-            NodePattern(variable="n", labels=["1Person"])
-
-    def test_empty_label_fails(self):
-        """Empty label should fail."""
-        with pytest.raises(ValidationError, match="Label must start with a letter"):
-            NodePattern(variable="n", labels=[""])
-
-    def test_valid_variable_with_underscore(self):
-        """Variable can start with underscore."""
-        pattern = NodePattern(variable="_node", labels=["Person"])
-        assert pattern.variable == "_node"
-
-    def test_valid_variable_with_numbers(self):
-        """Variable can contain numbers after first character."""
-        pattern = NodePattern(variable="node123", labels=["Person"])
-        assert pattern.variable == "node123"
+    @pytest.mark.parametrize(
+        "variable,expected",
+        [
+            ("_node", "_node"),
+            ("node123", "node123"),
+        ],
+        ids=["underscore_prefix", "numbers_in_name"],
+    )
+    def test_valid_node_pattern_variable(self, variable, expected):
+        """Valid variable names should be accepted."""
+        pattern = NodePattern(variable=variable, labels=["Person"])
+        assert pattern.variable == expected
 
 
 @pytest.mark.unit
 class TestRelationshipPatternValidation:
     """Tests for RelationshipPattern validation edge cases."""
 
-    def test_empty_variable_name_fails(self):
-        """Empty variable name should raise ValueError."""
-        with pytest.raises(ValidationError, match="Variable name cannot be empty string"):
-            RelationshipPattern(variable="", types=["KNOWS"], direction=Direction.OUT)
-
-    def test_variable_starting_with_number_fails(self):
-        """Variable starting with number should fail."""
-        with pytest.raises(ValidationError, match="must start with letter or underscore"):
-            RelationshipPattern(variable="1rel", types=["KNOWS"], direction=Direction.OUT)
-
-    def test_variable_with_special_chars_fails(self):
-        """Variable with special characters should fail."""
-        with pytest.raises(ValidationError, match="must contain only alphanumeric and underscore"):
-            RelationshipPattern(variable="rel-name", types=["KNOWS"], direction=Direction.OUT)
-
-    def test_relationship_type_starting_with_number_fails(self):
-        """Relationship type starting with number should fail."""
-        with pytest.raises(ValidationError, match="Relationship type must start with a letter"):
-            RelationshipPattern(variable="r", types=["1KNOWS"], direction=Direction.OUT)
-
-    def test_empty_relationship_type_fails(self):
-        """Empty relationship type should fail."""
-        with pytest.raises(ValidationError, match="Relationship type must start with a letter"):
-            RelationshipPattern(variable="r", types=[""], direction=Direction.OUT)
-
-    def test_negative_min_hops_fails(self):
-        """Negative min_hops should fail."""
-        with pytest.raises(ValidationError, match="Minimum hops must be non-negative"):
+    @pytest.mark.parametrize(
+        "variable,types,min_hops,max_hops,expected_error",
+        [
+            ("", ["KNOWS"], None, None, "Variable name cannot be empty string"),
+            ("1rel", ["KNOWS"], None, None, "must start with letter or underscore"),
+            ("rel-name", ["KNOWS"], None, None, "must contain only alphanumeric and underscore"),
+            ("r", ["1KNOWS"], None, None, "Relationship type must start with a letter"),
+            ("r", [""], None, None, "Relationship type must start with a letter"),
+            ("r", ["KNOWS"], -1, None, "Minimum hops must be non-negative"),
+            ("r", ["KNOWS"], None, 0, "Maximum hops must be positive"),
+            ("r", ["KNOWS"], None, -5, "Maximum hops must be positive"),
+        ],
+        ids=[
+            "empty_variable",
+            "variable_starts_with_number",
+            "variable_with_dash",
+            "type_starts_with_number",
+            "empty_type",
+            "negative_min_hops",
+            "zero_max_hops",
+            "negative_max_hops",
+        ],
+    )
+    def test_invalid_relationship_pattern(
+        self, variable, types, min_hops, max_hops, expected_error
+    ):
+        """Invalid RelationshipPattern should raise ValidationError."""
+        with pytest.raises(ValidationError, match=expected_error):
             RelationshipPattern(
-                variable="r",
-                types=["KNOWS"],
+                variable=variable,
+                types=types,
                 direction=Direction.OUT,
-                min_hops=-1,
+                min_hops=min_hops,
+                max_hops=max_hops,
             )
 
-    def test_zero_max_hops_fails(self):
-        """Zero max_hops should fail."""
-        with pytest.raises(ValidationError, match="Maximum hops must be positive"):
-            RelationshipPattern(
-                variable="r",
-                types=["KNOWS"],
-                direction=Direction.OUT,
-                max_hops=0,
-            )
-
-    def test_negative_max_hops_fails(self):
-        """Negative max_hops should fail."""
-        with pytest.raises(ValidationError, match="Maximum hops must be positive"):
-            RelationshipPattern(
-                variable="r",
-                types=["KNOWS"],
-                direction=Direction.OUT,
-                max_hops=-5,
-            )
-
-    def test_valid_variable_length_pattern(self):
-        """Valid variable-length pattern with min and max hops."""
+    @pytest.mark.parametrize(
+        "min_hops,max_hops,expected_min,expected_max",
+        [
+            (1, 3, 1, 3),
+            (1, None, 1, None),
+        ],
+        ids=["bounded_pattern", "unbounded_pattern"],
+    )
+    def test_valid_variable_length_pattern(
+        self, min_hops, max_hops, expected_min, expected_max
+    ):
+        """Valid variable-length patterns should be accepted."""
         pattern = RelationshipPattern(
             variable="r",
             types=["KNOWS"],
             direction=Direction.OUT,
-            min_hops=1,
-            max_hops=3,
+            min_hops=min_hops,
+            max_hops=max_hops,
         )
-        assert pattern.min_hops == 1
-        assert pattern.max_hops == 3
-
-    def test_valid_unbounded_pattern(self):
-        """Valid unbounded pattern (max_hops=None)."""
-        pattern = RelationshipPattern(
-            variable="r",
-            types=["KNOWS"],
-            direction=Direction.OUT,
-            min_hops=1,
-            max_hops=None,
-        )
-        assert pattern.min_hops == 1
-        assert pattern.max_hops is None
+        assert pattern.min_hops == expected_min
+        assert pattern.max_hops == expected_max
 
 
 @pytest.mark.unit
