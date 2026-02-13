@@ -15,6 +15,7 @@ Session-scoped fixtures with file locking ensure that datasets are downloaded
 only once across all workers, with other workers waiting for the download to complete.
 """
 
+import os
 from urllib.parse import urlparse
 
 import pytest
@@ -22,8 +23,16 @@ import pytest
 from graphforge import GraphForge
 from graphforge.datasets import get_dataset_info, list_datasets
 
-# Mark all tests in this module as integration tests
-pytestmark = pytest.mark.integration
+# Mark all tests in this module as integration and SNAP tests
+# Skip in CI due to dataset availability issues
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.snap,
+    pytest.mark.skipif(
+        os.environ.get("CI") == "true",
+        reason="SNAP dataset tests skipped in CI due to dataset availability issues",
+    ),
+]
 
 
 @pytest.fixture(scope="session")
