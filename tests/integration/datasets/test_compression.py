@@ -613,6 +613,73 @@ class TestTarZstExtraction:
             extract_archive(archive_path, extract_to)
 
 
+class TestDriveLetterAbsolutePaths:
+    r"""Tests for Windows drive-letter absolute paths (C:\, D:/, etc.)."""
+
+    def test_reject_drive_letter_colon_backslash_tar(self, tmp_path):
+        """Test that C:\\ style paths are rejected in TAR."""
+        archive_path = tmp_path / "drive_letter.tar.gz"
+        extract_to = tmp_path / "extracted"
+
+        # Create test file
+        test_dir = tmp_path / "test_data"
+        test_dir.mkdir()
+        test_file = test_dir / "test.txt"
+        test_file.write_text("content")
+
+        # Create TAR with drive letter absolute path
+        with tarfile.open(archive_path, "w:gz") as tar:
+            tarinfo = tar.gettarinfo(str(test_file))
+            tarinfo.name = "C:\\Windows\\System32\\evil.dll"
+            with open(test_file, "rb") as f:
+                tar.addfile(tarinfo, f)
+
+        # Should reject drive letter path
+        from graphforge.datasets.loaders.compression import extract_archive
+
+        with pytest.raises(ValueError, match="Absolute path not allowed"):
+            extract_archive(archive_path, extract_to)
+
+    def test_reject_drive_letter_colon_forward_slash_tar(self, tmp_path):
+        """Test that C:/ style paths are rejected in TAR."""
+        archive_path = tmp_path / "drive_fwd.tar.gz"
+        extract_to = tmp_path / "extracted"
+
+        # Create test file
+        test_dir = tmp_path / "test_data"
+        test_dir.mkdir()
+        test_file = test_dir / "test.txt"
+        test_file.write_text("content")
+
+        # Create TAR with drive letter (forward slash variant)
+        with tarfile.open(archive_path, "w:gz") as tar:
+            tarinfo = tar.gettarinfo(str(test_file))
+            tarinfo.name = "D:/Program Files/malware.exe"
+            with open(test_file, "rb") as f:
+                tar.addfile(tarinfo, f)
+
+        # Should reject drive letter path
+        from graphforge.datasets.loaders.compression import extract_archive
+
+        with pytest.raises(ValueError, match="Absolute path not allowed"):
+            extract_archive(archive_path, extract_to)
+
+    def test_reject_drive_letter_zip(self, tmp_path):
+        """Test that drive letter paths are rejected in ZIP."""
+        archive_path = tmp_path / "drive.zip"
+        extract_to = tmp_path / "extracted"
+
+        # Create ZIP with drive letter path
+        with zipfile.ZipFile(archive_path, "w") as zf:
+            zf.writestr("E:\\System\\config.sys", "malicious")
+
+        # Should reject drive letter path
+        from graphforge.datasets.loaders.compression import extract_archive
+
+        with pytest.raises(ValueError, match="Absolute path not allowed"):
+            extract_archive(archive_path, extract_to)
+
+
 class TestPathValidationEdgeCases:
     """Edge case tests for path validation during extraction."""
 
@@ -735,6 +802,252 @@ class TestPathValidationEdgeCases:
             zf.writestr("../../../../../../etc/passwd", "malicious")
 
         # Should reject due to parent directory reference
+        from graphforge.datasets.loaders.compression import extract_archive
+
+        with pytest.raises(
+            ValueError,
+            match="(Parent directory reference not allowed|Path traversal attempt detected)",
+        ):
+            extract_archive(archive_path, extract_to)
+
+
+class TestPostNormalizationAbsolutePath:
+    """Tests for post-normalization absolute path detection."""
+
+    def test_reject_absolute_after_normalization_tar(self, tmp_path):
+        """Test that paths becoming absolute after normalization are rejected."""
+        archive_path = tmp_path / "normalized_abs.tar.gz"
+        extract_to = tmp_path / "extracted"
+
+        # Create test file
+        test_dir = tmp_path / "test_data"
+        test_dir.mkdir()
+        test_file = test_dir / "test.txt"
+        test_file.write_text("content")
+
+        # Create TAR with backslash at start that normalizes to forward slash
+        with tarfile.open(archive_path, "w:gz") as tar:
+            tarinfo = tar.gettarinfo(str(test_file))
+            # After normalization (\\ -> /), this becomes /etc/passwd
+            tarinfo.name = "\\etc\\passwd"  # Will normalize to /etc/passwd
+            with open(test_file, "rb") as f:
+                tar.addfile(tarinfo, f)
+
+        # Should reject after normalization
+        from graphforge.datasets.loaders.compression import extract_archive
+
+        with pytest.raises(ValueError, match="Absolute path not allowed"):
+            extract_archive(archive_path, extract_to)
+
+
+class TestTarBz2Extraction:
+    """Tests for .tar.bz2 archive support (should fail as unsupported)."""
+
+    def test_tar_bz2_format_not_supported(self, tmp_path):
+        """Test that .tar.bz2 is rejected as unsupported format."""
+        import bz2
+
+        archive_path = tmp_path / "test.tar.bz2"
+        extract_to = tmp_path / "extracted"
+
+        # Create a valid .tar.bz2 file
+        test_dir = tmp_path / "test_data"
+        test_dir.mkdir()
+        test_file = test_dir / "test.txt"
+        test_file.write_text("bz2 content")
+
+        # Create tar in memory, then compress with bz2
+        import io
+
+        tar_buffer = io.BytesIO()
+        with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
+            tar.add(test_file, arcname="test.txt")
+
+        tar_buffer.seek(0)
+        compressed = bz2.compress(tar_buffer.read())
+        archive_path.write_bytes(compressed)
+
+        # Should raise ValueError for unsupported format
+        from graphforge.datasets.loaders.compression import extract_archive
+
+        with pytest.raises(ValueError, match="Unsupported archive format"):
+            extract_archive(archive_path, extract_to)
+
+    def test_tar_xz_format_not_supported(self, tmp_path):
+        """Test that .tar.xz is rejected as unsupported format."""
+        archive_path = tmp_path / "test.tar.xz"
+        extract_to = tmp_path / "extracted"
+
+        # Create a dummy file (doesn't need to be valid tar.xz)
+        archive_path.write_bytes(b"dummy xz content")
+
+        # Should raise ValueError for unsupported format
+        from graphforge.datasets.loaders.compression import extract_archive
+
+        with pytest.raises(ValueError, match="Unsupported archive format"):
+            extract_archive(archive_path, extract_to)
+
+
+class TestComplexTarZstScenarios:
+    """Additional tests for .tar.zst when zstandard is available."""
+
+    @pytest.mark.skipif(
+        not __import__("importlib").util.find_spec("zstandard"),
+        reason="zstandard not available",
+    )
+    def test_extract_tar_zst_with_nested_directories(self, tmp_path):
+        """Test extracting .tar.zst with nested directory structure."""
+        import io
+
+        import zstandard as zstd
+
+        archive_path = tmp_path / "nested.tar.zst"
+        extract_to = tmp_path / "extracted"
+
+        # Create test files with nested structure
+        test_dir = tmp_path / "test_data"
+        (test_dir / "a" / "b" / "c").mkdir(parents=True)
+        (test_dir / "a" / "file1.txt").write_text("content1")
+        (test_dir / "a" / "b" / "file2.txt").write_text("content2")
+        (test_dir / "a" / "b" / "c" / "file3.txt").write_text("content3")
+
+        # Create tar with nested structure
+        tar_buffer = io.BytesIO()
+        with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
+            tar.add(test_dir / "a" / "file1.txt", arcname="a/file1.txt")
+            tar.add(test_dir / "a" / "b" / "file2.txt", arcname="a/b/file2.txt")
+            tar.add(test_dir / "a" / "b" / "c" / "file3.txt", arcname="a/b/c/file3.txt")
+
+        # Compress with zstd
+        tar_buffer.seek(0)
+        cctx = zstd.ZstdCompressor()
+        compressed = cctx.compress(tar_buffer.read())
+        archive_path.write_bytes(compressed)
+
+        # Extract
+        from graphforge.datasets.loaders.compression import extract_archive
+
+        result = extract_archive(archive_path, extract_to)
+
+        # Verify nested structure
+        assert result == extract_to
+        assert (extract_to / "a" / "file1.txt").exists()
+        assert (extract_to / "a" / "b" / "file2.txt").exists()
+        assert (extract_to / "a" / "b" / "c" / "file3.txt").exists()
+        assert (extract_to / "a" / "file1.txt").read_text() == "content1"
+        assert (extract_to / "a" / "b" / "file2.txt").read_text() == "content2"
+        assert (extract_to / "a" / "b" / "c" / "file3.txt").read_text() == "content3"
+
+    @pytest.mark.skipif(
+        not __import__("importlib").util.find_spec("zstandard"),
+        reason="zstandard not available",
+    )
+    def test_extract_tar_zst_creates_directory(self, tmp_path):
+        """Test that .tar.zst extraction creates output directory."""
+        import io
+
+        import zstandard as zstd
+
+        archive_path = tmp_path / "test.tar.zst"
+        extract_to = tmp_path / "new_dir" / "extracted"
+
+        # Create test file
+        test_dir = tmp_path / "test_data"
+        test_dir.mkdir()
+        test_file = test_dir / "test.txt"
+        test_file.write_text("content")
+
+        # Create tar.zst
+        tar_buffer = io.BytesIO()
+        with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
+            tar.add(test_file, arcname="test.txt")
+
+        tar_buffer.seek(0)
+        cctx = zstd.ZstdCompressor()
+        compressed = cctx.compress(tar_buffer.read())
+        archive_path.write_bytes(compressed)
+
+        # Extract (should create new_dir/extracted)
+        from graphforge.datasets.loaders.compression import extract_tar_zst
+
+        extract_tar_zst(archive_path, extract_to)
+
+        assert extract_to.exists()
+        assert (extract_to / "test.txt").exists()
+        assert (extract_to / "test.txt").read_text() == "content"
+
+    @pytest.mark.skipif(
+        not __import__("importlib").util.find_spec("zstandard"),
+        reason="zstandard not available",
+    )
+    def test_extract_tar_zst_multiple_files(self, tmp_path):
+        """Test extracting .tar.zst with multiple files."""
+        import io
+
+        import zstandard as zstd
+
+        archive_path = tmp_path / "multi.tar.zst"
+        extract_to = tmp_path / "extracted"
+
+        # Create multiple test files
+        test_dir = tmp_path / "test_data"
+        test_dir.mkdir()
+        for i in range(10):
+            (test_dir / f"file{i}.txt").write_text(f"content{i}")
+
+        # Create tar with multiple files
+        tar_buffer = io.BytesIO()
+        with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
+            for i in range(10):
+                tar.add(test_dir / f"file{i}.txt", arcname=f"file{i}.txt")
+
+        # Compress with zstd
+        tar_buffer.seek(0)
+        cctx = zstd.ZstdCompressor()
+        compressed = cctx.compress(tar_buffer.read())
+        archive_path.write_bytes(compressed)
+
+        # Extract
+        from graphforge.datasets.loaders.compression import extract_archive
+
+        extract_archive(archive_path, extract_to)
+
+        # Verify all files
+        for i in range(10):
+            assert (extract_to / f"file{i}.txt").exists()
+            assert (extract_to / f"file{i}.txt").read_text() == f"content{i}"
+
+    @pytest.mark.skipif(
+        not __import__("importlib").util.find_spec("zstandard"),
+        reason="zstandard not available",
+    )
+    def test_extract_tar_zst_with_parent_refs_rejected(self, tmp_path):
+        """Test that .tar.zst with parent refs is rejected."""
+        import io
+
+        import zstandard as zstd
+
+        archive_path = tmp_path / "malicious.tar.zst"
+        extract_to = tmp_path / "extracted"
+
+        # Create test file
+        test_dir = tmp_path / "test_data"
+        test_dir.mkdir()
+        test_file = test_dir / "test.txt"
+        test_file.write_text("content")
+
+        # Create tar with parent reference
+        tar_buffer = io.BytesIO()
+        with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
+            tar.add(test_file, arcname="../../../etc/passwd")
+
+        # Compress with zstd
+        tar_buffer.seek(0)
+        cctx = zstd.ZstdCompressor()
+        compressed = cctx.compress(tar_buffer.read())
+        archive_path.write_bytes(compressed)
+
+        # Should reject parent reference
         from graphforge.datasets.loaders.compression import extract_archive
 
         with pytest.raises(
