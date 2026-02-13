@@ -37,7 +37,9 @@ write_query: create_clause return_clause?
            | merge_clause return_clause?
            | match_clause where_clause? create_clause+ set_clause? return_clause? order_by_clause? skip_clause? limit_clause?
 
-update_query: match_clause where_clause? (set_clause | remove_clause)* delete_clause? return_clause? order_by_clause? skip_clause? limit_clause?
+update_query: match_clause where_clause? optional_match_clause+ where_clause? (set_clause | remove_clause)* delete_clause? return_clause? order_by_clause? skip_clause? limit_clause?
+            | match_clause where_clause? (set_clause | remove_clause)* delete_clause? return_clause? order_by_clause? skip_clause? limit_clause?
+            | optional_match_clause where_clause? (set_clause | remove_clause)* delete_clause? return_clause? order_by_clause? skip_clause? limit_clause?
 
 unwind_query: unwind_clause+ where_clause? return_clause? order_by_clause? skip_clause? limit_clause?
             | unwind_clause+ where_clause? create_clause return_clause?
