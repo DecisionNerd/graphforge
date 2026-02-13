@@ -149,7 +149,7 @@ def verify_result_any_order(tck_context, datatable):
         assert exp_row in actual_rows, f"Expected row not found: {exp_row}"
 
 
-@then("the result should be, in order")
+@then("the result should be, in order:")
 def verify_result_in_order(tck_context, datatable):
     """Verify query results match expected table (order matters)."""
     result = tck_context["result"]
