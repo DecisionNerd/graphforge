@@ -1862,6 +1862,13 @@ class QueryExecutor:
                 if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):
                     node_pattern = pattern_parts[0]
 
+                    # Validate no disjunctive labels in MERGE
+                    if node_pattern.labels and len(node_pattern.labels) > 1:
+                        raise ValueError(
+                            "Disjunctive labels (using '|') are not allowed in MERGE patterns. "
+                            "Use multiple MERGE statements or specify only conjunction of labels."
+                        )
+
                     # Try to find existing node
                     found_node = None
 

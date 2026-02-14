@@ -176,5 +176,10 @@ class TestLabelDisjunctionEdgeCases:
 
     def test_create_rejects_disjunctive_labels(self, gf):
         """CREATE should reject disjunctive labels with clear error message."""
-        with pytest.raises(ValueError, match="Disjunctive labels.*not allowed in CREATE"):
+        with pytest.raises(ValueError, match=r"Disjunctive labels.*not allowed in CREATE"):
             gf.execute("CREATE (:Person|Company {name: 'Alice'})")
+
+    def test_merge_rejects_disjunctive_labels(self, gf):
+        """MERGE should reject disjunctive labels with clear error message."""
+        with pytest.raises(ValueError, match=r"Disjunctive labels.*not allowed in MERGE"):
+            gf.execute("MERGE (:Person|Company {name: 'Alice'})")
