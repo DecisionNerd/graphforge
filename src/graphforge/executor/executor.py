@@ -4,7 +4,9 @@ This module implements the execution engine that runs logical plan operators
 against a graph store.
 """
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from graphforge.ast.expression import FunctionCall, PropertyAccess, Variable
 from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
@@ -33,7 +35,6 @@ from graphforge.planner.operators import (
     With,
 )
 from graphforge.storage.memory import Graph
-from graphforge.types.graph import NodeRef
 from graphforge.types.values import (
     CypherBool,
     CypherFloat,
@@ -43,6 +44,9 @@ from graphforge.types.values import (
     CypherNull,
     CypherValue,
 )
+
+if TYPE_CHECKING:
+    from graphforge.types.graph import NodeRef
 
 
 def _cypher_to_python(cypher_val: CypherValue) -> Any:
@@ -206,19 +210,23 @@ class QueryExecutor:
 
         raise TypeError(f"Unknown operator type: {type(op).__name__}")
 
-    def _node_matches_labels(self, node: "NodeRef", label_spec: list[list[str]]) -> bool:
+    def _node_matches_labels(self, node: NodeRef | CypherNull, label_spec: list[list[str]]) -> bool:
         """Check if a node matches a label specification.
 
         Args:
-            node: The node to check
+            node: The node to check (or CypherNull from OPTIONAL MATCH)
             label_spec: List of label groups (disjunction of conjunctions)
                        Example: [['Person']] - node must have 'Person'
                        Example: [['Person', 'Employee']] - node must have both
                        Example: [['Person'], ['Company']] - node must have Person OR Company
 
         Returns:
-            True if node matches any label group, False otherwise
+            True if node matches any label group, False otherwise (including if node is null)
         """
+        # Handle null nodes (from OPTIONAL MATCH)
+        if isinstance(node, CypherNull):
+            return False
+
         # Check if ANY label group matches (OR between groups)
         for label_group in label_spec:
             # Check if ALL labels in this group are present (AND within group)
@@ -462,7 +470,7 @@ class QueryExecutor:
             src_node = ctx.get(op.src_var)
 
             # Perform depth-first search with cycle detection
-            from graphforge.types.graph import EdgeRef, NodeRef
+            from graphforge.types.graph import EdgeRef
 
             stack: list[tuple[NodeRef, list[EdgeRef], int, set[str | int]]] = [
                 (src_node, [], 0, {src_node.id})
@@ -584,7 +592,7 @@ class QueryExecutor:
 
             # Track paths through the multi-hop traversal
             # Each state: (current_node, path_nodes, path_edges, hop_index)
-            from graphforge.types.graph import EdgeRef, NodeRef
+            from graphforge.types.graph import EdgeRef
 
             states: list[tuple[NodeRef, list[NodeRef], list[EdgeRef], int]] = [
                 (src_node, [src_node], [], 0)
@@ -1578,8 +1586,15 @@ class QueryExecutor:
         Returns:
             Created NodeRef
         """
+        # Validate no disjunctive labels in CREATE
+        if node_pattern.labels and len(node_pattern.labels) > 1:
+            raise ValueError(
+                "Disjunctive labels (using '|') are not allowed in CREATE patterns. "
+                "Use multiple CREATE statements or specify only conjunction of labels."
+            )
+
         # Extract labels - flatten label groups for CREATE
-        # For CREATE, we apply all labels from all groups
+        # For CREATE, we apply all labels from all groups (only one group allowed)
         labels = []
         if node_pattern.labels:
             for label_group in node_pattern.labels:

@@ -5,13 +5,18 @@ import pytest
 from graphforge.api import GraphForge
 
 
+@pytest.fixture
+def gf():
+    """Provide a fresh GraphForge instance for each test."""
+    return GraphForge()
+
+
 @pytest.mark.integration
 class TestLabelDisjunctionBasic:
     """Tests for basic label disjunction functionality."""
 
-    def test_disjunction_matches_first_label(self):
+    def test_disjunction_matches_first_label(self, gf):
         """Label disjunction matches nodes with first label."""
-        gf = GraphForge()
         gf.execute("CREATE (:Person {name: 'Alice'})")
         gf.execute("CREATE (:Company {name: 'Acme'})")
 
@@ -21,9 +26,8 @@ class TestLabelDisjunctionBasic:
         assert result[0]["name"].value == "Acme"
         assert result[1]["name"].value == "Alice"
 
-    def test_disjunction_matches_second_label(self):
+    def test_disjunction_matches_second_label(self, gf):
         """Label disjunction matches nodes with second label."""
-        gf = GraphForge()
         gf.execute("CREATE (:Person {name: 'Alice'})")
         gf.execute("CREATE (:Company {name: 'Acme'})")
         gf.execute("CREATE (:Product {name: 'Widget'})")
@@ -32,9 +36,8 @@ class TestLabelDisjunctionBasic:
 
         assert result[0]["count"].value == 2
 
-    def test_disjunction_with_three_labels(self):
+    def test_disjunction_with_three_labels(self, gf):
         """Label disjunction with three labels."""
-        gf = GraphForge()
         gf.execute("CREATE (:Person {name: 'Alice'})")
         gf.execute("CREATE (:Company {name: 'Acme'})")
         gf.execute("CREATE (:Product {name: 'Widget'})")
@@ -43,9 +46,8 @@ class TestLabelDisjunctionBasic:
 
         assert result[0]["count"].value == 3
 
-    def test_disjunction_no_matches(self):
+    def test_disjunction_no_matches(self, gf):
         """Label disjunction with no matching nodes."""
-        gf = GraphForge()
         gf.execute("CREATE (:Person {name: 'Alice'})")
 
         result = gf.execute("MATCH (n:Company|Product) RETURN n")
@@ -57,9 +59,8 @@ class TestLabelDisjunctionBasic:
 class TestLabelDisjunctionWithConjunction:
     """Tests for label disjunction combined with conjunction."""
 
-    def test_conjunction_within_group(self):
+    def test_conjunction_within_group(self, gf):
         """Conjunction within a label group (must have both labels)."""
-        gf = GraphForge()
         gf.execute("CREATE (:Person {name: 'Alice'})")
         gf.execute("CREATE (:Person:Employee {name: 'Bob'})")
         gf.execute("CREATE (:Company {name: 'Acme'})")
@@ -69,9 +70,8 @@ class TestLabelDisjunctionWithConjunction:
         assert len(result) == 1
         assert result[0]["name"].value == "Bob"
 
-    def test_disjunction_of_conjunctions(self):
+    def test_disjunction_of_conjunctions(self, gf):
         """Disjunction of conjunction groups."""
-        gf = GraphForge()
         gf.execute("CREATE (:Person:Employee {name: 'Bob'})")
         gf.execute("CREATE (:Company:Startup {name: 'TechCo'})")
         gf.execute("CREATE (:Person {name: 'Alice'})")
@@ -89,9 +89,8 @@ class TestLabelDisjunctionWithConjunction:
 class TestLabelDisjunctionInPatterns:
     """Tests for label disjunction in different pattern contexts."""
 
-    def test_disjunction_in_relationship_pattern(self):
+    def test_disjunction_in_relationship_pattern(self, gf):
         """Label disjunction in relationship patterns."""
-        gf = GraphForge()
         gf.execute("CREATE (a:Person {name: 'Alice'})")
         gf.execute("CREATE (b:Company {name: 'Acme'})")
         gf.execute("CREATE (c:Product {name: 'Widget'})")
@@ -108,9 +107,8 @@ class TestLabelDisjunctionInPatterns:
         assert result[0]["name"].value == "Acme"
         assert result[1]["name"].value == "Widget"
 
-    def test_disjunction_in_multiple_patterns(self):
+    def test_disjunction_in_multiple_patterns(self, gf):
         """Label disjunction in multiple MATCH patterns."""
-        gf = GraphForge()
         gf.execute("CREATE (a:Person {name: 'Alice'})")
         gf.execute("CREATE (b:Company {name: 'Acme'})")
         gf.execute("CREATE (c:Product {name: 'Widget'})")
@@ -125,9 +123,8 @@ class TestLabelDisjunctionInPatterns:
         # Total = 4
         assert result[0]["count"].value == 4
 
-    def test_disjunction_in_where_clause(self):
+    def test_disjunction_in_where_clause(self, gf):
         """Label disjunction works correctly with WHERE clause."""
-        gf = GraphForge()
         gf.execute("CREATE (:Person {name: 'Alice', age: 30})")
         gf.execute("CREATE (:Company {name: 'Acme', age: 5})")
         gf.execute("CREATE (:Person {name: 'Bob', age: 25})")
@@ -148,9 +145,8 @@ class TestLabelDisjunctionInPatterns:
 class TestLabelDisjunctionEdgeCases:
     """Edge case tests for label disjunction."""
 
-    def test_single_label_as_disjunction(self):
+    def test_single_label_as_disjunction(self, gf):
         """Single label (no pipe) still works."""
-        gf = GraphForge()
         gf.execute("CREATE (:Person {name: 'Alice'})")
 
         result = gf.execute("MATCH (n:Person) RETURN n.name AS name")
@@ -158,9 +154,8 @@ class TestLabelDisjunctionEdgeCases:
         assert len(result) == 1
         assert result[0]["name"].value == "Alice"
 
-    def test_disjunction_with_node_having_both_labels(self):
+    def test_disjunction_with_node_having_both_labels(self, gf):
         """Node with both labels matches disjunction once."""
-        gf = GraphForge()
         gf.execute("CREATE (:Person:Company {name: 'Alice'})")
 
         result = gf.execute("MATCH (n:Person|Company) RETURN n.name AS name")
@@ -169,9 +164,8 @@ class TestLabelDisjunctionEdgeCases:
         assert len(result) == 1
         assert result[0]["name"].value == "Alice"
 
-    def test_disjunction_with_properties(self):
+    def test_disjunction_with_properties(self, gf):
         """Label disjunction with inline properties."""
-        gf = GraphForge()
         gf.execute("CREATE (:Person {name: 'Alice'})")
         gf.execute("CREATE (:Company {name: 'Alice'})")
         gf.execute("CREATE (:Person {name: 'Bob'})")
@@ -179,3 +173,8 @@ class TestLabelDisjunctionEdgeCases:
         result = gf.execute("MATCH (n:Person|Company {name: 'Alice'}) RETURN n")
 
         assert len(result) == 2
+
+    def test_create_rejects_disjunctive_labels(self, gf):
+        """CREATE should reject disjunctive labels with clear error message."""
+        with pytest.raises(ValueError, match="Disjunctive labels.*not allowed in CREATE"):
+            gf.execute("CREATE (:Person|Company {name: 'Alice'})")
