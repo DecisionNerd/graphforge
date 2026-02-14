@@ -31,12 +31,17 @@ class ScanNodes(BaseModel):
 
     Attributes:
         variable: Variable name to bind nodes to
-        labels: Optional list of labels to filter by (None = all nodes)
+        labels: Optional list of label groups (disjunction of conjunctions)
+               Example: [['Person']] - must have 'Person'
+               Example: [['Person', 'Employee']] - must have both
+               Example: [['Person'], ['Company']] - must have Person OR Company
         path_var: Variable name to bind single-node path to (None if not needed)
     """
 
     variable: str = Field(..., min_length=1, description="Variable name to bind nodes")
-    labels: list[str] | None = Field(default=None, description="Optional label filter")
+    labels: list[list[str]] | None = Field(
+        default=None, description="Optional label filter (disjunction of conjunctions)"
+    )
     path_var: str | None = Field(default=None, description="Path variable name")
 
     @field_validator("variable")
@@ -58,12 +63,14 @@ class OptionalScanNodes(BaseModel):
 
     Attributes:
         variable: Variable name to bind nodes to
-        labels: Optional list of labels to filter by (None = all nodes)
+        labels: Optional list of label groups (disjunction of conjunctions)
         path_var: Variable name to bind single-node path to (None if not needed)
     """
 
     variable: str = Field(..., min_length=1, description="Variable name to bind nodes")
-    labels: list[str] | None = Field(default=None, description="Optional label filter")
+    labels: list[list[str]] | None = Field(
+        default=None, description="Optional label filter (disjunction of conjunctions)"
+    )
     path_var: str | None = Field(default=None, description="Path variable name")
 
     @field_validator("variable")

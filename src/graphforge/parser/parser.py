@@ -382,8 +382,14 @@ class ASTTransformer(Transformer):
         for item in items:
             if isinstance(item, Variable):
                 variable = item.name
-            elif isinstance(item, list) and all(isinstance(x, str) for x in item):
-                labels = item
+            elif isinstance(item, list):
+                # Check if it's the new nested list format (label groups)
+                if item and isinstance(item[0], list):
+                    # It's a list of label groups (disjunction of conjunctions)
+                    labels = item
+                elif all(isinstance(x, str) for x in item):
+                    # It's a flat list of strings (old format, shouldn't happen anymore)
+                    labels = [item]  # Wrap in a list to make it consistent
             elif isinstance(item, dict):
                 properties = item
 
@@ -491,11 +497,27 @@ class ASTTransformer(Transformer):
 
     # Labels and types
     def labels(self, items):
-        """Transform labels."""
+        """Transform labels rule.
+
+        Returns a list of label groups (disjunction of conjunctions).
+        Example: :Person → [['Person']]
+        Example: :Person:Employee → [['Person', 'Employee']]
+        Example: :Person|Company → [['Person'], ['Company']]
+        Example: :Person:Employee|Company:Startup → [['Person', 'Employee'], ['Company', 'Startup']]
+        """
+        # items[0] is the label_disjunction
+        return items[0]
+
+    def label_disjunction(self, items):
+        """Transform label disjunction (list of label_conjunction groups)."""
         return list(items)
 
+    def label_conjunction(self, items):
+        """Transform a conjunction group of labels (list of IDENTIFIER tokens)."""
+        return [self._get_token_value(item) for item in items]
+
     def label(self, items):
-        """Transform single label."""
+        """Transform single label (for REMOVE clause)."""
         return self._get_token_value(items[0])
 
     def rel_types(self, items):

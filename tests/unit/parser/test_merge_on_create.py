@@ -116,7 +116,7 @@ class TestMergeOnCreateParsing:
         node = parts[0]
         assert isinstance(node, NodePattern)
         assert node.variable == "TheMatrix"
-        assert node.labels == ["Movie"]
+        assert node.labels == [["Movie"]]  # Labels are now list of label groups
         assert "title" in node.properties
 
         # Check ON CREATE SET items

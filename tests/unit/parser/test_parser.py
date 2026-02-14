@@ -72,7 +72,7 @@ class TestNodePatterns:
 
         assert isinstance(node, NodePattern)
         assert node.variable == "n"
-        assert "Person" in node.labels
+        assert node.labels == [["Person"]]  # Labels are now list of label groups
 
     def test_node_multiple_labels(self, parser):
         """Parse node with multiple labels."""
@@ -80,9 +80,7 @@ class TestNodePatterns:
         match = ast.clauses[0]
         node = match.patterns[0]["parts"][0]
 
-        assert len(node.labels) == 2
-        assert "Person" in node.labels
-        assert "Employee" in node.labels
+        assert node.labels == [["Person", "Employee"]]  # Multiple labels as conjunction
 
     def test_node_with_properties(self, parser):
         """Parse node with property constraints."""
@@ -101,7 +99,7 @@ class TestNodePatterns:
         node = match.patterns[0]["parts"][0]
 
         assert node.variable is None
-        assert "Person" in node.labels
+        assert node.labels == [["Person"]]  # Labels are now list of label groups
 
 
 @pytest.mark.unit

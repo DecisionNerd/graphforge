@@ -192,7 +192,11 @@ when_clause: "WHEN"i expression "THEN"i expression
 property_access: variable "." IDENTIFIER
 
 // Labels and types
-labels: label+
+labels: ":" label_disjunction
+
+label_disjunction: label_conjunction ("|" label_conjunction)*
+label_conjunction: IDENTIFIER (":" IDENTIFIER)*
+
 label: ":" IDENTIFIER
 
 rel_types: rel_type ("|" rel_type)*

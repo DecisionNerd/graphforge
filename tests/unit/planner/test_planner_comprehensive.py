@@ -81,7 +81,7 @@ class TestBasicQueryPlanning:
 
     def test_plan_create_clause(self):
         """Plan CREATE clause."""
-        node_pattern = NodePattern(variable="n", labels=["Person"])
+        node_pattern = NodePattern(variable="n", labels=[["Person"]])
         create = CreateClause(patterns=[node_pattern])
 
         query = CypherQuery(clauses=[create])
@@ -93,7 +93,7 @@ class TestBasicQueryPlanning:
 
     def test_plan_merge_clause(self):
         """Plan MERGE clause."""
-        node_pattern = NodePattern(variable="n", labels=["Person"])
+        node_pattern = NodePattern(variable="n", labels=[["Person"]])
         merge = MergeClause(patterns=[node_pattern], on_create=None, on_match=None)
 
         query = CypherQuery(clauses=[merge])
@@ -105,7 +105,7 @@ class TestBasicQueryPlanning:
 
     def test_plan_merge_with_on_create(self):
         """Plan MERGE with ON CREATE SET."""
-        node_pattern = NodePattern(variable="n", labels=["Person"])
+        node_pattern = NodePattern(variable="n", labels=[["Person"]])
         prop = PropertyAccess(variable="n", property="created")
         set_clause = SetClause(items=[(prop, Literal(value=True))])
         merge = MergeClause(patterns=[node_pattern], on_create=set_clause, on_match=None)
@@ -167,7 +167,7 @@ class TestOptionalMatchPlanning:
 
     def test_plan_optional_match_single_node(self):
         """Plan OPTIONAL MATCH with single node."""
-        node_pattern = NodePattern(variable="n", labels=["Person"])
+        node_pattern = NodePattern(variable="n", labels=[["Person"]])
         optional_match = OptionalMatchClause(patterns=[[node_pattern]])
 
         return_clause = ReturnClause(
@@ -181,12 +181,12 @@ class TestOptionalMatchPlanning:
 
         assert isinstance(operators[0], OptionalScanNodes)
         assert operators[0].variable == "n"
-        assert operators[0].labels == ["Person"]
+        assert operators[0].labels == [["Person"]]
 
     def test_plan_optional_match_with_properties(self):
         """Plan OPTIONAL MATCH with inline properties."""
         properties = {"name": Literal(value="Alice")}
-        node_pattern = NodePattern(variable="n", labels=["Person"], properties=properties)
+        node_pattern = NodePattern(variable="n", labels=[["Person"]], properties=properties)
         optional_match = OptionalMatchClause(patterns=[[node_pattern]])
 
         return_clause = ReturnClause(
@@ -528,7 +528,7 @@ class TestComplexMatchPlanning:
     def test_plan_match_with_inline_properties(self):
         """Plan MATCH with inline property predicates."""
         properties = {"name": Literal(value="Alice"), "age": Literal(value=30)}
-        node_pattern = NodePattern(variable="n", labels=["Person"], properties=properties)
+        node_pattern = NodePattern(variable="n", labels=[["Person"]], properties=properties)
         match = MatchClause(patterns=[[node_pattern]])
 
         return_clause = ReturnClause(
@@ -549,7 +549,7 @@ class TestComplexMatchPlanning:
     def test_plan_match_single_property(self):
         """Plan MATCH with single inline property."""
         properties = {"name": Literal(value="Alice")}
-        node_pattern = NodePattern(variable="n", labels=["Person"], properties=properties)
+        node_pattern = NodePattern(variable="n", labels=[["Person"]], properties=properties)
         match = MatchClause(patterns=[[node_pattern]])
 
         return_clause = ReturnClause(

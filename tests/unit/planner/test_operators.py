@@ -27,14 +27,15 @@ class TestScanNodes:
 
     def test_scan_by_label(self):
         """ScanNodes can filter by label."""
-        op = ScanNodes(variable="n", labels=["Person"])
+        op = ScanNodes(variable="n", labels=[["Person"]])
         assert op.variable == "n"
-        assert "Person" in op.labels
+        assert ["Person"] in op.labels
 
     def test_scan_multiple_labels(self):
         """ScanNodes can filter by multiple labels."""
-        op = ScanNodes(variable="n", labels=["Person", "Employee"])
-        assert len(op.labels) == 2
+        op = ScanNodes(variable="n", labels=[["Person", "Employee"]])
+        assert len(op.labels) == 1
+        assert ["Person", "Employee"] in op.labels
 
 
 @pytest.mark.unit
@@ -158,7 +159,7 @@ class TestOperatorChaining:
         """Operators can be chained together."""
         from graphforge.ast.expression import Variable
 
-        scan = ScanNodes(variable="n", labels=["Person"])
+        scan = ScanNodes(variable="n", labels=[["Person"]])
         project = Project(items=[Variable(name="n")])
         limit = Limit(count=10)
 

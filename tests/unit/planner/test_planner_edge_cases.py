@@ -153,7 +153,7 @@ class TestEdgeCases:
             "age": Variable(name="y"),
             "city": Variable(name="z"),
         }
-        node_pattern = NodePattern(variable="n", labels=["Person"], properties=properties)
+        node_pattern = NodePattern(variable="n", labels=[["Person"]], properties=properties)
         match = MatchClause(patterns=[[node_pattern]])
 
         return_clause = ReturnClause(

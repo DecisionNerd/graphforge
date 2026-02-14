@@ -33,7 +33,7 @@ class TestExecutorErrorPaths:
         # Create executor WITHOUT graphforge reference
         executor = QueryExecutor(gf.graph, graphforge=None)
 
-        pattern = [NodePattern(variable="n", labels=["Person"], properties={})]
+        pattern = [NodePattern(variable="n", labels=[["Person"]], properties={})]
 
         if op_type == "CREATE":
             op = Create(patterns=[pattern])

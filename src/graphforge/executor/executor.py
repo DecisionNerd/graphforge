@@ -4,7 +4,9 @@ This module implements the execution engine that runs logical plan operators
 against a graph store.
 """
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from graphforge.ast.expression import FunctionCall, PropertyAccess, Variable
 from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
@@ -42,6 +44,9 @@ from graphforge.types.values import (
     CypherNull,
     CypherValue,
 )
+
+if TYPE_CHECKING:
+    from graphforge.types.graph import NodeRef
 
 
 def _cypher_to_python(cypher_val: CypherValue) -> Any:
@@ -205,6 +210,30 @@ class QueryExecutor:
 
         raise TypeError(f"Unknown operator type: {type(op).__name__}")
 
+    def _node_matches_labels(self, node: NodeRef | CypherNull, label_spec: list[list[str]]) -> bool:
+        """Check if a node matches a label specification.
+
+        Args:
+            node: The node to check (or CypherNull from OPTIONAL MATCH)
+            label_spec: List of label groups (disjunction of conjunctions)
+                       Example: [['Person']] - node must have 'Person'
+                       Example: [['Person', 'Employee']] - node must have both
+                       Example: [['Person'], ['Company']] - node must have Person OR Company
+
+        Returns:
+            True if node matches any label group, False otherwise (including if node is null)
+        """
+        # Handle null nodes (from OPTIONAL MATCH)
+        if isinstance(node, CypherNull):
+            return False
+
+        # Check if ANY label group matches (OR between groups)
+        for label_group in label_spec:
+            # Check if ALL labels in this group are present (AND within group)
+            if all(label in node.labels for label in label_group):
+                return True
+        return False
+
     def _execute_scan(
         self, op: ScanNodes, input_rows: list[ExecutionContext]
     ) -> list[ExecutionContext]:
@@ -224,7 +253,7 @@ class QueryExecutor:
 
                 # Check if bound node has required labels
                 if op.labels:
-                    if all(label in bound_node.labels for label in op.labels):
+                    if self._node_matches_labels(bound_node, op.labels):
                         # Node matches pattern - keep the context
                         # Bind path variable if requested
                         if op.path_var:
@@ -252,16 +281,24 @@ class QueryExecutor:
             else:
                 # Variable not bound - do normal scan
                 if op.labels:
-                    # Scan by first label for efficiency
-                    nodes = self.graph.get_nodes_by_label(op.labels[0])
+                    # Collect nodes from all label groups (disjunction)
+                    all_nodes = set()
+                    for label_group in op.labels:
+                        # Scan by first label in the group for efficiency
+                        group_nodes = self.graph.get_nodes_by_label(label_group[0])
 
-                    # Filter to only nodes with ALL required labels
-                    if len(op.labels) > 1:
-                        nodes = [
-                            node
-                            for node in nodes
-                            if all(label in node.labels for label in op.labels)
-                        ]
+                        # Filter to nodes with ALL labels in this group (conjunction)
+                        if len(label_group) > 1:
+                            group_nodes = [
+                                node
+                                for node in group_nodes
+                                if all(label in node.labels for label in label_group)
+                            ]
+
+                        # Add to result set
+                        all_nodes.update(group_nodes)
+
+                    nodes = list(all_nodes)
                 else:
                     # Scan all nodes
                     nodes = self.graph.get_all_nodes()
@@ -301,7 +338,7 @@ class QueryExecutor:
 
                 # Check if bound node has required labels
                 if op.labels:
-                    if all(label in bound_node.labels for label in op.labels):
+                    if self._node_matches_labels(bound_node, op.labels):
                         # Node matches pattern - keep the context
                         result.append(ctx)
                     else:
@@ -316,16 +353,24 @@ class QueryExecutor:
             else:
                 # Variable not bound - do normal scan
                 if op.labels:
-                    # Scan by first label for efficiency
-                    nodes = self.graph.get_nodes_by_label(op.labels[0])
+                    # Collect nodes from all label groups (disjunction)
+                    all_nodes = set()
+                    for label_group in op.labels:
+                        # Scan by first label in the group for efficiency
+                        group_nodes = self.graph.get_nodes_by_label(label_group[0])
 
-                    # Filter to only nodes with ALL required labels
-                    if len(op.labels) > 1:
-                        nodes = [
-                            node
-                            for node in nodes
-                            if all(label in node.labels for label in op.labels)
-                        ]
+                        # Filter to nodes with ALL labels in this group (conjunction)
+                        if len(label_group) > 1:
+                            group_nodes = [
+                                node
+                                for node in group_nodes
+                                if all(label in node.labels for label in label_group)
+                            ]
+
+                        # Add to result set
+                        all_nodes.update(group_nodes)
+
+                    nodes = list(all_nodes)
                 else:
                     # Scan all nodes
                     nodes = self.graph.get_all_nodes()
@@ -425,7 +470,7 @@ class QueryExecutor:
             src_node = ctx.get(op.src_var)
 
             # Perform depth-first search with cycle detection
-            from graphforge.types.graph import EdgeRef, NodeRef
+            from graphforge.types.graph import EdgeRef
 
             stack: list[tuple[NodeRef, list[EdgeRef], int, set[str | int]]] = [
                 (src_node, [], 0, {src_node.id})
@@ -547,7 +592,7 @@ class QueryExecutor:
 
             # Track paths through the multi-hop traversal
             # Each state: (current_node, path_nodes, path_edges, hop_index)
-            from graphforge.types.graph import EdgeRef, NodeRef
+            from graphforge.types.graph import EdgeRef
 
             states: list[tuple[NodeRef, list[NodeRef], list[EdgeRef], int]] = [
                 (src_node, [src_node], [], 0)
@@ -1541,8 +1586,19 @@ class QueryExecutor:
         Returns:
             Created NodeRef
         """
-        # Extract labels
-        labels = list(node_pattern.labels) if node_pattern.labels else []
+        # Validate no disjunctive labels in CREATE
+        if node_pattern.labels and len(node_pattern.labels) > 1:
+            raise ValueError(
+                "Disjunctive labels (using '|') are not allowed in CREATE patterns. "
+                "Use multiple CREATE statements or specify only conjunction of labels."
+            )
+
+        # Extract labels - flatten label groups for CREATE
+        # For CREATE, we apply all labels from all groups (only one group allowed)
+        labels = []
+        if node_pattern.labels:
+            for label_group in node_pattern.labels:
+                labels.extend(label_group)
 
         # Extract and evaluate properties
         properties = {}
@@ -1806,18 +1862,37 @@ class QueryExecutor:
                 if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):
                     node_pattern = pattern_parts[0]
 
+                    # Validate no disjunctive labels in MERGE
+                    if node_pattern.labels and len(node_pattern.labels) > 1:
+                        raise ValueError(
+                            "Disjunctive labels (using '|') are not allowed in MERGE patterns. "
+                            "Use multiple MERGE statements or specify only conjunction of labels."
+                        )
+
                     # Try to find existing node
                     found_node = None
 
                     if node_pattern.labels:
-                        # Get candidate nodes by first label
-                        first_label = node_pattern.labels[0]
-                        candidates = self.graph.get_nodes_by_label(first_label)
+                        # Collect candidate nodes from all label groups (disjunction)
+                        all_candidates = set()
+                        for label_group in node_pattern.labels:
+                            # Get nodes by first label in the group
+                            group_candidates = self.graph.get_nodes_by_label(label_group[0])
+
+                            # Filter to nodes with ALL labels in this group (conjunction)
+                            if len(label_group) > 1:
+                                group_candidates = [
+                                    node
+                                    for node in group_candidates
+                                    if all(label in node.labels for label in label_group)
+                                ]
+
+                            all_candidates.update(group_candidates)
+
+                        candidates = list(all_candidates)
 
                         for node in candidates:
-                            # Check if all required labels are present
-                            if not all(label in node.labels for label in node_pattern.labels):
-                                continue
+                            # Node already matches labels (filtered above)
 
                             # Check if properties match
                             if node_pattern.properties:

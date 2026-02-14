@@ -332,8 +332,8 @@ class TestUnionValidation:
         """Union accepts two or more branches."""
         op = Union(
             branches=[
-                [ScanNodes(variable="n", labels=["Person"])],
-                [ScanNodes(variable="n", labels=["Company"])],
+                [ScanNodes(variable="n", labels=[["Person"]])],
+                [ScanNodes(variable="n", labels=[["Company"]])],
             ]
         )
         assert len(op.branches) == 2
@@ -342,8 +342,8 @@ class TestUnionValidation:
         """Union respects the all flag."""
         op = Union(
             branches=[
-                [ScanNodes(variable="n", labels=["Person"])],
-                [ScanNodes(variable="n", labels=["Company"])],
+                [ScanNodes(variable="n", labels=[["Person"]])],
+                [ScanNodes(variable="n", labels=[["Company"]])],
             ],
             all=True,
         )
@@ -401,7 +401,7 @@ class TestMergeValidation:
         from graphforge.ast.expression import Literal, PropertyAccess
         from graphforge.ast.pattern import NodePattern
 
-        patterns = [NodePattern(variable="n", labels=["Person"])]
+        patterns = [NodePattern(variable="n", labels=[["Person"]])]
         prop = PropertyAccess(variable="n", property="created")
         set_clause = SetClause(items=[(prop, Literal(value=True))])
 
@@ -414,7 +414,7 @@ class TestMergeValidation:
         from graphforge.ast.expression import Literal, PropertyAccess
         from graphforge.ast.pattern import NodePattern
 
-        patterns = [NodePattern(variable="n", labels=["Person"])]
+        patterns = [NodePattern(variable="n", labels=[["Person"]])]
         prop = PropertyAccess(variable="n", property="matched")
         set_clause = SetClause(items=[(prop, Literal(value=True))])
 

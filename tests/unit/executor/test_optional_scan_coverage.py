@@ -43,7 +43,7 @@ class TestOptionalScanBoundVariables:
         ctx = ExecutionContext()
         ctx.bind("n", node)
 
-        op = OptionalScanNodes(variable="n", labels=required_labels)
+        op = OptionalScanNodes(variable="n", labels=[required_labels] if required_labels else [])
         result = executor._execute_optional_scan(op, [ctx])
 
         assert len(result) == 1
@@ -69,7 +69,7 @@ class TestOptionalScanUnboundVariables:
                     gf.create_node(["Person"], name="Bob"),
                     gf.create_node(["Company"], name="Acme"),
                 ),
-                ["Person"],
+                [["Person"]],
                 "p",
                 2,
                 lambda res, nodes: {r.get("p").id for r in res} == {nodes[0].id, nodes[1].id},
@@ -81,7 +81,7 @@ class TestOptionalScanUnboundVariables:
                     gf.create_node(["Person"], name="Bob"),
                     gf.create_node(["Employee"], name="Charlie"),
                 ),
-                ["Person", "Employee"],
+                [["Person", "Employee"]],
                 "p",
                 1,
                 lambda res, nodes: res[0].get("p").id == nodes[0].id,
@@ -89,7 +89,7 @@ class TestOptionalScanUnboundVariables:
             # No matches - returns NULL
             (
                 lambda gf: (gf.create_node(["Company"], name="Acme"),),
-                ["Person"],
+                [["Person"]],
                 "p",
                 1,
                 lambda res, _nodes: isinstance(res[0].get("p"), CypherNull),
@@ -109,7 +109,7 @@ class TestOptionalScanUnboundVariables:
             # Empty graph - returns NULL
             (
                 lambda _gf: (),
-                ["Person"],
+                [["Person"]],
                 "n",
                 1,
                 lambda res, _nodes: isinstance(res[0].get("n"), CypherNull),
@@ -160,7 +160,7 @@ class TestOptionalScanMultipleInputRows:
         ctx2.bind("p", bob)
 
         # OptionalScanNodes validates Person label
-        op = OptionalScanNodes(variable="p", labels=["Person"])
+        op = OptionalScanNodes(variable="p", labels=[["Person"]])
         result = executor._execute_optional_scan(op, [ctx1, ctx2])
 
         # Should preserve both contexts (both match)
@@ -184,7 +184,7 @@ class TestOptionalScanMultipleInputRows:
         ctx2.bind("n", acme)  # Doesn't match Person
 
         # OptionalScanNodes requires Person label
-        op = OptionalScanNodes(variable="n", labels=["Person"])
+        op = OptionalScanNodes(variable="n", labels=[["Person"]])
         result = executor._execute_optional_scan(op, [ctx1, ctx2])
 
         # Should preserve both contexts, second with NULL
@@ -208,7 +208,7 @@ class TestOptionalScanMultipleInputRows:
         ctx2.bind("x", CypherString("value2"))
 
         # OptionalScanNodes for unbound variable "p"
-        op = OptionalScanNodes(variable="p", labels=["Person"])
+        op = OptionalScanNodes(variable="p", labels=[["Person"]])
         result = executor._execute_optional_scan(op, [ctx1, ctx2])
 
         # Should produce cartesian product: 2 input rows * 2 Person nodes = 4 results
@@ -245,7 +245,7 @@ class TestOptionalScanEdgeCases:
         ctx.bind("other", CypherString("preserved"))
 
         # OptionalScanNodes for new variable
-        op = OptionalScanNodes(variable="p", labels=["Person"])
+        op = OptionalScanNodes(variable="p", labels=[["Person"]])
         result = executor._execute_optional_scan(op, [ctx])
 
         # Should preserve existing bindings
@@ -267,7 +267,7 @@ class TestOptionalScanEdgeCases:
         ctx = ExecutionContext()
 
         # OptionalScanNodes with multiple labels (should use Person for scan)
-        op = OptionalScanNodes(variable="p", labels=["Person", "Employee"])
+        op = OptionalScanNodes(variable="p", labels=[["Person", "Employee"]])
         result = executor._execute_optional_scan(op, [ctx])
 
         # Should only find Alice (has both labels)
