@@ -8,7 +8,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from graphforge.ast.expression import FunctionCall, PropertyAccess, Variable
+from graphforge.ast.expression import (
+    BinaryOp,
+    CaseExpression,
+    FunctionCall,
+    ListComprehension,
+    Literal,
+    PropertyAccess,
+    QuantifierExpression,
+    SubqueryExpression,
+    UnaryOp,
+    Variable,
+)
 from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
 from graphforge.planner.operators import (
     Aggregate,
@@ -71,6 +82,126 @@ def _cypher_to_python(cypher_val: CypherValue) -> Any:
     else:
         # CypherString or any other type
         return cypher_val.value
+
+
+def _expression_to_string(expr: Any, fallback_index: int | None = None) -> str:
+    """Convert AST expression to its Cypher string representation.
+
+    Used for generating column names when no explicit alias is provided.
+
+    Args:
+        expr: AST expression node
+        fallback_index: Optional index to append to ambiguous/fallback names
+                       for uniqueness (e.g., "CASE ... END_0", "expr_1")
+
+    Returns:
+        String representation of the expression
+    """
+    # Variable reference
+    if isinstance(expr, Variable):
+        return expr.name
+
+    # Property access
+    if isinstance(expr, PropertyAccess):
+        return f"{expr.variable}.{expr.property}"
+
+    # Literal value
+    if isinstance(expr, Literal):
+        value = expr.value
+        if value is None:
+            return "null"
+        elif isinstance(value, bool):
+            return "true" if value else "false"
+        elif isinstance(value, str):
+            # Use single quotes for string literals in Cypher
+            return f"'{value}'"
+        elif isinstance(value, (int, float)):
+            return str(value)
+        elif isinstance(value, list):
+            # List literal - format items directly
+            def format_item(item: Any) -> str:
+                if item is None:
+                    return "null"
+                elif isinstance(item, bool):
+                    return "true" if item else "false"
+                elif isinstance(item, str):
+                    return f"'{item}'"
+                else:
+                    return str(item)
+
+            items = [format_item(item) for item in value]
+            return f"[{', '.join(items)}]"
+        elif isinstance(value, dict):
+            # Map literal - format values directly
+            def format_value(v: Any) -> str:
+                if v is None:
+                    return "null"
+                elif isinstance(v, bool):
+                    return "true" if v else "false"
+                elif isinstance(v, str):
+                    return f"'{v}'"
+                else:
+                    return str(v)
+
+            pairs = [f"{k}: {format_value(v)}" for k, v in value.items()]
+            return f"{{{', '.join(pairs)}}}"
+        else:
+            return str(value)
+
+    # Function call
+    if isinstance(expr, FunctionCall):
+        func_name = expr.name.lower()
+        if not expr.args:
+            # COUNT(*) special case
+            return f"{func_name}(*)"
+        args = [_expression_to_string(arg) for arg in expr.args]
+        distinct_prefix = "DISTINCT " if expr.distinct else ""
+        return f"{func_name}({distinct_prefix}{', '.join(args)})"
+
+    # Binary operation
+    if isinstance(expr, BinaryOp):
+        left_str = _expression_to_string(expr.left)
+        right_str = _expression_to_string(expr.right)
+        # Add parentheses for complex expressions to avoid ambiguity
+        return f"({left_str} {expr.op} {right_str})"
+
+    # Unary operation
+    if isinstance(expr, UnaryOp):
+        operand_str = _expression_to_string(expr.operand)
+        if expr.op == "IS NULL":
+            return f"{operand_str} IS NULL"
+        elif expr.op == "IS NOT NULL":
+            return f"{operand_str} IS NOT NULL"
+        elif expr.op == "NOT":
+            return f"NOT {operand_str}"
+        elif expr.op == "-":
+            return f"-{operand_str}"
+        else:
+            return f"{expr.op} {operand_str}"
+
+    # CASE expression
+    if isinstance(expr, CaseExpression):
+        base = "CASE ... END"
+        return f"{base}_{fallback_index}" if fallback_index is not None else base
+
+    # List comprehension
+    if isinstance(expr, ListComprehension):
+        base = "[...]"
+        return f"{base}_{fallback_index}" if fallback_index is not None else base
+
+    # Quantifier expression
+    if isinstance(expr, QuantifierExpression):
+        base = f"{expr.quantifier}(...)"
+        return f"{base}_{fallback_index}" if fallback_index is not None else base
+
+    # Subquery expression
+    if isinstance(expr, SubqueryExpression):
+        base = f"{expr.type} {{ ... }}"
+        return f"{base}_{fallback_index}" if fallback_index is not None else base
+
+    # Fallback for unknown expression types
+    base = "expr"
+    return f"{base}_{fallback_index}" if fallback_index is not None else base
 
 
 class QueryExecutor:
@@ -720,16 +851,10 @@ class QueryExecutor:
                 if return_item.alias:
                     # Explicit alias provided - use it
                     key = return_item.alias
-                elif isinstance(return_item.expression, Variable):
-                    # Simple variable reference - use variable name as column name
-                    # This preserves names from WITH clauses
-                    key = return_item.expression.name
-                elif isinstance(return_item.expression, PropertyAccess):
-                    # Property access - use dotted notation (e.g., "p.name")
-                    key = f"{return_item.expression.variable}.{return_item.expression.property}"
                 else:
-                    # Complex expression without alias - use default column naming
-                    key = f"col_{i}"
+                    # No alias - generate column name from expression
+                    # Pass index for uniqueness in case of ambiguous expressions
+                    key = _expression_to_string(return_item.expression, fallback_index=i)
 
                 row[key] = value
             result.append(row)
@@ -1209,7 +1334,12 @@ class QueryExecutor:
                 # Find the corresponding ReturnItem to get the alias
                 for j, return_item in enumerate(op.return_items):
                     if return_item.expression == expr:
-                        key = return_item.alias if return_item.alias else f"col_{j}"
+                        # Use alias if provided, otherwise generate from expression
+                        key = (
+                            return_item.alias
+                            if return_item.alias
+                            else _expression_to_string(return_item.expression, fallback_index=j)
+                        )
                         # Convert back from hashable to CypherValue
                         hashable_val = group_key[i]
                         row[key] = self._hashable_to_cypher_value(hashable_val)
@@ -1222,7 +1352,12 @@ class QueryExecutor:
             # Find the corresponding ReturnItem to get the alias
             for j, return_item in enumerate(op.return_items):
                 if return_item.expression == agg_expr:
-                    key = return_item.alias if return_item.alias else f"col_{j}"
+                    # Use alias if provided, otherwise generate from expression
+                    key = (
+                        return_item.alias
+                        if return_item.alias
+                        else _expression_to_string(return_item.expression, fallback_index=j)
+                    )
 
                     # Compute the aggregation
                     result_value = self._compute_aggregation(agg_expr, group_rows)
@@ -2207,6 +2342,41 @@ class QueryExecutor:
 
         return result
 
+    def _extract_column_names_from_branch(self, branch: list) -> set[str] | None:
+        """Extract column names from a branch plan.
+
+        Used for UNION validation when branches return no rows.
+
+        Args:
+            branch: List of operators in the branch
+
+        Returns:
+            Set of column names, or None if no Project/Aggregate operator found
+        """
+        # Find the last Project or Aggregate operator in the branch
+        for op in reversed(branch):
+            if isinstance(op, Project):
+                # Extract column names from Project operator
+                columns = set()
+                for i, return_item in enumerate(op.items):
+                    if return_item.alias:
+                        columns.add(return_item.alias)
+                    else:
+                        # Generate column name same way as _execute_project
+                        columns.add(_expression_to_string(return_item.expression, fallback_index=i))
+                return columns
+            elif isinstance(op, Aggregate):
+                # Extract column names from Aggregate operator
+                columns = set()
+                for j, return_item in enumerate(op.return_items):
+                    if return_item.alias:
+                        columns.add(return_item.alias)
+                    else:
+                        # Generate column name same way as _compute_aggregates_for_group
+                        columns.add(_expression_to_string(return_item.expression, fallback_index=j))
+                return columns
+        return None
+
     def _execute_union(self, op: Union, input_rows: list[ExecutionContext]) -> list[Any]:
         """Execute Union operator.
 
@@ -2219,18 +2389,69 @@ class QueryExecutor:
 
         Returns:
             Combined results from all branches (list of dicts or ExecutionContexts)
+
+        Raises:
+            ValueError: If branches have incompatible column sets
         """
         all_results: list[Any] = []
+        branch_columns: list[tuple[int, set[str]]] = []
 
         # Execute each branch independently
-        for branch in op.branches:
+        for branch_idx, branch in enumerate(op.branches):
             # Execute this branch's pipeline
             branch_results: list[Any] = input_rows if input_rows else [ExecutionContext()]
             for op_index, branch_op in enumerate(branch):
                 branch_results = self._execute_operator(
                     branch_op, branch_results, op_index, len(branch)
                 )
+
+            # Track column names for validation
+            columns: set[str] | None = None
+
+            if branch_results and isinstance(branch_results[0], dict):
+                # Non-empty results - extract columns from first row
+                columns = set(branch_results[0].keys())
+            elif not branch_results:
+                # Empty results - extract column schema from branch plan
+                columns = self._extract_column_names_from_branch(branch)
+
+            # Add to branch_columns if we successfully extracted a schema
+            # Store as (branch_index, columns) tuple to preserve original branch numbering
+            if columns is not None:
+                branch_columns.append((branch_idx, columns))
+
             all_results.extend(branch_results)
+
+        # Validate that all branches have the same column names
+        if branch_columns and len(branch_columns) > 1:
+            first_branch_idx, first_columns = branch_columns[0]
+            for branch_idx, cols in branch_columns[1:]:
+                if cols != first_columns:
+                    # Column mismatch - raise error
+                    # Use 1-based numbering for user-facing error messages
+                    first_branch_num = first_branch_idx + 1
+                    current_branch_num = branch_idx + 1
+                    missing_in_branch = first_columns - cols
+                    extra_in_branch = cols - first_columns
+                    error_parts = []
+                    if missing_in_branch:
+                        msg = (
+                            f"missing columns {sorted(missing_in_branch)} "
+                            f"in branch {current_branch_num}"
+                        )
+                        error_parts.append(msg)
+                    if extra_in_branch:
+                        msg = (
+                            f"extra columns {sorted(extra_in_branch)} "
+                            f"in branch {current_branch_num}"
+                        )
+                        error_parts.append(msg)
+                    error_msg = (
+                        f"All sub queries in an UNION must have the same column names "
+                        f"(branch {first_branch_num} vs branch {current_branch_num}): "
+                        f"{'; '.join(error_parts)}"
+                    )
+                    raise ValueError(error_msg)
 
         # UNION (not UNION ALL) requires deduplication
         if not op.all:

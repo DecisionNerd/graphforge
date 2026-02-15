@@ -185,19 +185,207 @@ class TestUnionEdgeCases:
     def test_union_mismatched_column_count(self):
         """Test UNION behavior with different numbers of columns.
 
-        Note: Current implementation does not validate column count mismatch.
-        This test documents the current behavior (no error raised).
+        UNION requires all branches to have the same column names.
+        This test verifies that mismatched columns are properly rejected.
         """
         gf = GraphForge()
 
         gf.execute("CREATE (p:Person {name: 'Alice', age: 30})")
 
-        # Different column counts - currently allowed but may produce unexpected results
+        # Different column counts - should raise ValueError
+        with pytest.raises(
+            ValueError, match="All sub queries in an UNION must have the same column names"
+        ):
+            gf.execute("""
+                MATCH (p:Person) RETURN p.name AS name
+                UNION
+                MATCH (p:Person) RETURN p.name AS name, p.age AS age
+            """)
+
+
+@pytest.mark.integration
+class TestUnionEmptyBranchValidation:
+    """Test UNION validation with empty branches."""
+
+    def test_union_validates_empty_branch_column_mismatch(self):
+        """Test that UNION validates columns even when one branch returns no rows."""
+        gf = GraphForge()
+        gf.execute("CREATE (:Person {name: 'Alice', age: 30})")
+
+        # Branch 1: returns rows with column 'name'
+        # Branch 2: returns no rows but has columns 'name' and 'age'
+        with pytest.raises(ValueError, match="column names"):
+            gf.execute("""
+                MATCH (p:Person) RETURN p.name AS name
+                UNION
+                MATCH (p:Person) WHERE false RETURN p.name AS name, p.age AS age
+            """)
+
+    def test_union_validates_both_empty_branches(self):
+        """Test that UNION validates columns when both branches are empty."""
+        gf = GraphForge()
+
+        # Both branches return no rows but have different columns
+        with pytest.raises(ValueError, match="column names"):
+            gf.execute("""
+                MATCH (p:Person) WHERE false RETURN p.name AS name
+                UNION
+                MATCH (p:Person) WHERE false RETURN p.name AS name, p.age AS age
+            """)
+
+    def test_union_allows_empty_branches_with_same_columns(self):
+        """Test that UNION allows empty branches if columns match."""
+        gf = GraphForge()
+        gf.execute("CREATE (:Person {name: 'Alice', age: 30})")
+
+        # Branch 1: returns rows
+        # Branch 2: returns no rows but has same column
         results = gf.execute("""
             MATCH (p:Person) RETURN p.name AS name
             UNION
-            MATCH (p:Person) RETURN p.name AS name, p.age AS age
+            MATCH (p:Person) WHERE false RETURN p.name AS name
         """)
 
-        # Current behavior: both branches execute, results merged without validation
-        assert len(results) == 2
+        # Should succeed and return only the row from branch 1
+        assert len(results) == 1
+        assert results[0]["name"].value == "Alice"
+
+    def test_union_validates_empty_first_branch(self):
+        """Test that UNION validates when first branch is empty."""
+        gf = GraphForge()
+        gf.execute("CREATE (:Person {name: 'Alice', age: 30})")
+
+        # Branch 1: returns no rows but has columns 'name' and 'age'
+        # Branch 2: returns rows with column 'name'
+        with pytest.raises(ValueError, match="column names"):
+            gf.execute("""
+                MATCH (p:Person) WHERE false RETURN p.name AS name, p.age AS age
+                UNION
+                MATCH (p:Person) RETURN p.name AS name
+            """)
+
+
+@pytest.mark.integration
+class TestUnionBranchIndexReporting:
+    """Test that UNION error messages report correct branch numbers."""
+
+    def test_union_reports_correct_branch_numbers(self):
+        """Test that error messages use correct 1-based branch numbering."""
+        gf = GraphForge()
+        gf.execute("CREATE (:Person {name: 'Alice', age: 30})")
+
+        # Branch 1 has column 'name', Branch 2 has columns 'name' and 'age'
+        with pytest.raises(ValueError) as exc_info:
+            gf.execute("""
+                MATCH (p:Person) RETURN p.name AS name
+                UNION
+                MATCH (p:Person) RETURN p.name AS name, p.age AS age
+            """)
+
+        error_msg = str(exc_info.value)
+        # Should report branch 1 vs branch 2 (1-based numbering)
+        assert "branch 1" in error_msg
+        assert "branch 2" in error_msg
+        # Should mention the extra column
+        assert "age" in error_msg
+
+    def test_union_reports_correct_numbers_with_three_branches(self):
+        """Test branch numbering with three branches."""
+        gf = GraphForge()
+
+        # Branch 1: col 'a'
+        # Branch 2: col 'a'
+        # Branch 3: cols 'a' and 'b' (mismatch)
+        with pytest.raises(ValueError) as exc_info:
+            gf.execute("""
+                RETURN 1 AS a
+                UNION
+                RETURN 2 AS a
+                UNION
+                RETURN 3 AS a, 4 AS b
+            """)
+
+        error_msg = str(exc_info.value)
+        # Should report branch 1 vs branch 3
+        assert "branch 1" in error_msg
+        assert "branch 3" in error_msg
+        # Should mention the extra column
+        assert "b" in error_msg
+
+    def test_union_reports_missing_columns_correctly(self):
+        """Test that missing columns are reported with correct branch numbers."""
+        gf = GraphForge()
+
+        # Branch 1: cols 'a' and 'b'
+        # Branch 2: col 'a' only (missing 'b')
+        with pytest.raises(ValueError) as exc_info:
+            gf.execute("""
+                RETURN 1 AS a, 2 AS b
+                UNION
+                RETURN 3 AS a
+            """)
+
+        error_msg = str(exc_info.value)
+        # Should report branches correctly
+        assert "branch 1" in error_msg
+        assert "branch 2" in error_msg
+        # Should mention missing column
+        assert "missing" in error_msg.lower()
+        assert "b" in error_msg
+
+
+@pytest.mark.integration
+class TestUnionAggregateExtraction:
+    """Test that UNION extracts schema from Aggregate operators in empty branches."""
+
+    def test_union_validates_aggregate_columns_in_empty_branch(self):
+        """Test schema extraction from Aggregate operators for validation."""
+        gf = GraphForge()
+        gf.execute("CREATE (:Person {name: 'Alice', age: 30})")
+
+        # Branch 1: Simple RETURN with column 'name'
+        # Branch 2: Empty aggregation with columns 'name' and 'total'
+        with pytest.raises(ValueError) as exc_info:
+            gf.execute("""
+                MATCH (p:Person) RETURN p.name AS name
+                UNION
+                MATCH (p:Person) WHERE false RETURN p.name AS name, count(*) AS total
+            """)
+
+        error_msg = str(exc_info.value)
+        # Should detect the column mismatch even though second branch is empty
+        assert "column names" in error_msg
+        assert "total" in error_msg
+
+    def test_union_allows_matching_aggregate_columns_in_empty_branch(self):
+        """Test that matching aggregate columns in empty branches work."""
+        gf = GraphForge()
+        gf.execute("CREATE (:Person {name: 'Alice'})")
+
+        # Both branches have same columns, one is empty aggregate
+        results = gf.execute("""
+            MATCH (p:Person) RETURN p.name AS name, 1 AS cnt
+            UNION
+            MATCH (p:Person) WHERE false RETURN p.name AS name, count(*) AS cnt
+        """)
+
+        # Should succeed - columns match
+        assert len(results) == 1
+        assert "name" in results[0]
+        assert "cnt" in results[0]
+
+    def test_union_aggregate_without_alias_in_empty_branch(self):
+        """Test aggregate functions without aliases in empty branches."""
+        gf = GraphForge()
+
+        # Empty branch with aggregate without alias
+        with pytest.raises(ValueError) as exc_info:
+            gf.execute("""
+                RETURN 1 AS x
+                UNION
+                MATCH (p:Person) WHERE false RETURN count(*)
+            """)
+
+        error_msg = str(exc_info.value)
+        # Should detect column mismatch
+        assert "column names" in error_msg
