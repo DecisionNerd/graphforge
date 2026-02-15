@@ -208,10 +208,10 @@ class TestComplexMergePatterns:
         assert results[0]["company"].value == "Acme"
 
     def test_merge_with_null_property(self):
-        """MERGE with NULL property value."""
+        """MERGE with NULL property value should always create (NULL never matches NULL)."""
         gf = GraphForge()
 
-        # MERGE with NULL property
+        # First MERGE with NULL property creates node
         results = gf.execute("""
             MERGE (p:Person {name: 'Alice', age: NULL})
             RETURN p.name AS name
@@ -220,11 +220,14 @@ class TestComplexMergePatterns:
         assert len(results) == 1
         assert results[0]["name"].value == "Alice"
 
-        # Try to merge again with NULL
+        # Second MERGE with NULL should CREATE new node (NULL doesn't match NULL per openCypher)
         results2 = gf.execute("""
             MERGE (p:Person {name: 'Alice', age: NULL})
             RETURN p
         """)
 
-        # Should still work
         assert len(results2) == 1
+
+        # Total count should be 2 (NULL never matches NULL per openCypher)
+        count_result = gf.execute("MATCH (p:Person {name: 'Alice'}) RETURN count(p) AS count")
+        assert count_result[0]["count"].value == 2

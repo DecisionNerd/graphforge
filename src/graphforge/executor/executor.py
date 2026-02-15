@@ -1955,16 +1955,34 @@ class QueryExecutor:
                                 match = True
                                 for key, value_expr in node_pattern.properties.items():
                                     expected_value = evaluate_expression(value_expr, new_ctx, self)
+
+                                    # NULL in pattern never matches (per openCypher spec)
+                                    # NULL = anything returns NULL (unknown, not true)
+                                    if isinstance(expected_value, CypherNull):
+                                        match = False
+                                        break
+
                                     if key not in node.properties:
                                         match = False
                                         break
+
                                     # Compare CypherValue objects using equality
                                     node_value = node.properties[key]
+
+                                    # NULL in node property never matches
+                                    if isinstance(node_value, CypherNull):
+                                        match = False
+                                        break
+
                                     comparison_result = node_value.equals(expected_value)
-                                    if (
-                                        isinstance(comparison_result, CypherBool)
-                                        and not comparison_result.value
-                                    ):
+
+                                    # Comparison should return CypherBool (both non-NULL)
+                                    if not isinstance(comparison_result, CypherBool):
+                                        # Unexpected NULL (shouldn't happen after checks)
+                                        match = False
+                                        break
+
+                                    if not comparison_result.value:
                                         match = False
                                         break
 
