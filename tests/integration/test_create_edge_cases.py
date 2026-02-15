@@ -265,7 +265,6 @@ class TestCreateWithMixedNumericTypes:
             CypherInt,
             CypherList,
             CypherMap,
-            CypherNull,
             CypherString,
         )
 
@@ -273,7 +272,8 @@ class TestCreateWithMixedNumericTypes:
         assert isinstance(node.properties["int_prop"], CypherInt)
         assert isinstance(node.properties["float_prop"], CypherFloat)
         assert isinstance(node.properties["bool_prop"], CypherBool)
-        assert isinstance(node.properties["null_prop"], CypherNull)
+        # Per openCypher spec, NULL properties are not stored
+        assert "null_prop" not in node.properties
         assert isinstance(node.properties["list_prop"], CypherList)
         assert isinstance(node.properties["map_prop"], CypherMap)
 
@@ -328,3 +328,148 @@ class TestCreateRelationshipWithComplexProperties:
         assert isinstance(project, dict)
         assert project["name"].value == "GraphForge"
         assert project["year"].value == 2024
+
+
+@pytest.mark.integration
+class TestCreateNullProperties:
+    """Tests for CREATE with NULL property handling (Issue #146)."""
+
+    def test_create_node_with_null_property_not_stored(self, empty_graph):
+        """CREATE with NULL property should not store the property."""
+        empty_graph.execute("CREATE (n:Node {name: 'Alice', age: null})")
+        results = empty_graph.execute("MATCH (n:Node) RETURN n")
+        assert len(results) == 1
+        node = results[0]["n"]
+        # name should exist, age should not
+        assert "name" in node.properties
+        assert "age" not in node.properties
+
+    def test_create_node_with_all_null_properties(self, empty_graph):
+        """CREATE with all NULL properties should create node without properties."""
+        empty_graph.execute("CREATE (n:Node {a: null, b: null})")
+        results = empty_graph.execute("MATCH (n:Node) RETURN n")
+        assert len(results) == 1
+        node = results[0]["n"]
+        # Node should exist but have no properties
+        assert len(node.properties) == 0
+
+    def test_create_node_with_mixed_null_and_values(self, empty_graph):
+        """CREATE with mix of NULL and non-NULL properties stores only non-NULL."""
+        empty_graph.execute("""
+            CREATE (n:Person {
+                name: 'Bob',
+                age: 30,
+                email: null,
+                active: true,
+                phone: null
+            })
+        """)
+        results = empty_graph.execute("MATCH (n:Person) RETURN n")
+        assert len(results) == 1
+        node = results[0]["n"]
+        # Only non-NULL properties should exist
+        assert "name" in node.properties
+        assert "age" in node.properties
+        assert "active" in node.properties
+        assert "email" not in node.properties
+        assert "phone" not in node.properties
+
+    def test_create_relationship_with_null_property_not_stored(self, empty_graph):
+        """CREATE relationship with NULL property should not store the property."""
+        empty_graph.execute("""
+            CREATE (a:Person {name: 'Alice'}),
+                   (b:Person {name: 'Bob'}),
+                   (a)-[:KNOWS {since: 2020, context: null}]->(b)
+        """)
+        results = empty_graph.execute("""
+            MATCH (a:Person)-[r:KNOWS]->(b:Person)
+            RETURN r
+        """)
+        assert len(results) == 1
+        rel = results[0]["r"]
+        # since should exist, context should not
+        assert "since" in rel.properties
+        assert "context" not in rel.properties
+
+
+@pytest.mark.integration
+class TestCreateDuplicateVariables:
+    """Tests for CREATE with duplicate variable validation (Issue #146)."""
+
+    def test_create_comma_separated_patterns_rebind_allowed(self, empty_graph):
+        """CREATE with comma-separated patterns can rebind variables (different patterns)."""
+        # This is valid - comma-separated patterns are independent
+        empty_graph.execute("CREATE (a:Person {name: 'Alice'}), (a:Person {name: 'Bob'})")
+        results = empty_graph.execute("MATCH (n:Person) RETURN n.name AS name ORDER BY n.name")
+        # Both nodes should be created
+        assert len(results) == 2
+        assert results[0]["name"].value == "Alice"
+        assert results[1]["name"].value == "Bob"
+
+    def test_create_self_loop_allowed(self, empty_graph):
+        """CREATE self-loop using same variable for both ends is valid."""
+        # Self-loops are valid in openCypher
+        empty_graph.execute("CREATE (a:Person {name: 'Alice'})-[:KNOWS]->(a)")
+        results = empty_graph.execute("MATCH (a:Person)-[r:KNOWS]->(a) RETURN a.name AS name")
+        assert len(results) == 1
+        assert results[0]["name"].value == "Alice"
+
+    def test_create_duplicate_relationship_variables_raises_error(self, empty_graph):
+        """CREATE with same variable for two relationships should raise ValueError."""
+        with pytest.raises(ValueError, match="used multiple times for relationships"):
+            empty_graph.execute("""
+                CREATE (a:Person)-[r:KNOWS]->(b:Person)-[r:LIKES]->(c:Person)
+            """)
+
+    def test_create_node_and_relationship_same_variable_raises_error(self, empty_graph):
+        """CREATE with same variable for node and relationship should raise ValueError."""
+        with pytest.raises(ValueError, match="both node and relationship"):
+            empty_graph.execute("CREATE (x:Person)-[x:KNOWS]->(b:Person)")
+
+
+@pytest.mark.integration
+class TestCreateUndefinedVariables:
+    """Tests for CREATE with undefined variable detection (Issue #146)."""
+
+    def test_create_node_with_undefined_variable_in_property(self, empty_graph):
+        """CREATE with undefined variable in property expression should raise error."""
+        with pytest.raises((ValueError, KeyError), match="undefined_var|not bound"):
+            empty_graph.execute("CREATE (n:Person {name: undefined_var})")
+
+    def test_create_relationship_with_undefined_variable_in_property(self, empty_graph):
+        """CREATE relationship with undefined variable in property should raise error."""
+        with pytest.raises((ValueError, KeyError), match="undefined_var|not bound"):
+            empty_graph.execute("""
+                CREATE (a:Person)-[:KNOWS {since: undefined_var}]->(b:Person)
+            """)
+
+
+@pytest.mark.integration
+class TestCreatePropertyExpressions:
+    """Tests for CREATE with computed property expressions (Issue #146)."""
+
+    def test_create_node_with_arithmetic_expression(self, empty_graph):
+        """CREATE with arithmetic expression in property."""
+        empty_graph.execute("CREATE (n:Node {value: 1 + 2})")
+        results = empty_graph.execute("MATCH (n:Node) RETURN n.value AS value")
+        assert len(results) == 1
+        assert results[0]["value"].value == 3
+
+    def test_create_node_with_string_concatenation(self, empty_graph):
+        """CREATE with string concatenation in property."""
+        empty_graph.execute("CREATE (n:Person {name: 'Alice' + ' ' + 'Smith'})")
+        results = empty_graph.execute("MATCH (n:Person) RETURN n.name AS name")
+        assert len(results) == 1
+        assert results[0]["name"].value == "Alice Smith"
+
+    def test_create_relationship_with_computed_property(self, empty_graph):
+        """CREATE relationship with computed property expression."""
+        empty_graph.execute("""
+            CREATE (a:Person)-[:KNOWS {strength: 5 * 2}]->(b:Person)
+        """)
+        results = empty_graph.execute("""
+            MATCH ()-[r:KNOWS]->()
+            RETURN r.strength AS strength
+        """)
+        assert len(results) == 1
+        assert results[0]["strength"].value == 10
