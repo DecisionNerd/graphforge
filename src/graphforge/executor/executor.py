@@ -848,8 +848,7 @@ class QueryExecutor:
             for i, return_item in enumerate(op.items):
                 # Handle Wildcard (*) - return all variables from context
                 if isinstance(return_item.expression, Wildcard):
-                    for var_name, value in ctx.bindings.items():
-                        row[var_name] = value
+                    row.update(ctx.bindings)
                     continue
 
                 # Extract expression and alias from ReturnItem
