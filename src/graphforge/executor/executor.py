@@ -8,7 +8,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from graphforge.ast.expression import FunctionCall, PropertyAccess, Variable
+from graphforge.ast.expression import (
+    BinaryOp,
+    CaseExpression,
+    FunctionCall,
+    ListComprehension,
+    Literal,
+    PropertyAccess,
+    QuantifierExpression,
+    SubqueryExpression,
+    UnaryOp,
+    Variable,
+)
 from graphforge.executor.evaluator import ExecutionContext, evaluate_expression
 from graphforge.planner.operators import (
     Aggregate,
@@ -71,6 +82,99 @@ def _cypher_to_python(cypher_val: CypherValue) -> Any:
     else:
         # CypherString or any other type
         return cypher_val.value
+
+
+def _expression_to_string(expr: Any) -> str:
+    """Convert AST expression to its Cypher string representation.
+
+    Used for generating column names when no explicit alias is provided.
+
+    Args:
+        expr: AST expression node
+
+    Returns:
+        String representation of the expression
+    """
+    # Variable reference
+    if isinstance(expr, Variable):
+        return expr.name
+
+    # Property access
+    if isinstance(expr, PropertyAccess):
+        return f"{expr.variable}.{expr.property}"
+
+    # Literal value
+    if isinstance(expr, Literal):
+        value = expr.value
+        if value is None:
+            return "null"
+        elif isinstance(value, bool):
+            return "true" if value else "false"
+        elif isinstance(value, str):
+            # Use single quotes for string literals in Cypher
+            return f"'{value}'"
+        elif isinstance(value, (int, float)):
+            return str(value)
+        elif isinstance(value, list):
+            # List literal
+            items = [_expression_to_string(Literal(item)) for item in value]
+            return f"[{', '.join(items)}]"
+        elif isinstance(value, dict):
+            # Map literal
+            pairs = [f"{k}: {_expression_to_string(Literal(v))}" for k, v in value.items()]
+            return f"{{{', '.join(pairs)}}}"
+        else:
+            return str(value)
+
+    # Function call
+    if isinstance(expr, FunctionCall):
+        func_name = expr.name.lower()
+        if not expr.args:
+            # COUNT(*) special case
+            return f"{func_name}(*)"
+        args = [_expression_to_string(arg) for arg in expr.args]
+        distinct_prefix = "DISTINCT " if expr.distinct else ""
+        return f"{func_name}({distinct_prefix}{', '.join(args)})"
+
+    # Binary operation
+    if isinstance(expr, BinaryOp):
+        left_str = _expression_to_string(expr.left)
+        right_str = _expression_to_string(expr.right)
+        # Add parentheses for complex expressions to avoid ambiguity
+        return f"({left_str} {expr.op} {right_str})"
+
+    # Unary operation
+    if isinstance(expr, UnaryOp):
+        operand_str = _expression_to_string(expr.operand)
+        if expr.op == "IS NULL":
+            return f"{operand_str} IS NULL"
+        elif expr.op == "IS NOT NULL":
+            return f"{operand_str} IS NOT NULL"
+        elif expr.op == "NOT":
+            return f"NOT {operand_str}"
+        elif expr.op == "-":
+            return f"-{operand_str}"
+        else:
+            return f"{expr.op} {operand_str}"
+
+    # CASE expression
+    if isinstance(expr, CaseExpression):
+        return "CASE ... END"
+
+    # List comprehension
+    if isinstance(expr, ListComprehension):
+        return "[...]"
+
+    # Quantifier expression
+    if isinstance(expr, QuantifierExpression):
+        return f"{expr.quantifier}(...)"
+
+    # Subquery expression
+    if isinstance(expr, SubqueryExpression):
+        return f"{expr.type} {{ ... }}"
+
+    # Fallback for unknown expression types
+    return "expr"
 
 
 class QueryExecutor:
@@ -720,16 +824,10 @@ class QueryExecutor:
                 if return_item.alias:
                     # Explicit alias provided - use it
                     key = return_item.alias
-                elif isinstance(return_item.expression, Variable):
-                    # Simple variable reference - use variable name as column name
-                    # This preserves names from WITH clauses
-                    key = return_item.expression.name
-                elif isinstance(return_item.expression, PropertyAccess):
-                    # Property access - use dotted notation (e.g., "p.name")
-                    key = f"{return_item.expression.variable}.{return_item.expression.property}"
                 else:
-                    # Complex expression without alias - use default column naming
-                    key = f"col_{i}"
+                    # No alias - generate column name from expression
+                    # Use expression-to-string conversion for better column names
+                    key = _expression_to_string(return_item.expression)
 
                 row[key] = value
             result.append(row)
@@ -1209,7 +1307,12 @@ class QueryExecutor:
                 # Find the corresponding ReturnItem to get the alias
                 for j, return_item in enumerate(op.return_items):
                     if return_item.expression == expr:
-                        key = return_item.alias if return_item.alias else f"col_{j}"
+                        # Use alias if provided, otherwise generate from expression
+                        key = (
+                            return_item.alias
+                            if return_item.alias
+                            else _expression_to_string(return_item.expression)
+                        )
                         # Convert back from hashable to CypherValue
                         hashable_val = group_key[i]
                         row[key] = self._hashable_to_cypher_value(hashable_val)
@@ -1222,7 +1325,12 @@ class QueryExecutor:
             # Find the corresponding ReturnItem to get the alias
             for j, return_item in enumerate(op.return_items):
                 if return_item.expression == agg_expr:
-                    key = return_item.alias if return_item.alias else f"col_{j}"
+                    # Use alias if provided, otherwise generate from expression
+                    key = (
+                        return_item.alias
+                        if return_item.alias
+                        else _expression_to_string(return_item.expression)
+                    )
 
                     # Compute the aggregation
                     result_value = self._compute_aggregation(agg_expr, group_rows)
