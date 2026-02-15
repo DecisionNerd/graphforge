@@ -847,8 +847,12 @@ class QueryExecutor:
             row = {}
             for i, return_item in enumerate(op.items):
                 # Handle Wildcard (*) - return all variables from context
+                # Exclude planner-generated anonymous variables (starting with "__anon_")
                 if isinstance(return_item.expression, Wildcard):
-                    row.update(ctx.bindings)
+                    filtered_bindings = {
+                        k: v for k, v in ctx.bindings.items() if not k.startswith("__anon_")
+                    }
+                    row.update(filtered_bindings)
                     continue
 
                 # Extract expression and alias from ReturnItem
@@ -891,12 +895,22 @@ class QueryExecutor:
 
         for ctx in input_rows:
             new_ctx = ExecutionContext()
+            bound_vars = set()  # Track variables to detect duplicates
 
             for return_item in op.items:
                 # Handle Wildcard (*) - copy all variables from current context
+                # Exclude planner-generated anonymous variables (starting with "__anon_")
                 if isinstance(return_item.expression, Wildcard):
                     for var_name, value in ctx.bindings.items():
-                        new_ctx.bind(var_name, value)
+                        if not var_name.startswith("__anon_"):
+                            # Check for duplicate with explicit aliases
+                            if var_name in bound_vars:
+                                raise ValueError(
+                                    f"ColumnNameConflict: Variable '{var_name}' from wildcard "
+                                    f"expansion conflicts with explicitly aliased column"
+                                )
+                            new_ctx.bind(var_name, value)
+                            bound_vars.add(var_name)
                     continue
 
                 # Evaluate expression
@@ -914,8 +928,16 @@ class QueryExecutor:
                     # (This is technically invalid Cypher, but we'll allow it)
                     continue
 
+                # Check for duplicate
+                if var_name in bound_vars:
+                    raise ValueError(
+                        f"ColumnNameConflict: Multiple result columns with the same "
+                        f"name '{var_name}' are not supported"
+                    )
+
                 # Bind the value in the new context
                 new_ctx.bind(var_name, value)
+                bound_vars.add(var_name)
 
             result.append(new_ctx)
 
