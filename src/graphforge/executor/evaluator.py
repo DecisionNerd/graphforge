@@ -118,6 +118,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                         Literal,
                         Variable,
                         PropertyAccess,
+                        Subscript,
                         BinaryOp,
                         UnaryOp,
                         FunctionCall,
@@ -141,6 +142,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                         Literal,
                         Variable,
                         PropertyAccess,
+                        Subscript,
                         BinaryOp,
                         UnaryOp,
                         FunctionCall,
@@ -1376,6 +1378,7 @@ def _evaluate_math_function(func_name: str, args: list[CypherValue]) -> CypherVa
         # ROUND(number, [precision]) -> number
         # With 1 arg: rounds to nearest integer
         # With 2 args: rounds to specified decimal places
+        # Uses Neo4j tie-breaking: ties (x.5) round toward positive infinity
         if len(args) not in (1, 2):
             raise TypeError(f"ROUND expects 1 or 2 arguments, got {len(args)}")
 
@@ -1383,14 +1386,11 @@ def _evaluate_math_function(func_name: str, args: list[CypherValue]) -> CypherVa
         if not isinstance(arg, (CypherInt, CypherFloat)):
             raise TypeError(f"ROUND expects numeric argument, got {type(arg).__name__}")
 
-        if len(args) == 1:
-            # Round to nearest integer
-            if isinstance(arg, CypherInt):
-                return arg
-            else:
-                return CypherFloat(round(arg.value))
-        else:
-            # Round to specified precision
+        # Epsilon for detecting tie cases (fractional part is ±0.5)
+        eps = 1e-10
+        precision = 0 if len(args) == 1 else args[1].value
+
+        if len(args) == 2:
             precision_arg = args[1]
             if not isinstance(precision_arg, CypherInt):
                 raise TypeError(
@@ -1398,15 +1398,40 @@ def _evaluate_math_function(func_name: str, args: list[CypherValue]) -> CypherVa
                 )
             precision = precision_arg.value
 
-            if isinstance(arg, CypherInt):
-                # For integers, rounding with precision just returns the integer
-                # unless precision is negative (round to tens, hundreds, etc.)
-                if precision >= 0:
-                    return arg
-                else:
-                    return CypherInt(round(arg.value, precision))
-            else:
-                return CypherFloat(round(arg.value, precision))
+        if isinstance(arg, CypherInt):
+            # For integers with non-negative precision, no rounding needed
+            if precision >= 0:
+                return arg
+            # For negative precision, round to tens, hundreds, etc.
+            value = arg.value
+        else:
+            value = arg.value
+
+        # Scale value by 10^precision to move decimal point
+        scale = 10**precision
+        scaled = value * scale
+
+        # Check if scaled value is a tie case (fractional part is ±0.5)
+        frac = abs(scaled - math.floor(scaled))
+        is_tie = abs(frac - 0.5) < eps
+
+        if is_tie:
+            # Tie case: round toward positive infinity (use ceil)
+            rounded_scaled = math.ceil(scaled)
+        else:
+            # Non-tie case: standard rounding (add 0.5 and floor)
+            rounded_scaled = math.floor(scaled + 0.5)
+
+        result = rounded_scaled / scale
+
+        # Return appropriate type
+        if isinstance(arg, CypherInt) and precision >= 0:
+            return CypherInt(int(result))
+        elif len(args) == 1:
+            # Single arg: return float
+            return CypherFloat(result)
+        else:
+            return CypherFloat(result)
 
     elif func_name == "SIGN":
         # SIGN(number) -> int (-1, 0, or 1)
