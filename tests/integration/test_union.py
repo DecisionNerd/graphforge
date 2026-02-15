@@ -332,3 +332,60 @@ class TestUnionBranchIndexReporting:
         # Should mention missing column
         assert "missing" in error_msg.lower()
         assert "b" in error_msg
+
+
+@pytest.mark.integration
+class TestUnionAggregateExtraction:
+    """Test that UNION extracts schema from Aggregate operators in empty branches."""
+
+    def test_union_validates_aggregate_columns_in_empty_branch(self):
+        """Test schema extraction from Aggregate operators for validation."""
+        gf = GraphForge()
+        gf.execute("CREATE (:Person {name: 'Alice', age: 30})")
+
+        # Branch 1: Simple RETURN with column 'name'
+        # Branch 2: Empty aggregation with columns 'name' and 'total'
+        with pytest.raises(ValueError) as exc_info:
+            gf.execute("""
+                MATCH (p:Person) RETURN p.name AS name
+                UNION
+                MATCH (p:Person) WHERE false RETURN p.name AS name, count(*) AS total
+            """)
+
+        error_msg = str(exc_info.value)
+        # Should detect the column mismatch even though second branch is empty
+        assert "column names" in error_msg
+        assert "total" in error_msg
+
+    def test_union_allows_matching_aggregate_columns_in_empty_branch(self):
+        """Test that matching aggregate columns in empty branches work."""
+        gf = GraphForge()
+        gf.execute("CREATE (:Person {name: 'Alice'})")
+
+        # Both branches have same columns, one is empty aggregate
+        results = gf.execute("""
+            MATCH (p:Person) RETURN p.name AS name, 1 AS cnt
+            UNION
+            MATCH (p:Person) WHERE false RETURN p.name AS name, count(*) AS cnt
+        """)
+
+        # Should succeed - columns match
+        assert len(results) == 1
+        assert "name" in results[0]
+        assert "cnt" in results[0]
+
+    def test_union_aggregate_without_alias_in_empty_branch(self):
+        """Test aggregate functions without aliases in empty branches."""
+        gf = GraphForge()
+
+        # Empty branch with aggregate without alias
+        with pytest.raises(ValueError) as exc_info:
+            gf.execute("""
+                RETURN 1 AS x
+                UNION
+                MATCH (p:Person) WHERE false RETURN count(*)
+            """)
+
+        error_msg = str(exc_info.value)
+        # Should detect column mismatch
+        assert "column names" in error_msg
