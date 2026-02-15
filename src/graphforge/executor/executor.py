@@ -2394,10 +2394,10 @@ class QueryExecutor:
             ValueError: If branches have incompatible column sets
         """
         all_results: list[Any] = []
-        branch_columns: list[set[str]] = []
+        branch_columns: list[tuple[int, set[str]]] = []
 
         # Execute each branch independently
-        for branch in op.branches:
+        for branch_idx, branch in enumerate(op.branches):
             # Execute this branch's pipeline
             branch_results: list[Any] = input_rows if input_rows else [ExecutionContext()]
             for op_index, branch_op in enumerate(branch):
@@ -2416,28 +2416,39 @@ class QueryExecutor:
                 columns = self._extract_column_names_from_branch(branch)
 
             # Add to branch_columns if we successfully extracted a schema
+            # Store as (branch_index, columns) tuple to preserve original branch numbering
             if columns is not None:
-                branch_columns.append(columns)
+                branch_columns.append((branch_idx, columns))
 
             all_results.extend(branch_results)
 
         # Validate that all branches have the same column names
         if branch_columns and len(branch_columns) > 1:
-            first_columns = branch_columns[0]
-            for i, cols in enumerate(branch_columns[1:], start=2):
+            first_branch_idx, first_columns = branch_columns[0]
+            for branch_idx, cols in branch_columns[1:]:
                 if cols != first_columns:
                     # Column mismatch - raise error
+                    # Use 1-based numbering for user-facing error messages
+                    first_branch_num = first_branch_idx + 1
+                    current_branch_num = branch_idx + 1
                     missing_in_branch = first_columns - cols
                     extra_in_branch = cols - first_columns
                     error_parts = []
                     if missing_in_branch:
-                        error_parts.append(
-                            f"missing columns {sorted(missing_in_branch)} in branch {i}"
+                        msg = (
+                            f"missing columns {sorted(missing_in_branch)} "
+                            f"in branch {current_branch_num}"
                         )
+                        error_parts.append(msg)
                     if extra_in_branch:
-                        error_parts.append(f"extra columns {sorted(extra_in_branch)} in branch {i}")
+                        msg = (
+                            f"extra columns {sorted(extra_in_branch)} "
+                            f"in branch {current_branch_num}"
+                        )
+                        error_parts.append(msg)
                     error_msg = (
-                        "All sub queries in an UNION must have the same column names: "
+                        f"All sub queries in an UNION must have the same column names "
+                        f"(branch {first_branch_num} vs branch {current_branch_num}): "
                         f"{'; '.join(error_parts)}"
                     )
                     raise ValueError(error_msg)

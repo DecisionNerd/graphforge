@@ -263,3 +263,72 @@ class TestUnionEmptyBranchValidation:
                 UNION
                 MATCH (p:Person) RETURN p.name AS name
             """)
+
+
+@pytest.mark.integration
+class TestUnionBranchIndexReporting:
+    """Test that UNION error messages report correct branch numbers."""
+
+    def test_union_reports_correct_branch_numbers(self):
+        """Test that error messages use correct 1-based branch numbering."""
+        gf = GraphForge()
+        gf.execute("CREATE (:Person {name: 'Alice', age: 30})")
+
+        # Branch 1 has column 'name', Branch 2 has columns 'name' and 'age'
+        with pytest.raises(ValueError) as exc_info:
+            gf.execute("""
+                MATCH (p:Person) RETURN p.name AS name
+                UNION
+                MATCH (p:Person) RETURN p.name AS name, p.age AS age
+            """)
+
+        error_msg = str(exc_info.value)
+        # Should report branch 1 vs branch 2 (1-based numbering)
+        assert "branch 1" in error_msg
+        assert "branch 2" in error_msg
+        # Should mention the extra column
+        assert "age" in error_msg
+
+    def test_union_reports_correct_numbers_with_three_branches(self):
+        """Test branch numbering with three branches."""
+        gf = GraphForge()
+
+        # Branch 1: col 'a'
+        # Branch 2: col 'a'
+        # Branch 3: cols 'a' and 'b' (mismatch)
+        with pytest.raises(ValueError) as exc_info:
+            gf.execute("""
+                RETURN 1 AS a
+                UNION
+                RETURN 2 AS a
+                UNION
+                RETURN 3 AS a, 4 AS b
+            """)
+
+        error_msg = str(exc_info.value)
+        # Should report branch 1 vs branch 3
+        assert "branch 1" in error_msg
+        assert "branch 3" in error_msg
+        # Should mention the extra column
+        assert "b" in error_msg
+
+    def test_union_reports_missing_columns_correctly(self):
+        """Test that missing columns are reported with correct branch numbers."""
+        gf = GraphForge()
+
+        # Branch 1: cols 'a' and 'b'
+        # Branch 2: col 'a' only (missing 'b')
+        with pytest.raises(ValueError) as exc_info:
+            gf.execute("""
+                RETURN 1 AS a, 2 AS b
+                UNION
+                RETURN 3 AS a
+            """)
+
+        error_msg = str(exc_info.value)
+        # Should report branches correctly
+        assert "branch 1" in error_msg
+        assert "branch 2" in error_msg
+        # Should mention missing column
+        assert "missing" in error_msg.lower()
+        assert "b" in error_msg
