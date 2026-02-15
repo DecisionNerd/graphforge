@@ -201,3 +201,65 @@ class TestUnionEdgeCases:
                 UNION
                 MATCH (p:Person) RETURN p.name AS name, p.age AS age
             """)
+
+
+@pytest.mark.integration
+class TestUnionEmptyBranchValidation:
+    """Test UNION validation with empty branches."""
+
+    def test_union_validates_empty_branch_column_mismatch(self):
+        """Test that UNION validates columns even when one branch returns no rows."""
+        gf = GraphForge()
+        gf.execute("CREATE (:Person {name: 'Alice', age: 30})")
+
+        # Branch 1: returns rows with column 'name'
+        # Branch 2: returns no rows but has columns 'name' and 'age'
+        with pytest.raises(ValueError, match="column names"):
+            gf.execute("""
+                MATCH (p:Person) RETURN p.name AS name
+                UNION
+                MATCH (p:Person) WHERE false RETURN p.name AS name, p.age AS age
+            """)
+
+    def test_union_validates_both_empty_branches(self):
+        """Test that UNION validates columns when both branches are empty."""
+        gf = GraphForge()
+
+        # Both branches return no rows but have different columns
+        with pytest.raises(ValueError, match="column names"):
+            gf.execute("""
+                MATCH (p:Person) WHERE false RETURN p.name AS name
+                UNION
+                MATCH (p:Person) WHERE false RETURN p.name AS name, p.age AS age
+            """)
+
+    def test_union_allows_empty_branches_with_same_columns(self):
+        """Test that UNION allows empty branches if columns match."""
+        gf = GraphForge()
+        gf.execute("CREATE (:Person {name: 'Alice', age: 30})")
+
+        # Branch 1: returns rows
+        # Branch 2: returns no rows but has same column
+        results = gf.execute("""
+            MATCH (p:Person) RETURN p.name AS name
+            UNION
+            MATCH (p:Person) WHERE false RETURN p.name AS name
+        """)
+
+        # Should succeed and return only the row from branch 1
+        assert len(results) == 1
+        assert results[0]["name"].value == "Alice"
+
+    def test_union_validates_empty_first_branch(self):
+        """Test that UNION validates when first branch is empty."""
+        gf = GraphForge()
+        gf.execute("CREATE (:Person {name: 'Alice', age: 30})")
+
+        # Branch 1: returns no rows but has columns 'name' and 'age'
+        # Branch 2: returns rows with column 'name'
+        with pytest.raises(ValueError, match="column names"):
+            gf.execute("""
+                MATCH (p:Person) WHERE false RETURN p.name AS name, p.age AS age
+                UNION
+                MATCH (p:Person) RETURN p.name AS name
+            """)

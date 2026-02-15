@@ -84,13 +84,15 @@ def _cypher_to_python(cypher_val: CypherValue) -> Any:
         return cypher_val.value
 
 
-def _expression_to_string(expr: Any) -> str:
+def _expression_to_string(expr: Any, fallback_index: int | None = None) -> str:
     """Convert AST expression to its Cypher string representation.
 
     Used for generating column names when no explicit alias is provided.
 
     Args:
         expr: AST expression node
+        fallback_index: Optional index to append to ambiguous/fallback names
+                       for uniqueness (e.g., "CASE ... END_0", "expr_1")
 
     Returns:
         String representation of the expression
@@ -179,22 +181,27 @@ def _expression_to_string(expr: Any) -> str:
 
     # CASE expression
     if isinstance(expr, CaseExpression):
-        return "CASE ... END"
+        base = "CASE ... END"
+        return f"{base}_{fallback_index}" if fallback_index is not None else base
 
     # List comprehension
     if isinstance(expr, ListComprehension):
-        return "[...]"
+        base = "[...]"
+        return f"{base}_{fallback_index}" if fallback_index is not None else base
 
     # Quantifier expression
     if isinstance(expr, QuantifierExpression):
-        return f"{expr.quantifier}(...)"
+        base = f"{expr.quantifier}(...)"
+        return f"{base}_{fallback_index}" if fallback_index is not None else base
 
     # Subquery expression
     if isinstance(expr, SubqueryExpression):
-        return f"{expr.type} {{ ... }}"
+        base = f"{expr.type} {{ ... }}"
+        return f"{base}_{fallback_index}" if fallback_index is not None else base
 
     # Fallback for unknown expression types
-    return "expr"
+    base = "expr"
+    return f"{base}_{fallback_index}" if fallback_index is not None else base
 
 
 class QueryExecutor:
@@ -836,7 +843,7 @@ class QueryExecutor:
 
         for ctx in input_rows:
             row = {}
-            for return_item in op.items:
+            for i, return_item in enumerate(op.items):
                 # Extract expression and alias from ReturnItem
                 value = evaluate_expression(return_item.expression, ctx, self)
 
@@ -846,8 +853,8 @@ class QueryExecutor:
                     key = return_item.alias
                 else:
                     # No alias - generate column name from expression
-                    # Use expression-to-string conversion for better column names
-                    key = _expression_to_string(return_item.expression)
+                    # Pass index for uniqueness in case of ambiguous expressions
+                    key = _expression_to_string(return_item.expression, fallback_index=i)
 
                 row[key] = value
             result.append(row)
@@ -1325,13 +1332,13 @@ class QueryExecutor:
         if group_key:
             for i, expr in enumerate(op.grouping_exprs):
                 # Find the corresponding ReturnItem to get the alias
-                for return_item in op.return_items:
+                for j, return_item in enumerate(op.return_items):
                     if return_item.expression == expr:
                         # Use alias if provided, otherwise generate from expression
                         key = (
                             return_item.alias
                             if return_item.alias
-                            else _expression_to_string(return_item.expression)
+                            else _expression_to_string(return_item.expression, fallback_index=j)
                         )
                         # Convert back from hashable to CypherValue
                         hashable_val = group_key[i]
@@ -1343,13 +1350,13 @@ class QueryExecutor:
             assert isinstance(agg_expr, FunctionCall)
 
             # Find the corresponding ReturnItem to get the alias
-            for return_item in op.return_items:
+            for j, return_item in enumerate(op.return_items):
                 if return_item.expression == agg_expr:
                     # Use alias if provided, otherwise generate from expression
                     key = (
                         return_item.alias
                         if return_item.alias
-                        else _expression_to_string(return_item.expression)
+                        else _expression_to_string(return_item.expression, fallback_index=j)
                     )
 
                     # Compute the aggregation
@@ -2335,6 +2342,41 @@ class QueryExecutor:
 
         return result
 
+    def _extract_column_names_from_branch(self, branch: list) -> set[str] | None:
+        """Extract column names from a branch plan.
+
+        Used for UNION validation when branches return no rows.
+
+        Args:
+            branch: List of operators in the branch
+
+        Returns:
+            Set of column names, or None if no Project/Aggregate operator found
+        """
+        # Find the last Project or Aggregate operator in the branch
+        for op in reversed(branch):
+            if isinstance(op, Project):
+                # Extract column names from Project operator
+                columns = set()
+                for i, return_item in enumerate(op.items):
+                    if return_item.alias:
+                        columns.add(return_item.alias)
+                    else:
+                        # Generate column name same way as _execute_project
+                        columns.add(_expression_to_string(return_item.expression, fallback_index=i))
+                return columns
+            elif isinstance(op, Aggregate):
+                # Extract column names from Aggregate operator
+                columns = set()
+                for j, return_item in enumerate(op.return_items):
+                    if return_item.alias:
+                        columns.add(return_item.alias)
+                    else:
+                        # Generate column name same way as _compute_aggregates_for_group
+                        columns.add(_expression_to_string(return_item.expression, fallback_index=j))
+                return columns
+        return None
+
     def _execute_union(self, op: Union, input_rows: list[ExecutionContext]) -> list[Any]:
         """Execute Union operator.
 
@@ -2363,9 +2405,18 @@ class QueryExecutor:
                     branch_op, branch_results, op_index, len(branch)
                 )
 
-            # Track column names for validation (if results are dicts)
+            # Track column names for validation
+            columns: set[str] | None = None
+
             if branch_results and isinstance(branch_results[0], dict):
+                # Non-empty results - extract columns from first row
                 columns = set(branch_results[0].keys())
+            elif not branch_results:
+                # Empty results - extract column schema from branch plan
+                columns = self._extract_column_names_from_branch(branch)
+
+            # Add to branch_columns if we successfully extracted a schema
+            if columns is not None:
                 branch_columns.append(columns)
 
             all_results.extend(branch_results)
