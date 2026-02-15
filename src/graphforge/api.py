@@ -261,10 +261,13 @@ class GraphForge:
         from graphforge.ast.query import UnionQuery
 
         if isinstance(ast, UnionQuery):
-            # Handle UNION query: plan each branch separately
+            # Handle UNION query: plan and optimize each branch separately
             branch_operators = []
             for branch_ast in ast.branches:
                 branch_ops = self.planner.plan(branch_ast)
+                # Optimize each branch independently
+                if self.optimizer:
+                    branch_ops = self.optimizer.optimize(branch_ops)
                 branch_operators.append(branch_ops)
 
             # Create Union operator

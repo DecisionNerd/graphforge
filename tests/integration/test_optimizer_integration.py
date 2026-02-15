@@ -279,3 +279,70 @@ class TestOptimizerIntegration:
         assert len(results) == 1
         assert results[0]["a.name"].value == "Alice"
         assert results[0]["b.name"].value == "Bob"
+
+    def test_predicate_on_bound_variable_after_with(self):
+        """Predicates work correctly on variables bound by WITH clause."""
+        gf = GraphForge(enable_optimizer=True)
+
+        gf.execute("CREATE (:Person {name: 'Alice', age: 30})")
+        gf.execute("CREATE (:Person {name: 'Bob', age: 25})")
+        gf.execute("CREATE (:Person {name: 'Charlie', age: 35})")
+
+        # WITH binds 'p', then we match on bound 'p' with predicate
+        results = gf.execute(
+            """
+            MATCH (p:Person)
+            WITH p
+            MATCH (p) WHERE p.age > 25
+            RETURN p.name
+            ORDER BY p.name
+        """
+        )
+
+        # Should filter correctly even though p is already bound
+        assert len(results) == 2
+        assert results[0]["p.name"].value == "Alice"
+        assert results[1]["p.name"].value == "Charlie"
+
+    def test_union_branches_are_optimized(self):
+        """UNION query branches are individually optimized."""
+        gf = GraphForge(enable_optimizer=True)
+
+        gf.execute("CREATE (:Person {name: 'Alice', age: 30, city: 'NYC'})")
+        gf.execute("CREATE (:Person {name: 'Bob', age: 25, city: 'LA'})")
+        gf.execute("CREATE (:Person {name: 'Charlie', age: 35, city: 'NYC'})")
+        gf.execute("CREATE (:Company {name: 'Acme', city: 'NYC'})")
+
+        # UNION with filters in both branches
+        results = gf.execute(
+            """
+            MATCH (p:Person) WHERE p.age > 30 RETURN p.name AS name
+            UNION
+            MATCH (c:Company) WHERE c.city = 'NYC' RETURN c.name AS name
+        """
+        )
+
+        # Should get Charlie (age > 30) and Acme (city = NYC)
+        # UNION removes duplicates, so 2 results
+        assert len(results) == 2
+        names = {r["name"].value for r in results}
+        assert names == {"Charlie", "Acme"}
+
+    def test_union_all_with_optimization(self):
+        """UNION ALL preserves duplicates with optimization enabled."""
+        gf = GraphForge(enable_optimizer=True)
+
+        gf.execute("CREATE (:Person {name: 'Alice', age: 30})")
+        gf.execute("CREATE (:Person {name: 'Bob', age: 25})")
+
+        # UNION ALL should preserve both results
+        results = gf.execute(
+            """
+            MATCH (p:Person) WHERE p.age > 20 RETURN p.name AS name
+            UNION ALL
+            MATCH (p:Person) WHERE p.age < 35 RETURN p.name AS name
+        """
+        )
+
+        # Both queries return both people, UNION ALL keeps all 4
+        assert len(results) == 4
