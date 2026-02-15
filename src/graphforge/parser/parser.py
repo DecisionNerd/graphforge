@@ -689,7 +689,6 @@ class ASTTransformer(Transformer):
 
         # Otherwise, use base field for expression-based property access
         return PropertyAccess(base=base_expr, property=prop_name)
-        return PropertyAccess(variable=var_name, property=prop_name)
 
     def function_call(self, items):
         """Transform function call."""

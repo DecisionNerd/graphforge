@@ -139,15 +139,11 @@ class TestMapPropertyEdgeCases:
 
     def test_empty_map_property_access(self):
         """Accessing property on empty map returns NULL."""
-        gf = GraphForge()
-
         # Empty map literal {} has parser issues, skip for now
         pytest.skip("Empty map literal not supported by parser")
 
     def test_map_property_with_special_characters(self):
         """Property names with special characters (in quotes)."""
-        gf = GraphForge()
-
         # Note: This might not work if grammar doesn't support quoted identifiers
         # Skip if not supported
         pytest.skip("Quoted identifiers not yet supported")
