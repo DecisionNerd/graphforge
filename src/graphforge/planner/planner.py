@@ -744,7 +744,8 @@ class QueryPlanner:
             if alias:
                 if alias in seen_aliases:
                     raise SyntaxError(
-                        f"ColumnNameConflict: Multiple result columns with the same name '{alias}' are not supported"
+                        f"ColumnNameConflict: Multiple result columns with the same "
+                        f"name '{alias}' are not supported"
                     )
                 seen_aliases.add(alias)
 
