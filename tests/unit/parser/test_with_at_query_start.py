@@ -1,6 +1,5 @@
 """Unit tests for WITH clause at query start (Issue #172)."""
 
-
 from graphforge import GraphForge
 from graphforge.parser.parser import parse_cypher
 

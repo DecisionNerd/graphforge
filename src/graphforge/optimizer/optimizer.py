@@ -275,9 +275,7 @@ class QueryOptimizer:
             return predicate
 
         # Sort by selectivity (lower = more selective = evaluate first)
-        sorted_conjuncts = sorted(
-            conjuncts, key=lambda p: PredicateAnalysis.estimate_selectivity(p)
-        )
+        sorted_conjuncts = sorted(conjuncts, key=PredicateAnalysis.estimate_selectivity)
 
         # Recombine with AND
         return PredicateAnalysis.combine_with_and(sorted_conjuncts)
