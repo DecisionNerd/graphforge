@@ -21,7 +21,9 @@ class TestMapLiteralPropertyAccess:
         """Access multiple properties from same map."""
         gf = GraphForge()
 
-        result = gf.execute("RETURN {name: 'Alice', age: 30}.name AS name, {name: 'Alice', age: 30}.age AS age")
+        result = gf.execute(
+            "RETURN {name: 'Alice', age: 30}.name AS name, {name: 'Alice', age: 30}.age AS age"
+        )
 
         assert len(result) == 1
         assert result[0]["name"].value == "Alice"
@@ -91,7 +93,9 @@ class TestMapVariablePropertyAccess:
         """Use map property in WHERE clause."""
         gf = GraphForge()
 
-        result = gf.execute("WITH {age: 30} AS person WHERE person.age > 25 RETURN person.age AS age")
+        result = gf.execute(
+            "WITH {age: 30} AS person WHERE person.age > 25 RETURN person.age AS age"
+        )
 
         assert len(result) == 1
         assert result[0]["age"].value == 30
@@ -165,7 +169,9 @@ class TestBackwardCompatibility:
     def test_edge_property_access_still_works(self):
         """Edge property access should be unaffected."""
         gf = GraphForge()
-        gf.execute("CREATE (:Person {name: 'Alice'})-[:KNOWS {since: 2020}]->(:Person {name: 'Bob'})")
+        gf.execute(
+            "CREATE (:Person {name: 'Alice'})-[:KNOWS {since: 2020}]->(:Person {name: 'Bob'})"
+        )
 
         result = gf.execute("MATCH ()-[r:KNOWS]->() RETURN r.since AS since")
 
@@ -176,7 +182,9 @@ class TestBackwardCompatibility:
         """Property access in CREATE should still work."""
         gf = GraphForge()
 
-        result = gf.execute("WITH 'Charlie' AS name CREATE (n:Person {name: name}) RETURN n.name AS name")
+        result = gf.execute(
+            "WITH 'Charlie' AS name CREATE (n:Person {name: name}) RETURN n.name AS name"
+        )
 
         assert len(result) == 1
         assert result[0]["name"].value == "Charlie"
