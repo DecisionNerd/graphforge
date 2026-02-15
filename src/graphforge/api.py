@@ -10,6 +10,7 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from graphforge.executor.executor import QueryExecutor
+from graphforge.optimizer.optimizer import QueryOptimizer
 from graphforge.parser.parser import CypherParser
 from graphforge.planner.planner import QueryPlanner
 from graphforge.storage.memory import Graph
@@ -122,13 +123,16 @@ class GraphForge:
         >>> results = gf.execute("MATCH (p:Person) WHERE p.age > 25 RETURN p.name")
     """
 
-    def __init__(self, path: str | Path | None = None):
+    def __init__(self, path: str | Path | None = None, enable_optimizer: bool = True):
         """Initialize GraphForge.
 
         Args:
             path: Optional path to persistent storage (SQLite database file)
                   If None, uses in-memory storage.
                   If provided, loads existing graph or creates new database.
+            enable_optimizer: Enable query optimization (default: True).
+                  When enabled, applies filter pushdown and predicate reordering
+                  for better performance.
 
         Raises:
             ValueError: If path is empty string or whitespace only
@@ -144,6 +148,9 @@ class GraphForge:
 
             >>> # Later, load the graph
             >>> gf = GraphForge("my-graph.db")  # Graph is still there
+
+            >>> # Disable optimizer for debugging
+            >>> gf = GraphForge(enable_optimizer=False)
         """
         # Validate path if provided
         if path is not None:
@@ -175,6 +182,7 @@ class GraphForge:
         # Initialize query execution components
         self.parser = CypherParser()
         self.planner = QueryPlanner()
+        self.optimizer = QueryOptimizer() if enable_optimizer else None
         self.executor = QueryExecutor(self.graph, graphforge=self, planner=self.planner)
 
     @classmethod
@@ -253,10 +261,13 @@ class GraphForge:
         from graphforge.ast.query import UnionQuery
 
         if isinstance(ast, UnionQuery):
-            # Handle UNION query: plan each branch separately
+            # Handle UNION query: plan and optimize each branch separately
             branch_operators = []
             for branch_ast in ast.branches:
                 branch_ops = self.planner.plan(branch_ast)
+                # Optimize each branch independently
+                if self.optimizer:
+                    branch_ops = self.optimizer.optimize(branch_ops)
                 branch_operators.append(branch_ops)
 
             # Create Union operator
@@ -267,6 +278,10 @@ class GraphForge:
         else:
             # Regular query
             operators = self.planner.plan(ast)
+
+        # Optimize query plan
+        if self.optimizer:
+            operators = self.optimizer.optimize(operators)
 
         # Execute
         results = self.executor.execute(operators)

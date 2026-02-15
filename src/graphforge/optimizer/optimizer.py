@@ -1,0 +1,283 @@
+"""Query optimizer for transforming logical operator plans."""
+
+from typing import Any
+
+from graphforge.optimizer.predicate_utils import PredicateAnalysis
+from graphforge.planner.operators import (
+    ExpandEdges,
+    Filter,
+    OptionalExpandEdges,
+    OptionalScanNodes,
+    ScanNodes,
+    Subquery,
+    Union,
+    With,
+)
+
+
+class QueryOptimizer:
+    """Optimizes logical query plans for better performance.
+
+    Applies a series of optimization passes to transform the operator pipeline
+    emitted by the planner. Optimizations preserve query semantics while
+    improving execution efficiency.
+
+    Optimization passes:
+        1. Filter pushdown - Move WHERE predicates into ScanNodes/ExpandEdges
+        2. Predicate reordering - Evaluate more selective predicates first
+
+    Attributes:
+        enable_filter_pushdown: Enable filter pushdown optimization
+        enable_predicate_reorder: Enable predicate reordering optimization
+    """
+
+    def __init__(
+        self,
+        enable_filter_pushdown: bool = True,
+        enable_predicate_reorder: bool = True,
+    ):
+        """Initialize query optimizer.
+
+        Args:
+            enable_filter_pushdown: Enable filter pushdown pass
+            enable_predicate_reorder: Enable predicate reordering pass
+        """
+        self.enable_filter_pushdown = enable_filter_pushdown
+        self.enable_predicate_reorder = enable_predicate_reorder
+        self._predicate_analysis = PredicateAnalysis()
+
+    def optimize(self, operators: list[Any]) -> list[Any]:
+        """Apply optimization passes to operator pipeline.
+
+        Args:
+            operators: List of logical operators from planner
+
+        Returns:
+            Optimized list of operators
+        """
+        # Apply filter pushdown first (reduces cardinality early)
+        if self.enable_filter_pushdown:
+            operators = self._filter_pushdown_pass(operators)
+
+        # Then reorder predicates within operators
+        if self.enable_predicate_reorder:
+            operators = self._predicate_reorder_pass(operators)
+
+        return operators
+
+    def _filter_pushdown_pass(self, operators: list[Any]) -> list[Any]:
+        """Push Filter predicates into ScanNodes/ExpandEdges operators.
+
+        This optimization reduces the number of rows flowing through the pipeline
+        by filtering as early as possible.
+
+        Algorithm:
+            1. Track bound variables as we scan operators forward
+            2. When encountering Filter, extract AND conjuncts
+            3. Try to push each conjunct backward into preceding operators
+            4. Only push if predicate references only operator's bound variables
+            5. Remove Filter if all predicates successfully pushed
+
+        Safety checks:
+            - Don't push predicates with unbound variables
+            - Don't push across pipeline boundaries (With, Union, Subquery)
+            - Don't push into Optional operators (breaks NULL semantics)
+
+        Args:
+            operators: Input operator list
+
+        Returns:
+            Transformed operator list with filters pushed down
+        """
+        result: list[Any] = []
+        bound_vars: set[str] = set()
+
+        for op in operators:
+            # Check for pipeline boundaries
+            if isinstance(op, (With, Union, Subquery)):
+                # Reset tracking at pipeline boundaries
+                result.append(op)
+                bound_vars = self._get_bound_variables_after_op(op, bound_vars)
+                continue
+
+            # Try to push Filter predicates backward
+            if isinstance(op, Filter):
+                conjuncts = PredicateAnalysis.extract_conjuncts(op.predicate)
+                unpushed_predicates = []
+
+                # Try to push each conjunct backward
+                for conjunct in conjuncts:
+                    if not self._try_push_predicate(conjunct, result, bound_vars):
+                        # Couldn't push this predicate
+                        unpushed_predicates.append(conjunct)
+
+                # Only keep Filter if some predicates couldn't be pushed
+                if unpushed_predicates:
+                    combined = PredicateAnalysis.combine_with_and(unpushed_predicates)
+                    result.append(Filter(predicate=combined))
+                # Otherwise Filter is completely pushed down and removed
+
+                continue
+
+            # Track variables bound by this operator
+            bound_vars = self._get_bound_variables_after_op(op, bound_vars)
+            result.append(op)
+
+        return result
+
+    def _try_push_predicate(
+        self, predicate: Any, operators: list[Any], bound_vars: set[str]
+    ) -> bool:
+        """Try to push a predicate into a preceding operator.
+
+        Args:
+            predicate: Predicate expression to push
+            operators: List of operators processed so far (may be modified)
+            bound_vars: Set of variables bound so far
+
+        Returns:
+            True if predicate was successfully pushed, False otherwise
+        """
+        # Get variables referenced by predicate
+        pred_vars = PredicateAnalysis.get_referenced_variables(predicate)
+
+        # Don't push if predicate references unbound variables
+        if not pred_vars.issubset(bound_vars):
+            return False
+
+        # Scan backwards to find a compatible operator
+        for i in range(len(operators) - 1, -1, -1):
+            op = operators[i]
+
+            # Don't push across pipeline boundaries
+            if isinstance(op, (With, Union, Subquery)):
+                return False
+
+            # Don't push into Optional operators (breaks NULL semantics)
+            if isinstance(op, (OptionalScanNodes, OptionalExpandEdges)):
+                continue
+
+            # Try to push into ScanNodes
+            if isinstance(op, ScanNodes):
+                # Check if predicate only references the node variable
+                if pred_vars == {op.variable}:
+                    # Combine with existing predicate if present
+                    if op.predicate is not None:
+                        new_predicate = PredicateAnalysis.combine_with_and(
+                            [op.predicate, predicate]
+                        )
+                    else:
+                        new_predicate = predicate
+
+                    # Replace operator with updated version
+                    operators[i] = op.model_copy(update={"predicate": new_predicate})
+                    return True
+
+            # Try to push into ExpandEdges
+            if isinstance(op, ExpandEdges):
+                # Check if predicate references only variables bound by this operator
+                op_vars = {op.dst_var}
+                if op.edge_var:
+                    op_vars.add(op.edge_var)
+
+                if pred_vars.issubset(op_vars):
+                    # Combine with existing predicate if present
+                    if op.predicate is not None:
+                        new_predicate = PredicateAnalysis.combine_with_and(
+                            [op.predicate, predicate]
+                        )
+                    else:
+                        new_predicate = predicate
+
+                    # Replace operator with updated version
+                    operators[i] = op.model_copy(update={"predicate": new_predicate})
+                    return True
+
+        return False
+
+    def _get_bound_variables_after_op(self, op: Any, current_bound: set[str]) -> set[str]:
+        """Get set of bound variables after executing an operator.
+
+        Args:
+            op: Operator to analyze
+            current_bound: Variables already bound
+
+        Returns:
+            Updated set of bound variables
+        """
+        new_bound = current_bound.copy()
+
+        # ScanNodes binds the node variable
+        if isinstance(op, (ScanNodes, OptionalScanNodes)):
+            new_bound.add(op.variable)
+
+        # ExpandEdges binds edge and destination variables
+        elif isinstance(op, (ExpandEdges, OptionalExpandEdges)):
+            new_bound.add(op.dst_var)
+            if op.edge_var:
+                new_bound.add(op.edge_var)
+
+        # With redefines the variable scope
+        elif isinstance(op, With):
+            # After WITH, only projected variables are bound
+            new_bound = {item.alias for item in op.items}
+
+        return new_bound
+
+    def _predicate_reorder_pass(self, operators: list[Any]) -> list[Any]:
+        """Reorder predicates within operators by selectivity.
+
+        Evaluates more selective predicates first to enable early short-circuiting
+        of AND chains.
+
+        Algorithm:
+            1. For each operator with a predicate (Filter, ScanNodes, ExpandEdges)
+            2. Extract AND conjuncts
+            3. Estimate selectivity for each conjunct
+            4. Sort by selectivity (lower = more selective = evaluate first)
+            5. Recombine with AND
+
+        Args:
+            operators: Input operator list
+
+        Returns:
+            Transformed operator list with reordered predicates
+        """
+        result = []
+
+        for op in operators:
+            # Reorder predicates in operators that support them
+            if isinstance(op, (Filter, ScanNodes, ExpandEdges)):
+                if hasattr(op, "predicate") and op.predicate is not None:
+                    reordered_predicate = self._reorder_predicate(op.predicate)
+                    result.append(op.model_copy(update={"predicate": reordered_predicate}))
+                else:
+                    result.append(op)
+            else:
+                result.append(op)
+
+        return result
+
+    def _reorder_predicate(self, predicate: Any) -> Any:
+        """Reorder AND conjuncts by selectivity (most selective first).
+
+        Args:
+            predicate: Predicate expression to reorder
+
+        Returns:
+            Reordered predicate expression
+        """
+        # Extract AND conjuncts
+        conjuncts = PredicateAnalysis.extract_conjuncts(predicate)
+
+        # If only one conjunct, no reordering needed
+        if len(conjuncts) == 1:
+            return predicate
+
+        # Sort by selectivity (lower = more selective = evaluate first)
+        sorted_conjuncts = sorted(
+            conjuncts, key=lambda p: PredicateAnalysis.estimate_selectivity(p)
+        )
+
+        # Recombine with AND
+        return PredicateAnalysis.combine_with_and(sorted_conjuncts)

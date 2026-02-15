@@ -254,27 +254,46 @@ class QueryExecutor:
                 # Check if bound node has required labels
                 if op.labels:
                     if self._node_matches_labels(bound_node, op.labels):
-                        # Node matches pattern - keep the context
-                        # Bind path variable if requested
+                        # Node matches pattern - check predicate
+                        # Prepare context for predicate evaluation
+                        eval_ctx = ctx
                         if op.path_var:
                             from graphforge.types import CypherPath
 
-                            new_ctx = ExecutionContext()
-                            new_ctx.bindings = dict(ctx.bindings)
+                            eval_ctx = ExecutionContext()
+                            eval_ctx.bindings = dict(ctx.bindings)
                             path = CypherPath(nodes=[bound_node], relationships=[])
-                            new_ctx.bind(op.path_var, path)
-                            result.append(new_ctx)
-                        else:
-                            result.append(ctx)
-                # No label requirements - keep the context
-                # Bind path variable if requested
-                elif op.path_var:
+                            eval_ctx.bind(op.path_var, path)
+
+                        # Apply pattern predicate if specified
+                        if op.predicate is not None:
+                            predicate_result = evaluate_expression(op.predicate, eval_ctx, self)
+                            # Only include node if predicate evaluates to true
+                            if not (
+                                isinstance(predicate_result, CypherBool) and predicate_result.value
+                            ):
+                                continue  # Skip this node if predicate is not true
+
+                        # Predicate passed - add result
+                        result.append(eval_ctx)
+                # No label requirements - check predicate
+                elif op.path_var or op.predicate is not None:
                     from graphforge.types import CypherPath
 
                     new_ctx = ExecutionContext()
                     new_ctx.bindings = dict(ctx.bindings)
-                    path = CypherPath(nodes=[bound_node], relationships=[])
-                    new_ctx.bind(op.path_var, path)
+                    if op.path_var:
+                        path = CypherPath(nodes=[bound_node], relationships=[])
+                        new_ctx.bind(op.path_var, path)
+
+                    # Apply pattern predicate if specified
+                    if op.predicate is not None:
+                        predicate_result = evaluate_expression(op.predicate, new_ctx, self)
+                        if not (
+                            isinstance(predicate_result, CypherBool) and predicate_result.value
+                        ):
+                            continue  # Skip if predicate fails
+
                     result.append(new_ctx)
                 else:
                     result.append(ctx)
@@ -316,6 +335,16 @@ class QueryExecutor:
 
                         path = CypherPath(nodes=[node], relationships=[])
                         new_ctx.bind(op.path_var, path)
+
+                    # Apply pattern predicate if specified
+                    if op.predicate is not None:
+                        predicate_result = evaluate_expression(op.predicate, new_ctx, self)
+                        # Only include node if predicate evaluates to true
+                        if not (
+                            isinstance(predicate_result, CypherBool) and predicate_result.value
+                        ):
+                            continue  # Skip this node if predicate is not true
+
                     result.append(new_ctx)
 
         return result
