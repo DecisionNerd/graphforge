@@ -3,7 +3,6 @@
 import pytest
 
 from graphforge.api import GraphForge
-from graphforge.types.values import CypherInt, CypherString
 
 
 class TestWildcardExecution:
