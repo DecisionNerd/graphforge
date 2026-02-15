@@ -36,6 +36,7 @@ class ScanNodes(BaseModel):
                Example: [['Person', 'Employee']] - must have both
                Example: [['Person'], ['Company']] - must have Person OR Company
         path_var: Variable name to bind single-node path to (None if not needed)
+        predicate: WHERE predicate expression to filter nodes (None if not specified)
     """
 
     variable: str = Field(..., min_length=1, description="Variable name to bind nodes")
@@ -43,6 +44,9 @@ class ScanNodes(BaseModel):
         default=None, description="Optional label filter (disjunction of conjunctions)"
     )
     path_var: str | None = Field(default=None, description="Path variable name")
+    predicate: Any | None = Field(
+        default=None, description="WHERE predicate expression to filter nodes"
+    )
 
     @field_validator("variable")
     @classmethod

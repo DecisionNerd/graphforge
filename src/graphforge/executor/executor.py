@@ -316,6 +316,16 @@ class QueryExecutor:
 
                         path = CypherPath(nodes=[node], relationships=[])
                         new_ctx.bind(op.path_var, path)
+
+                    # Apply pattern predicate if specified
+                    if op.predicate is not None:
+                        predicate_result = evaluate_expression(op.predicate, new_ctx, self)
+                        # Only include node if predicate evaluates to true
+                        if not (
+                            isinstance(predicate_result, CypherBool) and predicate_result.value
+                        ):
+                            continue  # Skip this node if predicate is not true
+
                     result.append(new_ctx)
 
         return result
