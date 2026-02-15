@@ -1473,6 +1473,55 @@ class QueryExecutor:
 
         raise ValueError(f"Unknown aggregation function: {func_name}")
 
+    def _validate_pattern_variables(self, pattern_parts):
+        """Validate pattern variables in CREATE pattern.
+
+        Per openCypher semantics:
+        - Node variables can appear multiple times (e.g., self-loops: CREATE (a)-[:R]->(a))
+        - Relationship variables must be unique
+        - A variable cannot be used for both a node and a relationship
+
+        Args:
+            pattern_parts: List of NodePattern/RelationshipPattern objects from pattern
+
+        Raises:
+            ValueError: If validation fails
+        """
+        from graphforge.ast.pattern import NodePattern, RelationshipPattern
+
+        node_vars = []
+        rel_vars = []
+
+        for part in pattern_parts:
+            if hasattr(part, "variable") and part.variable:
+                var_name = part.variable if isinstance(part.variable, str) else part.variable.name
+
+                if isinstance(part, NodePattern):
+                    node_vars.append(var_name)
+                elif isinstance(part, RelationshipPattern):
+                    rel_vars.append(var_name)
+
+        # Check: relationship variables must be unique
+        seen_rel_vars = set()
+        for var in rel_vars:
+            if var in seen_rel_vars:
+                raise ValueError(
+                    f"Variable '{var}' used multiple times for relationships in CREATE pattern. "
+                    f"Each relationship variable must be unique."
+                )
+            seen_rel_vars.add(var)
+
+        # Check: a variable cannot be both a node and a relationship
+        node_var_set = set(node_vars)
+        rel_var_set = set(rel_vars)
+        overlap = node_var_set & rel_var_set
+        if overlap:
+            var = next(iter(overlap))
+            raise ValueError(
+                f"Variable '{var}' used for both node and relationship in CREATE pattern. "
+                f"A variable must refer to only one type of entity."
+            )
+
     def _execute_create(
         self, op: Create, input_rows: list[ExecutionContext]
     ) -> list[ExecutionContext]:
@@ -1512,6 +1561,9 @@ class QueryExecutor:
                 else:
                     # Old format: pattern is already a list
                     pattern_parts = pattern
+
+                # Validate no duplicate variables in pattern
+                self._validate_pattern_variables(pattern_parts)
 
                 # Handle simple node pattern: CREATE (n:Person {name: 'Alice'})
                 if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):
@@ -1606,8 +1658,10 @@ class QueryExecutor:
             for key, value_expr in node_pattern.properties.items():
                 # Evaluate the expression to get the value
                 cypher_value = evaluate_expression(value_expr, ctx, self)
-                # Convert CypherValue to Python value (handles nested lists/maps)
-                properties[key] = _cypher_to_python(cypher_value)
+                # Per openCypher spec, NULL means "no value" - skip NULL properties
+                if not isinstance(cypher_value, CypherNull):
+                    # Convert CypherValue to Python value (handles nested lists/maps)
+                    properties[key] = _cypher_to_python(cypher_value)
 
         # Create node using GraphForge API
         node = self.graphforge.create_node(labels, **properties)
@@ -1634,8 +1688,10 @@ class QueryExecutor:
             for key, value_expr in rel_pattern.properties.items():
                 # Evaluate the expression to get the value
                 cypher_value = evaluate_expression(value_expr, ctx, self)
-                # Convert CypherValue to Python value (handles nested lists/maps)
-                properties[key] = _cypher_to_python(cypher_value)
+                # Per openCypher spec, NULL means "no value" - skip NULL properties
+                if not isinstance(cypher_value, CypherNull):
+                    # Convert CypherValue to Python value (handles nested lists/maps)
+                    properties[key] = _cypher_to_python(cypher_value)
 
         # Create relationship using GraphForge API
         edge = self.graphforge.create_relationship(src_node, dst_node, rel_type, **properties)
