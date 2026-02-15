@@ -735,8 +735,10 @@ class QueryPlanner:
         seen_aliases = set()
         for item in with_clause.items:
             # Get the alias (explicit or implicit)
-            alias = item.alias if item.alias else (
-                item.expression.name if isinstance(item.expression, Variable) else None
+            alias = (
+                item.alias
+                if item.alias
+                else (item.expression.name if isinstance(item.expression, Variable) else None)
             )
 
             if alias:
