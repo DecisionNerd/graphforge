@@ -26,8 +26,8 @@ class TestWildcardExecution:
         assert len(results) == 3
         # Each result should have 'p' variable
         for result in results:
-            assert 'p' in result
-            assert result['p'].labels == {'Person'}
+            assert "p" in result
+            assert result["p"].labels == {"Person"}
 
     def test_with_wildcard_passthrough(self, graph):
         """Test WITH * passes all variables through."""
@@ -39,8 +39,8 @@ class TestWildcardExecution:
 
         # Should pass through all 3 people
         assert len(results) == 3
-        names = {r['name'].value for r in results}
-        assert names == {'Alice', 'Bob', 'Charlie'}
+        names = {r["name"].value for r in results}
+        assert names == {"Alice", "Bob", "Charlie"}
 
     def test_with_wildcard_and_filter(self, graph):
         """Test WITH * WHERE filters correctly."""
@@ -53,8 +53,8 @@ class TestWildcardExecution:
 
         # Should filter to Alice and Charlie
         assert len(results) == 2
-        names = {r['name'].value for r in results}
-        assert names == {'Alice', 'Charlie'}
+        names = {r["name"].value for r in results}
+        assert names == {"Alice", "Charlie"}
 
     def test_with_wildcard_and_additional_column(self, graph):
         """Test WITH * plus additional expressions."""
@@ -67,15 +67,15 @@ class TestWildcardExecution:
         # Should have all 3 people with doubled ages
         assert len(results) == 3
         for result in results:
-            assert 'name' in result
-            assert 'double_age' in result
+            assert "name" in result
+            assert "double_age" in result
             # Verify doubling logic
-            if result['name'].value == 'Alice':
-                assert result['double_age'].value == 60
-            elif result['name'].value == 'Bob':
-                assert result['double_age'].value == 50
-            elif result['name'].value == 'Charlie':
-                assert result['double_age'].value == 70
+            if result["name"].value == "Alice":
+                assert result["double_age"].value == 60
+            elif result["name"].value == "Bob":
+                assert result["double_age"].value == 50
+            elif result["name"].value == "Charlie":
+                assert result["double_age"].value == 70
 
     def test_create_with_wildcard(self, graph):
         """Test CREATE followed by WITH *."""
@@ -86,7 +86,7 @@ class TestWildcardExecution:
         """)
 
         assert len(results) == 1
-        assert results[0]['value'].value == 42
+        assert results[0]["value"].value == 42
 
     def test_with_wildcard_order_by(self, graph):
         """Test WITH * ORDER BY."""
@@ -99,9 +99,9 @@ class TestWildcardExecution:
 
         # Should be ordered by age: Bob (25), Alice (30), Charlie (35)
         assert len(results) == 3
-        assert results[0]['name'].value == 'Bob'
-        assert results[1]['name'].value == 'Alice'
-        assert results[2]['name'].value == 'Charlie'
+        assert results[0]["name"].value == "Bob"
+        assert results[1]["name"].value == "Alice"
+        assert results[2]["name"].value == "Charlie"
 
     def test_with_wildcard_limit(self, graph):
         """Test WITH * LIMIT."""
@@ -129,8 +129,8 @@ class TestWildcardExecution:
         # Should filter and order correctly
         assert len(results) == 2
         # Charlie (35) should come before Alice (30)
-        assert results[0]['name'].value == 'Charlie'
-        assert results[1]['name'].value == 'Alice'
+        assert results[0]["name"].value == "Charlie"
+        assert results[1]["name"].value == "Alice"
 
     def test_with_wildcard_preserves_all_variables(self, graph):
         """Test WITH * preserves multiple bound variables."""
@@ -151,7 +151,7 @@ class TestWildcardExecution:
         # WITH * at query start should work but pass empty context
         results = gf.execute("WITH * RETURN 1 AS x")
         assert len(results) == 1
-        assert results[0]['x'].value == 1
+        assert results[0]["x"].value == 1
 
     def test_return_wildcard_with_relationship(self):
         """Test RETURN * includes both nodes and relationships."""
@@ -163,9 +163,9 @@ class TestWildcardExecution:
         assert len(results) == 1
         # Should have a, r, and b all bound
         result = results[0]
-        assert 'a' in result
-        assert 'r' in result
-        assert 'b' in result
+        assert "a" in result
+        assert "r" in result
+        assert "b" in result
 
     def test_with_wildcard_skip(self, graph):
         """Test WITH * SKIP."""
@@ -179,5 +179,5 @@ class TestWildcardExecution:
 
         # Should skip first (Bob) and return Alice and Charlie
         assert len(results) == 2
-        names = {r['name'].value for r in results}
-        assert names == {'Alice', 'Charlie'}
+        names = {r["name"].value for r in results}
+        assert names == {"Alice", "Charlie"}
