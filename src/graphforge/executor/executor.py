@@ -2327,8 +2327,12 @@ class QueryExecutor:
 
         Returns:
             Combined results from all branches (list of dicts or ExecutionContexts)
+
+        Raises:
+            ValueError: If branches have incompatible column sets
         """
         all_results: list[Any] = []
+        branch_columns: list[set[str]] = []
 
         # Execute each branch independently
         for branch in op.branches:
@@ -2338,7 +2342,34 @@ class QueryExecutor:
                 branch_results = self._execute_operator(
                     branch_op, branch_results, op_index, len(branch)
                 )
+
+            # Track column names for validation (if results are dicts)
+            if branch_results and isinstance(branch_results[0], dict):
+                columns = set(branch_results[0].keys())
+                branch_columns.append(columns)
+
             all_results.extend(branch_results)
+
+        # Validate that all branches have the same column names
+        if branch_columns and len(branch_columns) > 1:
+            first_columns = branch_columns[0]
+            for i, cols in enumerate(branch_columns[1:], start=2):
+                if cols != first_columns:
+                    # Column mismatch - raise error
+                    missing_in_branch = first_columns - cols
+                    extra_in_branch = cols - first_columns
+                    error_parts = []
+                    if missing_in_branch:
+                        error_parts.append(
+                            f"missing columns {sorted(missing_in_branch)} in branch {i}"
+                        )
+                    if extra_in_branch:
+                        error_parts.append(
+                            f"extra columns {sorted(extra_in_branch)} in branch {i}"
+                        )
+                    raise ValueError(
+                        f"All sub queries in an UNION must have the same column names: {'; '.join(error_parts)}"
+                    )
 
         # UNION (not UNION ALL) requires deduplication
         if not op.all:
