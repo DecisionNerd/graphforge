@@ -12,7 +12,15 @@ union_clause: "UNION"i "ALL"i  -> union_all
             | "UNION"i          -> union_distinct
 
 // Multi-part queries with WITH clause
-multi_part_query: reading_clause+ with_clause+ final_query_part
+// Allows: reading clauses, writing clauses, or both before WITH
+multi_part_query: reading_or_writing_clauses+ with_clause+ final_query_part
+
+// Allow any combination of reading and writing clauses before WITH
+reading_or_writing_clauses: reading_clause | writing_clause
+
+// Writing clauses that can precede WITH
+writing_clause: create_clause
+              | merge_clause
 
 // Queries starting with WITH clause
 with_query: with_clause+ final_query_part
@@ -120,7 +128,8 @@ where_clause: "WHERE"i expression
 // RETURN clause
 return_clause: "RETURN"i DISTINCT_KW? return_item ("," return_item)*
 
-return_item: expression ("AS"i IDENTIFIER)?
+return_item: "*"                           -> return_all
+           | expression ("AS"i IDENTIFIER)?  -> return_expression
 
 // ORDER BY clause
 order_by_clause: "ORDER"i "BY"i order_by_item ("," order_by_item)*

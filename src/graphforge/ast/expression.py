@@ -12,6 +12,15 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
+class Wildcard(BaseModel):
+    """Wildcard expression for RETURN * and WITH *.
+
+    Represents the special * syntax that expands to all variables in scope.
+    """
+
+    model_config = {"frozen": True}
+
+
 class Literal(BaseModel):
     """Literal value expression.
 

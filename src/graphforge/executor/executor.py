@@ -839,11 +839,18 @@ class QueryExecutor:
 
     def _execute_project(self, op: Project, input_rows: list[ExecutionContext]) -> list[dict]:
         """Execute Project operator."""
+        from graphforge.ast.expression import Wildcard
+
         result = []
 
         for ctx in input_rows:
             row = {}
             for i, return_item in enumerate(op.items):
+                # Handle Wildcard (*) - return all variables from context
+                if isinstance(return_item.expression, Wildcard):
+                    row.update(ctx.bindings)
+                    continue
+
                 # Extract expression and alias from ReturnItem
                 value = evaluate_expression(return_item.expression, ctx, self)
 
@@ -877,7 +884,7 @@ class QueryExecutor:
         Returns:
             List of ExecutionContexts with only the projected variables
         """
-        from graphforge.ast.expression import Variable
+        from graphforge.ast.expression import Variable, Wildcard
 
         # Step 1: Project items into new contexts
         result = []
@@ -886,6 +893,12 @@ class QueryExecutor:
             new_ctx = ExecutionContext()
 
             for return_item in op.items:
+                # Handle Wildcard (*) - copy all variables from current context
+                if isinstance(return_item.expression, Wildcard):
+                    for var_name, value in ctx.bindings.items():
+                        new_ctx.bind(var_name, value)
+                    continue
+
                 # Evaluate expression
                 value = evaluate_expression(return_item.expression, ctx, self)
 

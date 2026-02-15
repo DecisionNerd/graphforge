@@ -729,7 +729,7 @@ class QueryPlanner:
         Raises:
             SyntaxError: If validation fails
         """
-        from graphforge.ast.expression import Variable
+        from graphforge.ast.expression import Variable, Wildcard
 
         # Check for duplicate aliases
         seen_aliases = set()
@@ -749,9 +749,9 @@ class QueryPlanner:
                     )
                 seen_aliases.add(alias)
 
-        # Check for unaliased expressions (only Variables can be unaliased)
+        # Check for unaliased expressions (only Variables and Wildcard can be unaliased)
         for item in with_clause.items:
-            if not item.alias and not isinstance(item.expression, Variable):
+            if not item.alias and not isinstance(item.expression, (Variable, Wildcard)):
                 raise SyntaxError(
                     "NoExpressionAlias: All non-variable expressions in WITH must be aliased"
                 )
