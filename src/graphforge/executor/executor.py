@@ -116,12 +116,32 @@ def _expression_to_string(expr: Any) -> str:
         elif isinstance(value, (int, float)):
             return str(value)
         elif isinstance(value, list):
-            # List literal
-            items = [_expression_to_string(Literal(item)) for item in value]
+            # List literal - format items directly
+            def format_item(item: Any) -> str:
+                if item is None:
+                    return "null"
+                elif isinstance(item, bool):
+                    return "true" if item else "false"
+                elif isinstance(item, str):
+                    return f"'{item}'"
+                else:
+                    return str(item)
+
+            items = [format_item(item) for item in value]
             return f"[{', '.join(items)}]"
         elif isinstance(value, dict):
-            # Map literal
-            pairs = [f"{k}: {_expression_to_string(Literal(v))}" for k, v in value.items()]
+            # Map literal - format values directly
+            def format_value(v: Any) -> str:
+                if v is None:
+                    return "null"
+                elif isinstance(v, bool):
+                    return "true" if v else "false"
+                elif isinstance(v, str):
+                    return f"'{v}'"
+                else:
+                    return str(v)
+
+            pairs = [f"{k}: {format_value(v)}" for k, v in value.items()]
             return f"{{{', '.join(pairs)}}}"
         else:
             return str(value)
@@ -816,7 +836,7 @@ class QueryExecutor:
 
         for ctx in input_rows:
             row = {}
-            for i, return_item in enumerate(op.items):
+            for return_item in op.items:
                 # Extract expression and alias from ReturnItem
                 value = evaluate_expression(return_item.expression, ctx, self)
 
@@ -1305,7 +1325,7 @@ class QueryExecutor:
         if group_key:
             for i, expr in enumerate(op.grouping_exprs):
                 # Find the corresponding ReturnItem to get the alias
-                for j, return_item in enumerate(op.return_items):
+                for return_item in op.return_items:
                     if return_item.expression == expr:
                         # Use alias if provided, otherwise generate from expression
                         key = (
@@ -1323,7 +1343,7 @@ class QueryExecutor:
             assert isinstance(agg_expr, FunctionCall)
 
             # Find the corresponding ReturnItem to get the alias
-            for j, return_item in enumerate(op.return_items):
+            for return_item in op.return_items:
                 if return_item.expression == agg_expr:
                     # Use alias if provided, otherwise generate from expression
                     key = (
@@ -2364,12 +2384,12 @@ class QueryExecutor:
                             f"missing columns {sorted(missing_in_branch)} in branch {i}"
                         )
                     if extra_in_branch:
-                        error_parts.append(
-                            f"extra columns {sorted(extra_in_branch)} in branch {i}"
-                        )
-                    raise ValueError(
-                        f"All sub queries in an UNION must have the same column names: {'; '.join(error_parts)}"
+                        error_parts.append(f"extra columns {sorted(extra_in_branch)} in branch {i}")
+                    error_msg = (
+                        "All sub queries in an UNION must have the same column names: "
+                        f"{'; '.join(error_parts)}"
                     )
+                    raise ValueError(error_msg)
 
         # UNION (not UNION ALL) requires deduplication
         if not op.all:

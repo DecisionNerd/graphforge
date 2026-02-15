@@ -185,19 +185,19 @@ class TestUnionEdgeCases:
     def test_union_mismatched_column_count(self):
         """Test UNION behavior with different numbers of columns.
 
-        Note: Current implementation does not validate column count mismatch.
-        This test documents the current behavior (no error raised).
+        UNION requires all branches to have the same column names.
+        This test verifies that mismatched columns are properly rejected.
         """
         gf = GraphForge()
 
         gf.execute("CREATE (p:Person {name: 'Alice', age: 30})")
 
-        # Different column counts - currently allowed but may produce unexpected results
-        results = gf.execute("""
-            MATCH (p:Person) RETURN p.name AS name
-            UNION
-            MATCH (p:Person) RETURN p.name AS name, p.age AS age
-        """)
-
-        # Current behavior: both branches execute, results merged without validation
-        assert len(results) == 2
+        # Different column counts - should raise ValueError
+        with pytest.raises(
+            ValueError, match="All sub queries in an UNION must have the same column names"
+        ):
+            gf.execute("""
+                MATCH (p:Person) RETURN p.name AS name
+                UNION
+                MATCH (p:Person) RETURN p.name AS name, p.age AS age
+            """)
