@@ -248,6 +248,9 @@ class QueryPlanner:
         # Plan each segment
         for segment in segments:
             if isinstance(segment, WithClause):
+                # Validate WITH clause (Issue #172)
+                self._validate_with_clause(segment)
+
                 # Check if WITH contains aggregations
                 has_aggregates = any(
                     self._contains_aggregate(item.expression) for item in segment.items
@@ -712,6 +715,43 @@ class QueryPlanner:
             result = BinaryOp(op="AND", left=result, right=pred)
 
         return result
+
+    def _validate_with_clause(self, with_clause: WithClause) -> None:
+        """Validate WITH clause for compile-time errors (Issue #172).
+
+        Checks for:
+        1. Duplicate aliases (ColumnNameConflict)
+        2. Unaliased expressions that aren't simple variables (NoExpressionAlias)
+
+        Args:
+            with_clause: WITH clause to validate
+
+        Raises:
+            SyntaxError: If validation fails
+        """
+        from graphforge.ast.expression import Variable
+
+        # Check for duplicate aliases
+        seen_aliases = set()
+        for item in with_clause.items:
+            # Get the alias (explicit or implicit)
+            alias = item.alias if item.alias else (
+                item.expression.name if isinstance(item.expression, Variable) else None
+            )
+
+            if alias:
+                if alias in seen_aliases:
+                    raise SyntaxError(
+                        f"ColumnNameConflict: Multiple result columns with the same name '{alias}' are not supported"
+                    )
+                seen_aliases.add(alias)
+
+        # Check for unaliased expressions (only Variables can be unaliased)
+        for item in with_clause.items:
+            if not item.alias and not isinstance(item.expression, Variable):
+                raise SyntaxError(
+                    "NoExpressionAlias: All non-variable expressions in WITH must be aliased"
+                )
 
     def _has_aggregations(self, return_clause: ReturnClause) -> bool:
         """Check if RETURN clause contains any aggregation functions.
