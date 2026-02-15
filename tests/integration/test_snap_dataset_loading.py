@@ -6,6 +6,18 @@ These tests verify that SNAP datasets can be:
 3. Loaded into GraphForge
 4. Queried with Cypher
 
+## Registry State Contract
+
+These tests assume the SNAP dataset registry is populated with real datasets
+from src/graphforge/datasets/data/snap.json. The `ensure_snap_datasets_registered`
+fixture (autouse=True) ensures this contract is maintained.
+
+## Test Isolation
+
+Unit tests (tests/unit/datasets/test_registry.py) clear the global registry
+for isolation. This integration test module re-registers SNAP datasets if needed
+to ensure tests run correctly regardless of execution order.
+
 Note: These tests require network access and may download large files.
 Use pytest markers to control which tests run.
 
@@ -73,6 +85,32 @@ def ensure_dataset_cached(tmp_path_factory):
             GraphForge.from_dataset(dataset_name)
 
     return _ensure_cached
+
+
+@pytest.fixture(scope="module", autouse=True)
+def ensure_snap_datasets_registered():
+    """Ensure SNAP datasets are registered before integration tests run.
+
+    This fixture ensures the registry is populated with real SNAP datasets,
+    preventing pollution from unit tests that clear and mock the registry.
+
+    Scope: module - runs once per test module (test file)
+    Autouse: True - automatically applied to all tests in module
+    """
+    from graphforge.datasets.registry import list_datasets
+    from graphforge.datasets.sources.snap import register_snap_datasets
+
+    # Check if SNAP datasets are already registered
+    snap_datasets = list_datasets(source="snap")
+
+    # If fewer than expected, re-register (might have been cleared by unit tests)
+    if len(snap_datasets) < 90:  # Should have ~95 datasets
+        # Re-register SNAP datasets
+        register_snap_datasets()
+
+    yield  # Run tests
+
+    # No cleanup - leave registry as-is for other tests
 
 
 class TestSNAPDatasetLoading:
@@ -241,10 +279,16 @@ class TestSNAPDatasetLoading:
         """Test that all SNAP dataset URLs are properly formatted."""
         snap_datasets = list_datasets(source="snap")
 
-        for dataset in snap_datasets:
+        # Filter out test datasets (from unit tests)
+        real_datasets = [d for d in snap_datasets if not d.url.startswith("https://example.com")]
+
+        # Verify we have real datasets to test
+        assert len(real_datasets) > 90, f"Expected 90+ SNAP datasets, found {len(real_datasets)}"
+
+        for dataset in real_datasets:
             # All URLs should be from snap.stanford.edu under /data/
             parsed = urlparse(dataset.url)
-            assert parsed.scheme == "https"
+            assert parsed.scheme == "https", f"Dataset {dataset.name} uses HTTP: {dataset.url}"
             assert parsed.hostname == "snap.stanford.edu"
             assert parsed.path.startswith("/data/")
 
