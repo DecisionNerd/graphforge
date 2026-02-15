@@ -673,11 +673,22 @@ class ASTTransformer(Transformer):
         return items[0]
 
     def property_access(self, items):
-        """Transform property access."""
-        var_name = (
-            items[0].name if isinstance(items[0], Variable) else self._get_token_value(items[0])
-        )
+        """Transform property access.
+
+        Supports:
+        - variable.property (e.g., n.name)
+        - map_literal.property (e.g., {key: 'value'}.key)
+        - list_literal.property (e.g., [1, 2, 3][0].prop)
+        """
+        base_expr = items[0]
         prop_name = self._get_token_value(items[1])
+
+        # If base is a Variable, use variable field for backward compatibility
+        if isinstance(base_expr, Variable):
+            return PropertyAccess(variable=base_expr.name, property=prop_name)
+
+        # Otherwise, use base field for expression-based property access
+        return PropertyAccess(base=base_expr, property=prop_name)
         return PropertyAccess(variable=var_name, property=prop_name)
 
     def function_call(self, items):

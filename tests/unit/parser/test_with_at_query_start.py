@@ -178,7 +178,6 @@ class TestWithAtQueryStartExecution:
         assert result[0]["name"].value == "Bob"
         assert result[1]["name"].value == "Charlie"
 
-    @pytest.mark.skip(reason="Requires map property access (Issue #173)")
     def test_execution_complex_expression(self):
         """Test execution: WITH {name: 'Alice', filters: [25, 30, 35]} AS params ..."""
         gf = GraphForge()
