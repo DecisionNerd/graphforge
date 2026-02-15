@@ -15,7 +15,14 @@ from graphforge.ast.clause import (
     SkipClause,
     WhereClause,
 )
-from graphforge.ast.expression import BinaryOp, Literal, PropertyAccess, UnaryOp, Variable
+from graphforge.ast.expression import (
+    BinaryOp,
+    Literal,
+    PropertyAccess,
+    UnaryOp,
+    Variable,
+    Wildcard,
+)
 from graphforge.ast.pattern import Direction, NodePattern, RelationshipPattern
 from graphforge.ast.query import CypherQuery
 
@@ -38,4 +45,5 @@ __all__ = [
     "UnaryOp",
     "Variable",
     "WhereClause",
+    "Wildcard",
 ]

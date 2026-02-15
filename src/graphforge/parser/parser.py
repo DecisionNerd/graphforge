@@ -35,6 +35,7 @@ from graphforge.ast.expression import (
     PropertyAccess,
     UnaryOp,
     Variable,
+    Wildcard,
 )
 from graphforge.ast.pattern import Direction, NodePattern, RelationshipPattern
 from graphforge.ast.query import CypherQuery
@@ -109,23 +110,23 @@ class ASTTransformer(Transformer):
     def multi_part_query(self, items):
         """Transform multi-part query (with WITH clauses).
 
-        Structure: reading_clause+ with_clause+ single_part_query
-        Each reading_clause is a list of clauses (MATCH, WHERE)
+        Structure: reading_or_writing_clauses+ with_clause+ final_query_part
+        Each reading_or_writing_clauses is a list of clauses (MATCH, WHERE, CREATE, MERGE)
         Each with_clause is a WithClause
-        single_part_query is a CypherQuery
+        final_query_part is a CypherQuery
         """
-        # Flatten all clauses from reading clauses, with clauses, and final query
+        # Flatten all clauses from reading/writing clauses, with clauses, and final query
         all_clauses = []
 
         for item in items:
             if isinstance(item, list):
-                # reading_clause returns a list of clauses
+                # reading_or_writing_clauses returns a list of clauses
                 all_clauses.extend(item)
             elif isinstance(item, WithClause):
                 # with_clause returns a single WithClause
                 all_clauses.append(item)
             elif isinstance(item, CypherQuery):
-                # single_part_query returns a CypherQuery
+                # final_query_part returns a CypherQuery
                 all_clauses.extend(item.clauses)
 
         return CypherQuery(clauses=all_clauses)
@@ -156,6 +157,24 @@ class ASTTransformer(Transformer):
         Returns a list of clauses for easier flattening in multi_part_query.
         """
         return list(items)
+
+    def writing_clause(self, items):
+        """Transform writing clause (CREATE/MERGE).
+
+        Returns the clause directly (single clause, no WHERE allowed).
+        """
+        return items[0]
+
+    def reading_or_writing_clauses(self, items):
+        """Transform reading or writing clauses for multi_part_query.
+
+        Returns a list of clauses for flattening.
+        """
+        # reading_clause returns a list, writing_clause returns a single clause
+        if isinstance(items[0], list):
+            return items[0]
+        else:
+            return [items[0]]
 
     def final_query_part(self, items):
         """Transform final part of multi-part query.
@@ -562,7 +581,13 @@ class ASTTransformer(Transformer):
         return (self._get_token_value(items[0]), items[1])
 
     # Expressions
-    def return_item(self, items):
+    def return_all(self, items):
+        """Transform RETURN * item."""
+        # "*" means return all variables in scope
+        # Use Wildcard expression to represent this
+        return ReturnItem(expression=Wildcard(), alias=None)
+
+    def return_expression(self, items):
         """Transform return item with optional alias."""
         expression = items[0]
         alias = None
