@@ -1,6 +1,5 @@
 """Tests for wildcard (*) parsing in RETURN and WITH clauses."""
 
-
 from graphforge.ast.clause import ReturnClause, ReturnItem, WithClause
 from graphforge.ast.expression import Wildcard
 from graphforge.parser.parser import parse_cypher
