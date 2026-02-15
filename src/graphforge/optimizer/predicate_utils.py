@@ -91,7 +91,10 @@ class PredicateAnalysis:
             if isinstance(node, Variable):
                 variables.add(node.name)
             elif isinstance(node, PropertyAccess):
-                variables.add(node.variable)
+                if node.variable is not None:
+                    variables.add(node.variable)
+                elif node.base is not None:
+                    walk(node.base)
             elif isinstance(node, BinaryOp):
                 walk(node.left)
                 walk(node.right)

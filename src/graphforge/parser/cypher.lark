@@ -192,7 +192,7 @@ case_expr: "CASE"i when_clause+ ("ELSE"i expression)? "END"i
 
 when_clause: "WHEN"i expression "THEN"i expression
 
-property_access: variable "." IDENTIFIER
+property_access: (variable | map_literal | list_literal) "." IDENTIFIER
 
 // Labels and types
 labels: ":" label_disjunction

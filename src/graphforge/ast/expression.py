@@ -59,18 +59,32 @@ class Variable(BaseModel):
 class PropertyAccess(BaseModel):
     """Property access expression.
 
-    Examples:
-        PropertyAccess(variable="n", property="name")
-        PropertyAccess(variable="person", property="age")
+    Supports both variable property access and expression property access:
+    - variable.property: PropertyAccess(variable="n", property="name")
+    - {key: val}.property: PropertyAccess(base=Literal(...), property="key")
+    - [1, 2, 3][0].property: PropertyAccess(base=ListIndex(...), property="...")
+
+    For backward compatibility, 'variable' can still be used for simple cases.
+    When 'base' is provided, it takes precedence over 'variable'.
     """
 
-    variable: str = Field(..., min_length=1, description="Variable name")
+    variable: str | None = Field(default=None, description="Variable name (legacy)")
+    base: Any | None = Field(default=None, description="Base expression for property access")
     property: str = Field(..., min_length=1, description="Property name")
+
+    @model_validator(mode="after")
+    def validate_variable_or_base(self) -> "PropertyAccess":
+        """Ensure either variable or base is provided."""
+        if self.variable is None and self.base is None:
+            raise ValueError("PropertyAccess requires either 'variable' or 'base'")
+        return self
 
     @field_validator("variable", "property")
     @classmethod
-    def validate_identifier(cls, v: str) -> str:
+    def validate_identifier(cls, v: str | None) -> str | None:
         """Validate identifier format."""
+        if v is None:
+            return v
         if not v[0].isalpha() and v[0] != "_":
             raise ValueError(f"Identifier must start with letter or underscore: {v}")
         if not v.replace("_", "").isalnum():

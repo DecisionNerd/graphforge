@@ -163,7 +163,13 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
 
     # Property access
     if isinstance(expr, PropertyAccess):
-        obj = ctx.get(expr.variable)
+        # Get the base object: either from variable or evaluate base expression
+        if expr.variable:
+            obj = ctx.get(expr.variable)
+        elif expr.base:
+            obj = evaluate_expression(expr.base, ctx, executor)
+        else:
+            raise ValueError("PropertyAccess must have either variable or base")
 
         # Handle NULL: accessing property on NULL returns NULL
         if isinstance(obj, CypherNull):
@@ -173,6 +179,12 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
         if isinstance(obj, (NodeRef, EdgeRef)):
             if expr.property in obj.properties:
                 return obj.properties[expr.property]  # type: ignore[no-any-return]
+            return CypherNull()
+
+        # Handle CypherMap property access (Issue #173)
+        if isinstance(obj, CypherMap):
+            if expr.property in obj.value:
+                return obj.value[expr.property]  # type: ignore[no-any-return]
             return CypherNull()
 
         raise TypeError(f"Cannot access property on {type(obj).__name__}")
