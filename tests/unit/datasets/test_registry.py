@@ -53,7 +53,7 @@ class TestDatasetRegistration:
             name="test-dataset",
             description="Test dataset",
             source="test",
-            url="http://example.com/test.csv",
+            url="https://example.com/test.csv",
             nodes=100,
             edges=200,
             labels=["Person"],
@@ -75,7 +75,7 @@ class TestDatasetRegistration:
             name="test-dataset",
             description="Test dataset",
             source="test",
-            url="http://example.com/test.csv",
+            url="https://example.com/test.csv",
             nodes=100,
             edges=200,
             labels=["Person"],
@@ -119,7 +119,7 @@ class TestDatasetListing:
                 name="snap-small",
                 description="Small SNAP dataset",
                 source="snap",
-                url="http://example.com/snap-small.csv",
+                url="https://example.com/snap-small.csv",
                 nodes=100,
                 edges=200,
                 labels=["Node"],
@@ -133,7 +133,7 @@ class TestDatasetListing:
                 name="snap-large",
                 description="Large SNAP dataset",
                 source="snap",
-                url="http://example.com/snap-large.csv",
+                url="https://example.com/snap-large.csv",
                 nodes=10000,
                 edges=50000,
                 labels=["Node"],
@@ -147,7 +147,7 @@ class TestDatasetListing:
                 name="neo4j-movies",
                 description="Neo4j movies dataset",
                 source="neo4j",
-                url="http://example.com/movies.cypher",
+                url="https://example.com/movies.cypher",
                 nodes=500,
                 edges=1000,
                 labels=["Person", "Movie"],
@@ -250,7 +250,7 @@ class TestDatasetCaching:
             name="test-dataset-ext",
             description="Test",
             source="test",
-            url="http://example.com/data.txt.gz",
+            url="https://example.com/data.txt.gz",
             nodes=100,
             edges=200,
             labels=["Node"],
@@ -331,7 +331,7 @@ class TestDatasetLoading:
             name="test-dataset",
             description="Test dataset",
             source="test",
-            url="http://example.com/test.csv",
+            url="https://example.com/test.csv",
             nodes=100,
             edges=200,
             labels=["Person"],
@@ -425,7 +425,7 @@ class TestDatasetLoading:
             name="bad-dataset",
             description="Dataset with bad loader",
             source="test",
-            url="http://example.com/bad.csv",
+            url="https://example.com/bad.csv",
             nodes=10,
             edges=20,
             labels=["Node"],
@@ -490,7 +490,7 @@ class TestGraphForgeFromDataset:
             name="test-dataset",
             description="Test dataset",
             source="test",
-            url="http://example.com/test.csv",
+            url="https://example.com/test.csv",
             nodes=100,
             edges=200,
             labels=["Person"],
@@ -551,37 +551,37 @@ class TestGetCachePath:
     def test_cache_path_with_txt_gz_extension(self):
         """Test cache path preserves .txt.gz extension."""
         with patch("graphforge.datasets.registry._CACHE_DIR", Path(self.temp_cache)):
-            path = _get_cache_path("test-dataset", "http://example.com/data.txt.gz")
+            path = _get_cache_path("test-dataset", "https://example.com/data.txt.gz")
             assert path == Path(self.temp_cache) / "test-dataset.txt.gz"
 
     def test_cache_path_with_csv_gz_extension(self):
         """Test cache path preserves .csv.gz extension."""
         with patch("graphforge.datasets.registry._CACHE_DIR", Path(self.temp_cache)):
-            path = _get_cache_path("test-dataset", "http://example.com/data.csv.gz")
+            path = _get_cache_path("test-dataset", "https://example.com/data.csv.gz")
             assert path == Path(self.temp_cache) / "test-dataset.csv.gz"
 
     def test_cache_path_with_tar_gz_extension(self):
         """Test cache path preserves .tar.gz extension."""
         with patch("graphforge.datasets.registry._CACHE_DIR", Path(self.temp_cache)):
-            path = _get_cache_path("test-dataset", "http://example.com/data.tar.gz")
+            path = _get_cache_path("test-dataset", "https://example.com/data.tar.gz")
             assert path == Path(self.temp_cache) / "test-dataset.tar.gz"
 
     def test_cache_path_with_single_extension(self):
         """Test cache path preserves single extension."""
         with patch("graphforge.datasets.registry._CACHE_DIR", Path(self.temp_cache)):
-            path = _get_cache_path("test-dataset", "http://example.com/data.csv")
+            path = _get_cache_path("test-dataset", "https://example.com/data.csv")
             assert path == Path(self.temp_cache) / "test-dataset.csv"
 
     def test_cache_path_with_no_extension(self):
         """Test cache path with URL without extension."""
         with patch("graphforge.datasets.registry._CACHE_DIR", Path(self.temp_cache)):
-            path = _get_cache_path("test-dataset", "http://example.com/data")
+            path = _get_cache_path("test-dataset", "https://example.com/data")
             assert path == Path(self.temp_cache) / "test-dataset"
 
     def test_cache_path_sanitizes_slashes(self):
         """Test cache path sanitizes forward and back slashes in name."""
         with patch("graphforge.datasets.registry._CACHE_DIR", Path(self.temp_cache)):
-            path = _get_cache_path("test/dataset\\name", "http://example.com/data.csv")
+            path = _get_cache_path("test/dataset\\name", "https://example.com/data.csv")
             assert path == Path(self.temp_cache) / "test_dataset_name.csv"
 
 
@@ -721,7 +721,7 @@ class TestDownloadDataset:
 
             mock_download.side_effect = side_effect
 
-            _download_dataset("http://example.com/data.txt", dest_path)
+            _download_dataset("https://example.com/data.txt", dest_path)
 
             assert dest_path.parent.exists()
 
@@ -742,7 +742,7 @@ class TestDownloadDataset:
             mock_download.side_effect = side_effect
 
             # Should succeed after retries
-            _download_dataset("http://example.com/data.txt", dest_path, max_retries=2)
+            _download_dataset("https://example.com/data.txt", dest_path, max_retries=2)
 
             # Should have been called 3 times (initial + 2 retries)
             assert call_count[0] == 3
@@ -757,7 +757,7 @@ class TestDownloadDataset:
             mock_download.side_effect = RuntimeError("Download failed")
 
             with pytest.raises(RuntimeError, match="Failed to download dataset after 3 attempts"):
-                _download_dataset("http://example.com/data.txt", dest_path, max_retries=2)
+                _download_dataset("https://example.com/data.txt", dest_path, max_retries=2)
 
     def test_download_validates_gzip_files(self):
         """Test that gzip files are validated after download."""
@@ -772,7 +772,7 @@ class TestDownloadDataset:
 
             # Should fail validation and retry
             with pytest.raises(RuntimeError, match="Failed to download dataset"):
-                _download_dataset("http://example.com/data.txt.gz", dest_path, max_retries=1)
+                _download_dataset("https://example.com/data.txt.gz", dest_path, max_retries=1)
 
     def test_download_cleans_up_temp_files_on_failure(self):
         """Test that temporary files are cleaned up on failure."""
@@ -788,7 +788,7 @@ class TestDownloadDataset:
             mock_download.side_effect = side_effect
 
             with pytest.raises(RuntimeError, match="Failed to download dataset"):
-                _download_dataset("http://example.com/data.txt", dest_path, max_retries=0)
+                _download_dataset("https://example.com/data.txt", dest_path, max_retries=0)
 
             # Temp file should be cleaned up
             assert not temp_path.exists()
@@ -812,7 +812,7 @@ class TestDownloadDataset:
 
             mock_download.side_effect = side_effect
 
-            _download_dataset("http://example.com/data.txt", dest_path, max_retries=1)
+            _download_dataset("https://example.com/data.txt", dest_path, max_retries=1)
 
             assert dest_path.exists()
             assert call_count[0] == 2
