@@ -103,6 +103,47 @@ class PropertyAccess(BaseModel):
     model_config = {"frozen": True}
 
 
+class Subscript(BaseModel):
+    """Subscript/slice expression for list access.
+
+    Supports:
+    - Index access: list[0], list[-1]
+    - Slice access: list[1..3], list[..2], list[2..], list[..]
+
+    Examples:
+        Subscript(base=Variable("list"), index=Literal(0))  # list[0]
+        Subscript(base=Variable("list"), start=Literal(1), end=Literal(3))  # list[1..3]
+        Subscript(base=Variable("list"), start=None, end=Literal(2))  # list[..2]
+        Subscript(base=Variable("list"), start=Literal(2), end=None)  # list[2..]
+        Subscript(base=Variable("list"), start=None, end=None)  # list[..] (full slice)
+    """
+
+    base: Any = Field(..., description="Base expression (list, variable, function call, etc.)")
+    index: Any | None = Field(
+        default=None, description="Index expression for single element access"
+    )
+    start: Any | None = Field(default=None, description="Start index for slice")
+    end: Any | None = Field(default=None, description="End index for slice")
+
+    @model_validator(mode="after")
+    def validate_index_or_slice(self) -> "Subscript":
+        """Ensure either index OR slice mode, not both.
+
+        Index mode: index is not None, start and end are None
+        Slice mode: index is None, start and/or end can be any value
+        (including both None for list[..])
+        """
+        has_index = self.index is not None
+        has_slice_params = self.start is not None or self.end is not None
+
+        if has_index and has_slice_params:
+            raise ValueError("Subscript cannot have both index and slice parameters")
+
+        return self
+
+    model_config = {"frozen": True}
+
+
 class BinaryOp(BaseModel):
     """Binary operation expression.
 

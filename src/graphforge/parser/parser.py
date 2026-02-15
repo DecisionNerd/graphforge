@@ -33,6 +33,7 @@ from graphforge.ast.expression import (
     FunctionCall,
     Literal,
     PropertyAccess,
+    Subscript,
     UnaryOp,
     Variable,
     Wildcard,
@@ -714,6 +715,52 @@ class ASTTransformer(Transformer):
 
         # Otherwise, use base field for expression-based property access
         return PropertyAccess(base=base_expr, property=prop_name)
+
+    def subscript(self, items):
+        """Transform subscript/slice expression.
+
+        Supports:
+        - list[index] - single index access
+        - list[start..end] - slice with start and end
+        - list[..end] - slice from beginning to end
+        - list[start..] - slice from start to end of list
+        """
+        base_expr = items[0]
+        index_info = items[1]  # This is the result from subscript_index
+
+        # index_info is a Subscript object with index OR start/end set
+        # Update it with the correct base
+        return Subscript(
+            base=base_expr,
+            index=index_info.index,
+            start=index_info.start,
+            end=index_info.end,
+        )
+
+    def index_access(self, items):
+        """Transform single index access: list[0]"""
+        # items[0] is the index expression
+        return Subscript(base=None, index=items[0], start=None, end=None)
+
+    def slice_range(self, items):
+        """Transform slice with start and end: list[1..3]"""
+        # items[0] is start, items[1] is end
+        return Subscript(base=None, index=None, start=items[0], end=items[1])
+
+    def slice_from(self, items):
+        """Transform slice from start to end: list[2..]"""
+        # items[0] is start, end is None (implicit)
+        return Subscript(base=None, index=None, start=items[0], end=None)
+
+    def slice_to(self, items):
+        """Transform slice from beginning to end: list[..3]"""
+        # start is None (implicit), items[0] is end
+        return Subscript(base=None, index=None, start=None, end=items[0])
+
+    def slice_all(self, items):
+        """Transform full slice: list[..]"""
+        # Both start and end are None (implicit)
+        return Subscript(base=None, index=None, start=None, end=None)
 
     def function_call(self, items):
         """Transform function call."""

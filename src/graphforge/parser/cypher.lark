@@ -174,6 +174,7 @@ ADD_OP: "+" | "-"
 MULT_OP: "*" | "/" | "%"
 
 ?primary_expr: function_call
+             | subscript
              | property_access
              | case_expr
              | exists_expr
@@ -200,6 +201,14 @@ function_args: "*"                              -> count_star
 case_expr: "CASE"i when_clause+ ("ELSE"i expression)? "END"i
 
 when_clause: "WHEN"i expression "THEN"i expression
+
+subscript: (variable | literal | function_call | property_access | subscript) "[" subscript_index "]"
+
+subscript_index: expression ".." expression  -> slice_range
+               | expression ".."             -> slice_from
+               | ".." expression             -> slice_to
+               | ".."                        -> slice_all
+               | expression                  -> index_access
 
 property_access: (variable | map_literal | list_literal) "." IDENTIFIER
 
@@ -247,7 +256,7 @@ TRUE: /true/i
 FALSE: /false/i
 NULL: /null/i
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
-FUNCTION_NAME: /relationships|percentiledisc|percentilecont|substring|toboolean|tointeger|tofloat|tostring|truncate|datetime|duration|distance|dangerous|coalesce|collect|replace|length|minute|second|reverse|ltrim|rtrim|count|month|lower|upper|point|nodes|split|stdevp|stdev|trim|year|type|date|time|hour|tail|head|last|right|left|range|day|sum|avg|min|max|size|labels|id/i
+FUNCTION_NAME: /relationships|percentiledisc|percentilecont|substring|toboolean|tointeger|tofloat|tostring|truncate|datetime|duration|distance|dangerous|coalesce|collect|replace|length|minute|second|reverse|ltrim|rtrim|count|month|lower|upper|point|nodes|split|stdevp|stdev|trim|year|type|date|time|hour|tail|head|last|right|left|floor|round|range|ceil|sign|day|sum|avg|min|max|abs|size|labels|id/i
 
 INT: /[0-9]+/
 FLOAT: /[0-9]+\.[0-9]+/

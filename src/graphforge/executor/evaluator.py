@@ -16,6 +16,7 @@ from graphforge.ast.expression import (
     PropertyAccess,
     QuantifierExpression,
     SubqueryExpression,
+    Subscript,
     UnaryOp,
     Variable,
 )
@@ -656,6 +657,10 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
         else:
             raise ValueError(f"Unknown subquery type: {expr.type}")
 
+    # Subscript operations (list indexing and slicing)
+    if isinstance(expr, Subscript):
+        return _evaluate_subscript(expr, ctx, executor)
+
     # Function calls
     if isinstance(expr, FunctionCall):
         return _evaluate_function(expr, ctx, executor)
@@ -694,6 +699,7 @@ TEMPORAL_FUNCTIONS = {
     "TRUNCATE",
 }
 SPATIAL_FUNCTIONS = {"POINT", "DISTANCE"}
+MATH_FUNCTIONS = {"ABS", "CEIL", "FLOOR", "ROUND", "SIGN"}
 GRAPH_FUNCTIONS = {"ID", "LABELS"}
 PATH_FUNCTIONS = {"LENGTH", "NODES", "RELATIONSHIPS", "HEAD", "LAST"}
 AGGREGATE_FUNCTIONS = {
@@ -1140,6 +1146,8 @@ def _evaluate_function(
         return _evaluate_string_function(func_name, args)
     elif func_name in LIST_FUNCTIONS:
         return _evaluate_list_function(func_name, args)
+    elif func_name in MATH_FUNCTIONS:
+        return _evaluate_math_function(func_name, args)
     elif func_name in TYPE_FUNCTIONS:
         return _evaluate_type_function(func_name, args)
     elif func_name in TEMPORAL_FUNCTIONS:
@@ -1310,6 +1318,195 @@ def _evaluate_string_function(func_name: str, args: list[CypherValue]) -> Cypher
         return CypherString(args[0].value.rstrip())
 
     raise ValueError(f"Unknown string function: {func_name}")
+
+
+def _evaluate_math_function(func_name: str, args: list[CypherValue]) -> CypherValue:
+    """Evaluate math functions.
+
+    Args:
+        func_name: Name of the math function (uppercase)
+        args: List of evaluated arguments (non-NULL)
+
+    Returns:
+        CypherValue result of the math function
+
+    Raises:
+        ValueError: If function is unknown
+        TypeError: If arguments have invalid types
+    """
+    import math
+
+    if func_name == "ABS":
+        # ABS(number) -> number
+        if len(args) != 1:
+            raise TypeError(f"ABS expects 1 argument, got {len(args)}")
+        arg = args[0]
+        if isinstance(arg, CypherInt):
+            return CypherInt(abs(arg.value))
+        elif isinstance(arg, CypherFloat):
+            return CypherFloat(abs(arg.value))
+        else:
+            raise TypeError(f"ABS expects numeric argument, got {type(arg).__name__}")
+
+    elif func_name == "CEIL":
+        # CEIL(number) -> int (returns smallest integer >= number)
+        if len(args) != 1:
+            raise TypeError(f"CEIL expects 1 argument, got {len(args)}")
+        arg = args[0]
+        if isinstance(arg, CypherInt):
+            return arg  # Integer ceiling is itself
+        elif isinstance(arg, CypherFloat):
+            return CypherInt(math.ceil(arg.value))
+        else:
+            raise TypeError(f"CEIL expects numeric argument, got {type(arg).__name__}")
+
+    elif func_name == "FLOOR":
+        # FLOOR(number) -> int (returns largest integer <= number)
+        if len(args) != 1:
+            raise TypeError(f"FLOOR expects 1 argument, got {len(args)}")
+        arg = args[0]
+        if isinstance(arg, CypherInt):
+            return arg  # Integer floor is itself
+        elif isinstance(arg, CypherFloat):
+            return CypherInt(math.floor(arg.value))
+        else:
+            raise TypeError(f"FLOOR expects numeric argument, got {type(arg).__name__}")
+
+    elif func_name == "ROUND":
+        # ROUND(number, [precision]) -> number
+        # With 1 arg: rounds to nearest integer
+        # With 2 args: rounds to specified decimal places
+        if len(args) not in (1, 2):
+            raise TypeError(f"ROUND expects 1 or 2 arguments, got {len(args)}")
+
+        arg = args[0]
+        if not isinstance(arg, (CypherInt, CypherFloat)):
+            raise TypeError(f"ROUND expects numeric argument, got {type(arg).__name__}")
+
+        if len(args) == 1:
+            # Round to nearest integer
+            if isinstance(arg, CypherInt):
+                return arg
+            else:
+                return CypherFloat(round(arg.value))
+        else:
+            # Round to specified precision
+            precision_arg = args[1]
+            if not isinstance(precision_arg, CypherInt):
+                raise TypeError(
+                    f"ROUND precision must be integer, got {type(precision_arg).__name__}"
+                )
+            precision = precision_arg.value
+
+            if isinstance(arg, CypherInt):
+                # For integers, rounding with precision just returns the integer
+                # unless precision is negative (round to tens, hundreds, etc.)
+                if precision >= 0:
+                    return arg
+                else:
+                    return CypherInt(round(arg.value, precision))
+            else:
+                return CypherFloat(round(arg.value, precision))
+
+    elif func_name == "SIGN":
+        # SIGN(number) -> int (-1, 0, or 1)
+        if len(args) != 1:
+            raise TypeError(f"SIGN expects 1 argument, got {len(args)}")
+        arg = args[0]
+        if isinstance(arg, (CypherInt, CypherFloat)):
+            value = arg.value
+        else:
+            raise TypeError(f"SIGN expects numeric argument, got {type(arg).__name__}")
+
+        if value > 0:
+            return CypherInt(1)
+        elif value < 0:
+            return CypherInt(-1)
+        else:
+            return CypherInt(0)
+
+    raise ValueError(f"Unknown math function: {func_name}")
+
+
+def _evaluate_subscript(
+    subscript: Subscript, ctx: ExecutionContext, executor: Any = None
+) -> CypherValue:
+    """Evaluate subscript/slice operations on lists.
+
+    Args:
+        subscript: Subscript AST node with base and index/start/end
+        ctx: Execution context
+        executor: Optional executor for nested expressions
+
+    Returns:
+        CypherValue result (element or sublist)
+
+    Raises:
+        TypeError: If base is not a list
+    """
+    # Evaluate the base expression
+    base_val = evaluate_expression(subscript.base, ctx, executor)
+
+    # NULL propagation: if base is NULL, return NULL
+    if isinstance(base_val, CypherNull):
+        return CypherNull()
+
+    # Base must be a list
+    if not isinstance(base_val, CypherList):
+        raise TypeError(f"Subscript operation requires list, got {type(base_val).__name__}")
+
+    list_value = base_val.value
+
+    # Handle index access: list[i]
+    if subscript.index is not None:
+        index_val = evaluate_expression(subscript.index, ctx, executor)
+
+        # NULL index returns NULL
+        if isinstance(index_val, CypherNull):
+            return CypherNull()
+
+        if not isinstance(index_val, CypherInt):
+            raise TypeError(f"List index must be integer, got {type(index_val).__name__}")
+
+        index = index_val.value
+
+        # Python supports negative indices naturally
+        # Out of bounds returns NULL per openCypher spec
+        try:
+            from typing import cast
+
+            return cast(CypherValue, list_value[index])
+        except IndexError:
+            return CypherNull()
+
+    # Handle slice access: list[start..end]
+    else:
+        # Evaluate start and end (may be None)
+        start_val = (
+            None if subscript.start is None else evaluate_expression(subscript.start, ctx, executor)
+        )
+        end_val = (
+            None if subscript.end is None else evaluate_expression(subscript.end, ctx, executor)
+        )
+
+        # NULL in slice returns NULL
+        if isinstance(start_val, CypherNull) or isinstance(end_val, CypherNull):
+            return CypherNull()
+
+        # Convert to Python slice indices
+        start = None if start_val is None else start_val.value
+        end = None if end_val is None else end_val.value
+
+        # Validate types
+        if start is not None and not isinstance(start_val, CypherInt):
+            raise TypeError(f"Slice start must be integer, got {type(start_val).__name__}")
+        if end is not None and not isinstance(end_val, CypherInt):
+            raise TypeError(f"Slice end must be integer, got {type(end_val).__name__}")
+
+        # Perform slice (Python's slicing handles negative indices and bounds automatically)
+        # Note: openCypher slicing is exclusive on the end, same as Python
+        result = list_value[start:end]
+        return CypherList(result)
 
 
 def _evaluate_type_function(func_name: str, args: list[CypherValue]) -> CypherValue:
