@@ -280,10 +280,7 @@ class TestSNAPDatasetLoading:
         snap_datasets = list_datasets(source="snap")
 
         # Filter out test datasets (from unit tests) using proper URL parsing
-        real_datasets = [
-            d for d in snap_datasets
-            if urlparse(d.url).hostname != "example.com"
-        ]
+        real_datasets = [d for d in snap_datasets if urlparse(d.url).hostname != "example.com"]
 
         # Verify we have real datasets to test
         assert len(real_datasets) > 90, f"Expected 90+ SNAP datasets, found {len(real_datasets)}"
