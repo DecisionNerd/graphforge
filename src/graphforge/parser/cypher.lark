@@ -3,7 +3,7 @@
 
 ?start: query
 
-query: union_query | single_part_query | multi_part_query
+query: union_query | single_part_query | multi_part_query | with_query
 
 // UNION queries - combines multiple query results
 union_query: (single_part_query | multi_part_query) (union_clause (single_part_query | multi_part_query))+
@@ -13,6 +13,9 @@ union_clause: "UNION"i "ALL"i  -> union_all
 
 // Multi-part queries with WITH clause
 multi_part_query: reading_clause+ with_clause+ final_query_part
+
+// Queries starting with WITH clause
+with_query: with_clause+ final_query_part
 
 // Single-part queries (without WITH)
 single_part_query: read_query | write_query | update_query | unwind_query | return_only_query | reading_only_query

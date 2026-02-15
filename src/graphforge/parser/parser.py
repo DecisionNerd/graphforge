@@ -130,6 +130,26 @@ class ASTTransformer(Transformer):
 
         return CypherQuery(clauses=all_clauses)
 
+    def with_query(self, items):
+        """Transform query starting with WITH clause (Issue #172).
+
+        Structure: with_clause+ final_query_part
+        Each with_clause is a WithClause
+        final_query_part is a CypherQuery
+        """
+        # Flatten all WITH clauses and final query
+        all_clauses = []
+
+        for item in items:
+            if isinstance(item, WithClause):
+                # with_clause returns a single WithClause
+                all_clauses.append(item)
+            elif isinstance(item, CypherQuery):
+                # final_query_part returns a CypherQuery
+                all_clauses.extend(item.clauses)
+
+        return CypherQuery(clauses=all_clauses)
+
     def reading_clause(self, items):
         """Transform reading clause (MATCH/UNWIND with optional WHERE).
 
