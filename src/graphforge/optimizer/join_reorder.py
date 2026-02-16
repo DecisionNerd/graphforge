@@ -12,6 +12,7 @@ from graphforge.optimizer.cost_model import CardinalityEstimator
 from graphforge.optimizer.predicate_utils import PredicateAnalysis
 from graphforge.optimizer.statistics import GraphStatistics
 from graphforge.planner.operators import (
+    Aggregate,
     Create,
     Delete,
     ExpandEdges,
@@ -121,7 +122,44 @@ class DependencyAnalyzer:
             pred_vars = PredicateAnalysis.get_referenced_variables(op.predicate)
             required.update(pred_vars)
 
+        elif isinstance(op, Aggregate):
+            # Aggregate requires all variables in grouping and aggregation expressions
+            for expr in op.grouping_exprs:
+                expr_vars = self._get_expression_variables(expr)
+                required.update(expr_vars)
+            for agg_expr in op.agg_exprs:
+                # Aggregation expressions reference input variables (before aggregation)
+                expr_vars = self._get_expression_variables(agg_expr)
+                required.update(expr_vars)
+
         return required
+
+    def _get_expression_variables(self, expr: Any) -> set[str]:
+        """Extract variable names from an expression.
+
+        Args:
+            expr: Expression to analyze
+
+        Returns:
+            Set of variable names referenced in the expression
+        """
+        from graphforge.ast.expression import FunctionCall, Variable
+
+        if isinstance(expr, Variable):
+            return {expr.name}
+        elif isinstance(expr, FunctionCall):
+            # Recursively collect variables from function arguments
+            variables = set()
+            for arg in expr.args:
+                variables.update(self._get_expression_variables(arg))
+            return variables
+        else:
+            # For other expression types, use PredicateAnalysis if available
+            try:
+                return PredicateAnalysis.get_referenced_variables(expr)
+            except Exception:
+                # If we can't analyze it, assume no variables
+                return set()
 
     def find_valid_orderings(
         self,
@@ -290,8 +328,9 @@ class JoinReorderOptimizer:
     def _reorder_segment(self, operators: list[Any]) -> list[Any]:
         """Reorder a single segment without boundaries.
 
-        Reorders pattern operators while ensuring all operator dependencies
-        (including non-pattern operators like Filter) remain satisfied.
+        Only reorders operators involved in pattern matching and filtering
+        (ScanNodes, ExpandEdges, Filter). Result-producing operators like
+        Sort, Project, and Aggregate maintain their original positions.
 
         Args:
             operators: List of operators in segment
@@ -299,22 +338,32 @@ class JoinReorderOptimizer:
         Returns:
             Reordered list of operators
         """
+        from graphforge.planner.operators import Project, Sort
+
         # Can't reorder if segment has side effects
         if self._segment_has_side_effects(operators):
             return operators
 
+        # Identify reorderable operators (pattern matching + filters)
+        # Sort, Project, Aggregate are result-producing and must stay in order
+        reorderable_ops = []
+        reorderable_indices = []
+        for i, op in enumerate(operators):
+            if isinstance(op, (ScanNodes, ExpandEdges, Filter)):
+                reorderable_ops.append(op)
+                reorderable_indices.append(i)
+
         # Need at least 2 pattern operators to reorder
-        pattern_op_count = sum(
-            1 for op in operators if isinstance(op, (ScanNodes, ExpandEdges))
+        pattern_count = sum(
+            1 for op in reorderable_ops if isinstance(op, (ScanNodes, ExpandEdges))
         )
-        if pattern_op_count < 2:
+        if pattern_count < 2:
             return operators
 
-        # Build dependency graph for ALL operators (not just pattern ops)
-        # This ensures non-pattern operators like Filter maintain valid bindings
-        nodes, dependencies = self.analyzer.build_dependency_graph(operators)
+        # Build dependency graph for reorderable operators only
+        nodes, dependencies = self.analyzer.build_dependency_graph(reorderable_ops)
 
-        # Find all valid orderings that respect ALL dependencies
+        # Find all valid orderings that respect dependencies
         valid_orderings = self.analyzer.find_valid_orderings(
             nodes, dependencies, max_orderings=self.max_orderings
         )
@@ -330,10 +379,15 @@ class JoinReorderOptimizer:
             cost = self.estimator.estimate_cost(ops)
             costs.append((cost, ops))
 
-        # Get best ordering
-        _min_cost, best_ops = min(costs, key=lambda x: x[0])
+        # Get best ordering for reorderable operators
+        _min_cost, best_reorderable_ops = min(costs, key=lambda x: x[0])
 
-        return best_ops
+        # Reconstruct full operator list with reordered operators in place
+        result = list(operators)
+        for i, idx in enumerate(reorderable_indices):
+            result[idx] = best_reorderable_ops[i]
+
+        return result
 
     def _split_at_boundaries(self, operators: list[Any]) -> list[Any]:
         """Split operator list at pipeline boundaries.
