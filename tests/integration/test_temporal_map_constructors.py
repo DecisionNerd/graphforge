@@ -24,8 +24,10 @@ class TestDateMapConstructor:
         """Date with week parameters."""
         result = gf.execute("RETURN date({year: 2016, week: 1, dayOfWeek: 3}) AS d")
         assert len(result) == 1
-        # Week 1 of 2016, day 3 (Wednesday)
+        # Week 1 of 2016, day 3 (Wednesday) should be 2016-01-06
         assert result[0]["d"].value.year == 2016
+        assert result[0]["d"].value.month == 1
+        assert result[0]["d"].value.day == 6
 
     def test_date_quarter(self, gf):
         """Date with quarter parameters."""
@@ -39,8 +41,10 @@ class TestDateMapConstructor:
         """Date with ordinal day parameter."""
         result = gf.execute("RETURN date({year: 2015, ordinalDay: 100}) AS d")
         assert len(result) == 1
-        # 100th day of 2015
+        # 100th day of 2015 should be 2015-04-10
         assert result[0]["d"].value.year == 2015
+        assert result[0]["d"].value.month == 4
+        assert result[0]["d"].value.day == 10
 
     def test_date_string_still_works(self, gf):
         """Date with string parameter still works (backward compatible)."""
@@ -197,9 +201,12 @@ class TestDurationMapConstructor:
         """Duration with years and months uses isodate.Duration."""
         result = gf.execute("RETURN duration({years: 1, months: 2, days: 3}) AS dur")
         assert len(result) == 1
-        # Should return an isodate.Duration object
+        # Should return an isodate.Duration object with correct values
         dur = result[0]["dur"].value
-        assert hasattr(dur, "years") or hasattr(dur, "months")
+        assert getattr(dur, "years", 0) == 1
+        assert getattr(dur, "months", 0) == 2
+        # isodate.Duration stores days in tdelta attribute
+        assert getattr(dur, "days", 0) == 3 or getattr(getattr(dur, "tdelta", None), "days", 0) == 3
 
     def test_duration_with_milliseconds(self, gf):
         """Duration with milliseconds."""
@@ -255,3 +262,72 @@ class TestTemporalMapErrorCases:
         """Duration with invalid type raises error."""
         with pytest.raises(TypeError, match="DURATION expects string or map"):
             gf.execute("RETURN duration(123) AS dur")
+
+    def test_date_invalid_week(self, gf):
+        """Date with week out of range raises error."""
+        with pytest.raises(ValueError, match="week must be between 1 and 53"):
+            gf.execute("RETURN date({year: 2016, week: 54, dayOfWeek: 1}) AS d")
+
+    def test_date_invalid_day_of_week(self, gf):
+        """Date with dayOfWeek out of range raises error."""
+        with pytest.raises(ValueError, match="dayOfWeek must be between 1 and 7"):
+            gf.execute("RETURN date({year: 2016, week: 1, dayOfWeek: 8}) AS d")
+
+    def test_date_invalid_quarter(self, gf):
+        """Date with quarter out of range raises error."""
+        with pytest.raises(ValueError, match="quarter must be between 1 and 4"):
+            gf.execute("RETURN date({year: 2015, quarter: 5, dayOfQuarter: 1}) AS d")
+
+    def test_date_invalid_day_of_quarter(self, gf):
+        """Date with dayOfQuarter out of range raises error."""
+        with pytest.raises(ValueError, match="dayOfQuarter must be between 1 and 92 for quarter 4"):
+            gf.execute("RETURN date({year: 2015, quarter: 4, dayOfQuarter: 93}) AS d")
+
+    def test_date_invalid_ordinal_day(self, gf):
+        """Date with ordinalDay out of range raises error."""
+        with pytest.raises(ValueError, match="ordinalDay must be between 1 and 365"):
+            gf.execute("RETURN date({year: 2015, ordinalDay: 366}) AS d")
+
+    def test_date_invalid_ordinal_day_leap_year(self, gf):
+        """Date with ordinalDay out of range for leap year raises error."""
+        with pytest.raises(ValueError, match="ordinalDay must be between 1 and 366"):
+            gf.execute("RETURN date({year: 2016, ordinalDay: 367}) AS d")
+
+    def test_datetime_invalid_timezone(self, gf):
+        """DateTime with invalid timezone raises error."""
+        with pytest.raises(ValueError, match="Invalid timezone: Invalid/Timezone"):
+            gf.execute(
+                "RETURN datetime({year: 2015, month: 1, day: 1, timezone: 'Invalid/Timezone'}) AS dt"
+            )
+
+    def test_time_invalid_timezone(self, gf):
+        """Time with invalid timezone raises error."""
+        with pytest.raises(ValueError, match="Invalid timezone: BadZone"):
+            gf.execute("RETURN time({hour: 12, timezone: 'BadZone'}) AS t")
+
+    def test_time_microsecond_overflow(self, gf):
+        """Time with microsecond overflow normalizes correctly."""
+        result = gf.execute(
+            "RETURN time({hour: 10, minute: 30, second: 45, microsecond: 1500000}) AS t"
+        )
+        assert len(result) == 1
+        t = result[0]["t"].value
+        # 1500000 microseconds = 1.5 seconds overflow
+        assert t.hour == 10
+        assert t.minute == 30
+        assert t.second == 46  # 45 + 1 carry
+        assert t.microsecond == 500000  # 1500000 % 1000000
+
+    def test_datetime_microsecond_overflow(self, gf):
+        """DateTime with microsecond overflow normalizes correctly."""
+        result = gf.execute(
+            "RETURN datetime({year: 2015, month: 1, day: 1, hour: 10, minute: 30, "
+            "second: 45, microsecond: 1500000}) AS dt"
+        )
+        assert len(result) == 1
+        dt = result[0]["dt"].value
+        # 1500000 microseconds = 1.5 seconds overflow
+        assert dt.hour == 10
+        assert dt.minute == 30
+        assert dt.second == 46  # 45 + 1 carry
+        assert dt.microsecond == 500000  # 1500000 % 1000000

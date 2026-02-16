@@ -1760,6 +1760,11 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                     return CypherDate(datetime.date(year, month, day))
                 # Week date: year, week, dayOfWeek
                 elif year is not None and week is not None and day_of_week is not None:
+                    # Validate week and dayOfWeek ranges
+                    if not (1 <= week <= 53):
+                        raise ValueError(f"week must be between 1 and 53, got {week}")
+                    if not (1 <= day_of_week <= 7):
+                        raise ValueError(f"dayOfWeek must be between 1 and 7, got {day_of_week}")
                     # ISO week date to calendar date
                     jan4 = datetime.date(year, 1, 4)
                     week_one_monday = jan4 - datetime.timedelta(days=jan4.weekday())
@@ -1769,13 +1774,41 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                     return CypherDate(target_date)
                 # Quarter date: year, quarter, dayOfQuarter
                 elif year is not None and quarter is not None and day_of_quarter is not None:
+                    # Validate quarter and dayOfQuarter ranges
+                    if not (1 <= quarter <= 4):
+                        raise ValueError(f"quarter must be between 1 and 4, got {quarter}")
                     # Quarter to month: Q1=Jan, Q2=Apr, Q3=Jul, Q4=Oct
                     first_month = (quarter - 1) * 3 + 1
+                    # Calculate last day of quarter for validation
+                    if quarter == 4:
+                        last_month = 12
+                    else:
+                        last_month = first_month + 2
+                    # Calculate days in quarter
+                    import calendar
+
+                    days_in_quarter = sum(
+                        calendar.monthrange(year, m)[1] for m in range(first_month, last_month + 1)
+                    )
+                    if not (1 <= day_of_quarter <= days_in_quarter):
+                        raise ValueError(
+                            f"dayOfQuarter must be between 1 and {days_in_quarter} "
+                            f"for quarter {quarter} of year {year}, got {day_of_quarter}"
+                        )
                     first_day = datetime.date(year, first_month, 1)
                     target_date = first_day + datetime.timedelta(days=day_of_quarter - 1)
                     return CypherDate(target_date)
                 # Ordinal date: year, ordinalDay
                 elif year is not None and ordinal_day is not None:
+                    # Validate ordinalDay range (366 for leap years, 365 otherwise)
+                    import calendar
+
+                    max_ordinal_day = 366 if calendar.isleap(year) else 365
+                    if not (1 <= ordinal_day <= max_ordinal_day):
+                        raise ValueError(
+                            f"ordinalDay must be between 1 and {max_ordinal_day} "
+                            f"for year {year}, got {ordinal_day}"
+                        )
                     jan1 = datetime.date(year, 1, 1)
                     target_date = jan1 + datetime.timedelta(days=ordinal_day - 1)
                     return CypherDate(target_date)
@@ -1822,11 +1855,31 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 # Total microseconds from all sub-second components
                 total_microsecond = microsecond + (millisecond * 1000) + (nanosecond // 1000)
 
+                # Normalize microseconds overflow into seconds
+                carry_seconds = total_microsecond // 1_000_000
+                total_microsecond = total_microsecond % 1_000_000
+                second += carry_seconds
+
+                # Normalize seconds overflow into minutes
+                carry_minutes = second // 60
+                second = second % 60
+                minute += carry_minutes
+
+                # Normalize minutes overflow into hours
+                carry_hours = minute // 60
+                minute = minute % 60
+                hour += carry_hours
+
                 # Determine date part
                 if year is not None and month is not None and day is not None:
                     # Calendar date
                     date_part = datetime.date(year, month, day)
                 elif year is not None and week is not None and day_of_week is not None:
+                    # Validate week and dayOfWeek ranges
+                    if not (1 <= week <= 53):
+                        raise ValueError(f"week must be between 1 and 53, got {week}")
+                    if not (1 <= day_of_week <= 7):
+                        raise ValueError(f"dayOfWeek must be between 1 and 7, got {day_of_week}")
                     # Week date
                     jan4 = datetime.date(year, 1, 4)
                     week_one_monday = jan4 - datetime.timedelta(days=jan4.weekday())
@@ -1834,11 +1887,39 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                         weeks=week - 1, days=day_of_week - 1
                     )
                 elif year is not None and quarter is not None and day_of_quarter is not None:
+                    # Validate quarter and dayOfQuarter ranges
+                    if not (1 <= quarter <= 4):
+                        raise ValueError(f"quarter must be between 1 and 4, got {quarter}")
                     # Quarter date
                     first_month = (quarter - 1) * 3 + 1
+                    # Calculate last day of quarter for validation
+                    if quarter == 4:
+                        last_month = 12
+                    else:
+                        last_month = first_month + 2
+                    # Get last day of quarter's last month
+                    import calendar
+
+                    days_in_quarter = sum(
+                        calendar.monthrange(year, m)[1] for m in range(first_month, last_month + 1)
+                    )
+                    if not (1 <= day_of_quarter <= days_in_quarter):
+                        raise ValueError(
+                            f"dayOfQuarter must be between 1 and {days_in_quarter} "
+                            f"for quarter {quarter} of year {year}, got {day_of_quarter}"
+                        )
                     first_day = datetime.date(year, first_month, 1)
                     date_part = first_day + datetime.timedelta(days=day_of_quarter - 1)
                 elif year is not None and ordinal_day is not None:
+                    # Validate ordinalDay range (366 for leap years, 365 otherwise)
+                    import calendar
+
+                    max_ordinal_day = 366 if calendar.isleap(year) else 365
+                    if not (1 <= ordinal_day <= max_ordinal_day):
+                        raise ValueError(
+                            f"ordinalDay must be between 1 and {max_ordinal_day} "
+                            f"for year {year}, got {ordinal_day}"
+                        )
                     # Ordinal date
                     jan1 = datetime.date(year, 1, 1)
                     date_part = jan1 + datetime.timedelta(days=ordinal_day - 1)
@@ -1858,7 +1939,10 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 if timezone:
                     from dateutil import tz
 
-                    dt = dt.replace(tzinfo=tz.gettz(timezone))
+                    tzinfo = tz.gettz(timezone)
+                    if tzinfo is None:
+                        raise ValueError(f"Invalid timezone: {timezone}")
+                    dt = dt.replace(tzinfo=tzinfo)
 
                 return CypherDateTime(dt)
             else:
@@ -1889,6 +1973,21 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 # Total microseconds from all sub-second components
                 total_microsecond = microsecond + (millisecond * 1000) + (nanosecond // 1000)
 
+                # Normalize microseconds overflow into seconds
+                carry_seconds = total_microsecond // 1_000_000
+                total_microsecond = total_microsecond % 1_000_000
+                second += carry_seconds
+
+                # Normalize seconds overflow into minutes
+                carry_minutes = second // 60
+                second = second % 60
+                minute += carry_minutes
+
+                # Normalize minutes overflow into hours
+                carry_hours = minute // 60
+                minute = minute % 60
+                hour += carry_hours
+
                 # Create time object
                 t = datetime.time(hour, minute, second, total_microsecond)
 
@@ -1896,7 +1995,10 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 if timezone:
                     from dateutil import tz
 
-                    t = t.replace(tzinfo=tz.gettz(timezone))
+                    tzinfo = tz.gettz(timezone)
+                    if tzinfo is None:
+                        raise ValueError(f"Invalid timezone: {timezone}")
+                    t = t.replace(tzinfo=tzinfo)
 
                 return CypherTime(t)
             else:
