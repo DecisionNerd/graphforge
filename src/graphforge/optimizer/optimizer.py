@@ -4,6 +4,7 @@ from typing import Any
 
 from graphforge.ast.expression import FunctionCall, Variable
 from graphforge.optimizer.predicate_utils import PredicateAnalysis
+from graphforge.optimizer.statistics import GraphStatistics
 from graphforge.planner.operators import (
     Aggregate,
     AggregationHint,
@@ -28,36 +29,48 @@ class QueryOptimizer:
 
     Optimization passes:
         1. Filter pushdown - Move WHERE predicates into ScanNodes/ExpandEdges
-        2. Predicate reordering - Evaluate more selective predicates first
-        3. Redundant traversal elimination - Remove duplicate pattern scans
-        4. Aggregate pushdown - Move aggregations into traversal operators
+        2. Join reordering - Reorder MATCH patterns to avoid Cartesian products
+        3. Predicate reordering - Evaluate more selective predicates first
+        4. Redundant traversal elimination - Remove duplicate pattern scans
+        5. Aggregate pushdown - Move aggregations into traversal operators
 
     Attributes:
         enable_filter_pushdown: Enable filter pushdown optimization
+        enable_join_reorder: Enable join reordering optimization
         enable_predicate_reorder: Enable predicate reordering optimization
         enable_redundant_elimination: Enable redundant traversal elimination
         enable_aggregate_pushdown: Enable aggregate pushdown optimization
+        statistics: Graph statistics for cost-based optimization (optional)
     """
 
     def __init__(
         self,
         enable_filter_pushdown: bool = True,
+        enable_join_reorder: bool = True,
         enable_predicate_reorder: bool = True,
         enable_redundant_elimination: bool = True,
         enable_aggregate_pushdown: bool = True,
+        statistics: GraphStatistics | None = None,
+        max_orderings: int = 1000,
     ):
         """Initialize query optimizer.
 
         Args:
             enable_filter_pushdown: Enable filter pushdown pass
+            enable_join_reorder: Enable join reordering pass
             enable_predicate_reorder: Enable predicate reordering pass
             enable_redundant_elimination: Enable redundant traversal elimination
             enable_aggregate_pushdown: Enable aggregate pushdown pass
+            statistics: Graph statistics for cost-based optimization (optional)
+            max_orderings: Maximum orderings to enumerate in join reordering (default 1000)
         """
         self.enable_filter_pushdown = enable_filter_pushdown
+        self.enable_join_reorder = enable_join_reorder
         self.enable_predicate_reorder = enable_predicate_reorder
         self.enable_redundant_elimination = enable_redundant_elimination
         self.enable_aggregate_pushdown = enable_aggregate_pushdown
+        self._statistics = statistics
+        self._max_orderings = max_orderings
         self._predicate_analysis = PredicateAnalysis()
 
     def optimize(self, operators: list[Any]) -> list[Any]:
@@ -72,6 +85,10 @@ class QueryOptimizer:
         # Apply filter pushdown first (reduces cardinality early)
         if self.enable_filter_pushdown:
             operators = self._filter_pushdown_pass(operators)
+
+        # Join reordering (must run while patterns are recognizable)
+        if self.enable_join_reorder and self._statistics:
+            operators = self._join_reorder_pass(operators)
 
         # Then reorder predicates within operators
         if self.enable_predicate_reorder:
@@ -588,3 +605,46 @@ class QueryOptimizer:
         return AggregationHint(
             func=func_name, expr=expr, group_by=group_by_vars, result_var=result_var
         )
+
+    def _join_reorder_pass(self, operators: list[Any]) -> list[Any]:
+        """Reorder join patterns to avoid Cartesian products.
+
+        Uses cost-based optimization to find the best execution order for
+        MATCH patterns based on graph statistics.
+
+        This pass must run early (after filter pushdown but before other passes)
+        while pattern operators are still recognizable.
+
+        Algorithm:
+            1. Check if reordering is applicable (2+ pattern ops, no side effects)
+            2. Split operator list at pipeline boundaries (With, Union, Subquery)
+            3. For each segment:
+               - Build dependency graph based on variable bindings
+               - Enumerate all valid topological orderings
+               - Estimate cost for each ordering
+               - Select minimum-cost ordering
+            4. Reconstruct operator list with optimized segments
+
+        Safety constraints:
+            - Only reorders ScanNodes and ExpandEdges operators
+            - Preserves variable binding dependencies
+            - Doesn't cross pipeline boundaries (With, Union, Subquery)
+            - Doesn't reorder if side effects present (CREATE, SET, DELETE, MERGE)
+
+        Args:
+            operators: Input operator list
+
+        Returns:
+            Operator list with join patterns reordered for minimum cost
+        """
+        # Can't reorder without statistics
+        if self._statistics is None:
+            return operators
+
+        from graphforge.optimizer.join_reorder import JoinReorderOptimizer
+
+        optimizer = JoinReorderOptimizer(
+            self._statistics,
+            max_orderings=self._max_orderings,
+        )
+        return optimizer.reorder_joins(operators)
