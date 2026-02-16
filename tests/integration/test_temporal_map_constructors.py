@@ -482,3 +482,33 @@ class TestLocalDateTimeConstructors:
         result = gf.execute("RETURN localtime({hour: 12, minute: null}) AS lt")
         assert len(result) == 1
         assert isinstance(result[0]["lt"], CypherNull)
+
+    def test_localdatetime_string_strips_timezone(self, gf):
+        """LocalDateTime with timezone string strips timezone."""
+        result = gf.execute("RETURN localdatetime('2015-06-15T12:30:00+05:00') AS ldt")
+        assert len(result) == 1
+        ldt = result[0]["ldt"].value
+        assert ldt.year == 2015
+        assert ldt.month == 6
+        assert ldt.day == 15
+        assert ldt.hour == 12
+        assert ldt.minute == 30
+        assert ldt.tzinfo is None  # Timezone stripped
+
+    def test_localtime_string_strips_timezone(self, gf):
+        """LocalTime with timezone string strips timezone."""
+        result = gf.execute("RETURN localtime('14:30:45+05:00') AS lt")
+        assert len(result) == 1
+        lt = result[0]["lt"].value
+        assert lt.hour == 14
+        assert lt.minute == 30
+        assert lt.second == 45
+        assert lt.tzinfo is None  # Timezone stripped
+
+    def test_duration_with_null_returns_null(self, gf):
+        """Duration with null parameter returns null."""
+        from graphforge.types.values import CypherNull
+
+        result = gf.execute("RETURN duration({days: null, hours: 12}) AS dur")
+        assert len(result) == 1
+        assert isinstance(result[0]["dur"], CypherNull)

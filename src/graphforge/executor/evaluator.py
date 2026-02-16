@@ -2093,7 +2093,11 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
             arg = args[0]
             if isinstance(arg, CypherString):
                 # localdatetime(string) parses ISO 8601 datetime without timezone
-                return CypherDateTime(arg.value)
+                cypher_dt = CypherDateTime(arg.value)
+                # Strip timezone if present to ensure naive datetime
+                if cypher_dt.value.tzinfo is not None:
+                    cypher_dt = CypherDateTime(cypher_dt.value.replace(tzinfo=None))
+                return cypher_dt
             elif isinstance(arg, CypherMap):
                 # localdatetime(map) builds from components (no timezone)
                 year = _extract_map_param(arg, "year")
@@ -2231,7 +2235,11 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
             arg = args[0]
             if isinstance(arg, CypherString):
                 # localtime(string) parses ISO 8601 time without timezone
-                return CypherTime(arg.value)
+                cypher_t = CypherTime(arg.value)
+                # Strip timezone if present to ensure naive time
+                if cypher_t.value.tzinfo is not None:
+                    cypher_t = CypherTime(cypher_t.value.replace(tzinfo=None))
+                return cypher_t
             elif isinstance(arg, CypherMap):
                 # localtime(map) builds from components (no timezone)
                 hour = _extract_map_param(arg, "hour", 0)
@@ -2301,6 +2309,22 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
             milliseconds = _extract_map_param(arg, "milliseconds", 0)
             microseconds = _extract_map_param(arg, "microseconds", 0)
             nanoseconds = _extract_map_param(arg, "nanoseconds", 0)
+
+            # Check if any parameter is explicitly null
+            all_params = [
+                years,
+                months,
+                weeks,
+                days,
+                hours,
+                minutes,
+                seconds,
+                milliseconds,
+                microseconds,
+                nanoseconds,
+            ]
+            if any(isinstance(p, CypherNull) for p in all_params):
+                return CypherNull()
 
             # If years or months are present, use isodate.Duration
             if years != 0 or months != 0:
