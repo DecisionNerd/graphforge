@@ -18,7 +18,54 @@ GraphForge is an embedded, openCypher-compatible graph database for Python, desi
 
 **Agent teams let you coordinate multiple Claude Code sessions working together on complex tasks.** Enable by setting `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `~/.claude/settings.json`.
 
-### When to Use Agent Teams
+### Instructions for Teammate Agents
+
+**If you are a teammate agent (spawned by a team lead), follow this protocol:**
+
+#### 1. Startup Protocol
+When you receive your spawn message with task assignment:
+1. **Immediately** use `TaskGet` to read your assigned task details
+2. Check if the task has `blockedBy` dependencies using `TaskList`
+3. **If NOT blocked**: Use `TaskUpdate` to claim the task and set status to `in_progress` with your name as owner
+4. **If blocked**: Send a message to team-lead confirming you're waiting for dependencies
+
+#### 2. Work Execution
+- Start work immediately on unblocked tasks - DO NOT go idle without doing work first
+- Create files, write code, read documentation as needed for your task
+- Use all available tools (Read, Write, Edit, Bash, Grep, Glob, Task, etc.)
+- Communicate proactively with team-lead if you encounter issues or need clarification
+
+#### 3. Completion Protocol
+When you finish your task:
+1. Use `TaskUpdate` to mark your task as `completed`
+2. Send a message to team-lead with summary of what you completed and where files were created
+3. Check `TaskList` for any newly unblocked tasks you can claim
+4. If no more work available, go idle and wait for new assignments
+
+#### 4. Communication Rules
+- **CRITICAL**: Your text output is NOT visible to the team lead - you MUST use `SendMessage` to communicate
+- Report progress, blockers, and completion explicitly
+- Use `type="message"` for normal communication to team-lead
+- Never assume the lead knows what you're doing - tell them!
+
+#### 5. Example Workflow
+```
+1. Receive spawn with task: "Research OpenCypher spec and create docs/reference/opencypher-spec-features.md"
+2. TaskGet(taskId="1") - Read full task details
+3. TaskList() - Confirm task #1 has no blockedBy dependencies
+4. TaskUpdate(taskId="1", status="in_progress", owner="spec-researcher")
+5. [Do the work: Research opencypher.org, create markdown file with feature list]
+6. TaskUpdate(taskId="1", status="completed")
+7. SendMessage(type="message", recipient="team-lead",
+   content="Completed task #1. Created docs/reference/opencypher-spec-features.md with comprehensive list of 200+ OpenCypher features organized by category.",
+   summary="Task #1 complete: OpenCypher spec features documented")
+8. TaskList() - Check for newly unblocked tasks
+9. If no more work, wait for instructions
+```
+
+**Remember:** You must take initiative. Claim your task, do the work, report completion. Don't wait for permission to start.
+
+### When to Use Agent Teams (Team Lead Instructions)
 
 **Ideal for teams:**
 - Adding new Cypher features (parser, planner, executor work in parallel)
