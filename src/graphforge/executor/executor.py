@@ -2205,6 +2205,10 @@ class QueryExecutor:
                         if node_pattern.variable:
                             new_ctx.bindings[node_pattern.variable] = node
 
+                # Handle node-relationship-node pattern: MERGE (a)-[r:KNOWS]->(b)
+                elif len(pattern_parts) >= 3:
+                    was_created = self._merge_relationship_pattern(pattern_parts, new_ctx)
+
             # Execute conditional SET operations
             if was_created and op.on_create:
                 # Execute ON CREATE SET
@@ -2216,6 +2220,245 @@ class QueryExecutor:
             result.append(new_ctx)
 
         return result
+
+    def _merge_relationship_pattern(self, pattern_parts: list, ctx: ExecutionContext) -> bool:
+        """Merge a relationship pattern (node-rel-node).
+
+        Args:
+            pattern_parts: List of pattern parts (nodes and relationships)
+            ctx: Execution context
+
+        Returns:
+            True if pattern was created, False if matched
+        """
+        from graphforge.ast.pattern import NodePattern, RelationshipPattern
+
+        # For now, only support simple 3-part patterns: (a)-[r]->(b)
+        # TODO: Support multi-hop patterns in the future
+        if len(pattern_parts) != 3:
+            raise ValueError(
+                "MERGE currently only supports simple relationship patterns: (a)-[r]->(b)"
+            )
+
+        src_pattern = pattern_parts[0]
+        rel_pattern = pattern_parts[1]
+        dst_pattern = pattern_parts[2]
+
+        if not isinstance(src_pattern, NodePattern):
+            raise ValueError("First element of relationship pattern must be a node")
+        if not isinstance(rel_pattern, RelationshipPattern):
+            raise ValueError("Second element of relationship pattern must be a relationship")
+        if not isinstance(dst_pattern, NodePattern):
+            raise ValueError("Third element of relationship pattern must be a node")
+
+        # Step 1: Resolve or create source node
+        src_node = self._merge_node_in_context(src_pattern, ctx)
+
+        # Step 2: Resolve or create destination node
+        dst_node = self._merge_node_in_context(dst_pattern, ctx)
+
+        # Step 3: Try to find existing relationship
+        from graphforge.ast.pattern import Direction
+
+        rel_type = rel_pattern.types[0] if rel_pattern.types else "RELATED_TO"
+        found_rel = None
+
+        # Get edges based on direction
+        edges_to_check = []
+        if rel_pattern.direction == Direction.OUT:
+            # Outgoing: (src)-[r]->(dst)
+            edges_to_check = self.graph.get_outgoing_edges(src_node.id)
+        elif rel_pattern.direction == Direction.IN:
+            # Incoming: (src)<-[r]-(dst), so check incoming edges of src_node
+            edges_to_check = self.graph.get_incoming_edges(src_node.id)
+        elif rel_pattern.direction == Direction.UNDIRECTED:
+            # Undirected: (src)-[r]-(dst), check both directions
+            outgoing = self.graph.get_outgoing_edges(src_node.id)
+            incoming = self.graph.get_incoming_edges(src_node.id)
+            # Deduplicate by edge ID
+            seen_ids = set()
+            for edge in outgoing + incoming:
+                if edge.id not in seen_ids:
+                    seen_ids.add(edge.id)
+                    edges_to_check.append(edge)
+
+        for edge in edges_to_check:
+            # Check if edge connects to destination node (direction-aware)
+            if rel_pattern.direction == Direction.OUT:
+                if edge.dst.id != dst_node.id:
+                    continue
+            elif rel_pattern.direction == Direction.IN:
+                if edge.src.id != dst_node.id:
+                    continue
+            elif rel_pattern.direction == Direction.UNDIRECTED:
+                # For undirected, dst_node can be on either end
+                if dst_node.id not in (edge.dst.id, edge.src.id):
+                    continue
+
+            # Check if edge type matches
+            if edge.type != rel_type:
+                continue
+
+            # Check if edge properties match
+            if rel_pattern.properties:
+                match = True
+                for key, value_expr in rel_pattern.properties.items():
+                    expected_value = evaluate_expression(value_expr, ctx, self)
+
+                    # NULL in pattern never matches
+                    if isinstance(expected_value, CypherNull):
+                        match = False
+                        break
+
+                    if key not in edge.properties:
+                        match = False
+                        break
+
+                    # Compare CypherValue objects using equality
+                    edge_value = edge.properties[key]
+
+                    # NULL in edge property never matches
+                    if isinstance(edge_value, CypherNull):
+                        match = False
+                        break
+
+                    comparison_result = edge_value.equals(expected_value)
+
+                    if not isinstance(comparison_result, CypherBool):
+                        match = False
+                        break
+
+                    if not comparison_result.value:
+                        match = False
+                        break
+
+                if match:
+                    found_rel = edge
+                    break
+            else:
+                # No properties specified, just match on type
+                found_rel = edge
+                break
+
+        # Step 4: Bind or create relationship
+        if found_rel:
+            # Relationship exists - bind and return False (was_created = False)
+            if rel_pattern.variable:
+                ctx.bindings[rel_pattern.variable] = found_rel
+            return False
+        else:
+            # Relationship doesn't exist - create it and return True (was_created = True)
+            # For IN direction, swap src and dst so stored edge direction is correct
+            if rel_pattern.direction == Direction.IN:
+                # Pattern: (src)<-[r]-(dst) means dst->src in storage
+                edge = self._create_relationship_from_pattern(
+                    dst_node, src_node, rel_type, rel_pattern, ctx
+                )
+            else:
+                # OUT and UNDIRECTED: (src)-[r]->(dst) or (src)-[r]-(dst)
+                edge = self._create_relationship_from_pattern(
+                    src_node, dst_node, rel_type, rel_pattern, ctx
+                )
+            if rel_pattern.variable:
+                ctx.bindings[rel_pattern.variable] = edge
+            return True
+
+    def _merge_node_in_context(self, node_pattern, ctx: ExecutionContext):
+        """Merge a single node (find or create) and bind to context.
+
+        Args:
+            node_pattern: NodePattern from AST
+            ctx: Execution context
+
+        Returns:
+            NodeRef (found or created)
+        """
+
+        # Check if variable is already bound (from MATCH clause)
+        if node_pattern.variable and node_pattern.variable in ctx.bindings:
+            return ctx.bindings[node_pattern.variable]
+
+        # Validate no disjunctive labels in MERGE
+        if node_pattern.labels and len(node_pattern.labels) > 1:
+            raise ValueError(
+                "Disjunctive labels (using '|') are not allowed in MERGE patterns. "
+                "Use multiple MERGE statements or specify only conjunction of labels."
+            )
+
+        # Try to find existing node
+        found_node = None
+
+        if node_pattern.labels:
+            # Collect candidate nodes from all label groups
+            all_candidates = set()
+            for label_group in node_pattern.labels:
+                # Get nodes by first label in the group
+                group_candidates = self.graph.get_nodes_by_label(label_group[0])
+
+                # Filter to nodes with ALL labels in this group (conjunction)
+                if len(label_group) > 1:
+                    group_candidates = [
+                        node
+                        for node in group_candidates
+                        if all(label in node.labels for label in label_group)
+                    ]
+
+                all_candidates.update(group_candidates)
+
+            candidates = list(all_candidates)
+
+            for node in candidates:
+                # Check if properties match
+                if node_pattern.properties:
+                    match = True
+                    for key, value_expr in node_pattern.properties.items():
+                        expected_value = evaluate_expression(value_expr, ctx, self)
+
+                        # NULL in pattern never matches
+                        if isinstance(expected_value, CypherNull):
+                            match = False
+                            break
+
+                        if key not in node.properties:
+                            match = False
+                            break
+
+                        # Compare CypherValue objects using equality
+                        node_value = node.properties[key]
+
+                        # NULL in node property never matches
+                        if isinstance(node_value, CypherNull):
+                            match = False
+                            break
+
+                        comparison_result = node_value.equals(expected_value)
+
+                        if not isinstance(comparison_result, CypherBool):
+                            match = False
+                            break
+
+                        if not comparison_result.value:
+                            match = False
+                            break
+
+                    if match:
+                        found_node = node
+                        break
+                else:
+                    # No properties specified, just match on labels
+                    found_node = node
+                    break
+
+        # Bind found node or create new one
+        if found_node:
+            if node_pattern.variable:
+                ctx.bindings[node_pattern.variable] = found_node
+            return found_node
+        else:
+            node = self._create_node_from_pattern(node_pattern, ctx)
+            if node_pattern.variable:
+                ctx.bindings[node_pattern.variable] = node
+            return node
 
     def _execute_set_items(self, items: list, ctx: ExecutionContext) -> None:
         """Execute SET items on a context (helper for conditional SET).
