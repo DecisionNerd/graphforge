@@ -222,3 +222,99 @@ class TestComplexMergePatterns:
         # Total count should be 2 (NULL never matches NULL per openCypher)
         count_result = gf.execute("MATCH (p:Person {name: 'Alice'}) RETURN count(p) AS count")
         assert count_result[0]["count"].value == 2
+
+    def test_merge_relationship_incoming_direction(self):
+        """MERGE with incoming relationship direction (a)<-[r]-(b)."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Person {name: 'Alice'}),
+                   (b:Person {name: 'Bob'})
+        """)
+
+        # MERGE incoming relationship: (a)<-[r:KNOWS]-(b)
+        # This should create relationship from Bob to Alice
+        results = gf.execute("""
+            MATCH (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'})
+            MERGE (a)<-[r:KNOWS]-(b)
+            RETURN r
+        """)
+
+        assert len(results) == 1
+
+        # Verify relationship direction: Bob->Alice
+        rel_results = gf.execute("""
+            MATCH (b:Person {name: 'Bob'})-[r:KNOWS]->(a:Person {name: 'Alice'})
+            RETURN r
+        """)
+        assert len(rel_results) == 1
+
+        # Second MERGE should find existing relationship
+        results2 = gf.execute("""
+            MATCH (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'})
+            MERGE (a)<-[r:KNOWS]-(b)
+            RETURN r
+        """)
+        assert len(results2) == 1
+
+        # Verify only one relationship exists
+        count_result = gf.execute("MATCH ()-[r:KNOWS]->() RETURN count(r) AS count")
+        assert count_result[0]["count"].value == 1
+
+    def test_merge_relationship_undirected(self):
+        """MERGE with undirected relationship pattern (a)-[r]-(b)."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Person {name: 'Alice'}),
+                   (b:Person {name: 'Bob'})
+        """)
+
+        # Create directed relationship first
+        gf.execute("""
+            MATCH (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'})
+            CREATE (a)-[:KNOWS]->(b)
+        """)
+
+        # MERGE undirected should find the existing relationship
+        results = gf.execute("""
+            MATCH (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'})
+            MERGE (a)-[r:KNOWS]-(b)
+            RETURN r
+        """)
+        assert len(results) == 1
+
+        # Verify still only one relationship exists
+        count_result = gf.execute("MATCH ()-[r:KNOWS]->() RETURN count(r) AS count")
+        assert count_result[0]["count"].value == 1
+
+    def test_merge_relationship_incoming_with_properties(self):
+        """MERGE incoming relationship with property matching."""
+        gf = GraphForge()
+        gf.execute("""
+            CREATE (a:Person {name: 'Alice'}),
+                   (b:Person {name: 'Bob'})
+        """)
+
+        # First MERGE creates relationship with property
+        gf.execute("""
+            MATCH (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'})
+            MERGE (a)<-[r:KNOWS {since: 2020}]-(b)
+        """)
+
+        # Second MERGE with same property should find it
+        results = gf.execute("""
+            MATCH (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'})
+            MERGE (a)<-[r:KNOWS {since: 2020}]-(b)
+            RETURN r.since AS since
+        """)
+        assert len(results) == 1
+        assert results[0]["since"].value == 2020
+
+        # MERGE with different property should create new relationship
+        gf.execute("""
+            MATCH (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'})
+            MERGE (a)<-[r:KNOWS {since: 2021}]-(b)
+        """)
+
+        # Now there should be 2 relationships
+        count_result = gf.execute("MATCH ()-[r:KNOWS]->() RETURN count(r) AS count")
+        assert count_result[0]["count"].value == 2

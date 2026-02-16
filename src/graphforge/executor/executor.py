@@ -2258,16 +2258,42 @@ class QueryExecutor:
         dst_node = self._merge_node_in_context(dst_pattern, ctx)
 
         # Step 3: Try to find existing relationship
+        from graphforge.ast.pattern import Direction
+
         rel_type = rel_pattern.types[0] if rel_pattern.types else "RELATED_TO"
         found_rel = None
 
-        # Get all edges from source node
-        outgoing_edges = self.graph.get_outgoing_edges(src_node.id)
+        # Get edges based on direction
+        edges_to_check = []
+        if rel_pattern.direction == Direction.OUT:
+            # Outgoing: (src)-[r]->(dst)
+            edges_to_check = self.graph.get_outgoing_edges(src_node.id)
+        elif rel_pattern.direction == Direction.IN:
+            # Incoming: (src)<-[r]-(dst), so check incoming edges of src_node
+            edges_to_check = self.graph.get_incoming_edges(src_node.id)
+        elif rel_pattern.direction == Direction.UNDIRECTED:
+            # Undirected: (src)-[r]-(dst), check both directions
+            outgoing = self.graph.get_outgoing_edges(src_node.id)
+            incoming = self.graph.get_incoming_edges(src_node.id)
+            # Deduplicate by edge ID
+            seen_ids = set()
+            for edge in outgoing + incoming:
+                if edge.id not in seen_ids:
+                    seen_ids.add(edge.id)
+                    edges_to_check.append(edge)
 
-        for edge in outgoing_edges:
-            # Check if edge connects to destination node
-            if edge.dst.id != dst_node.id:
-                continue
+        for edge in edges_to_check:
+            # Check if edge connects to destination node (direction-aware)
+            if rel_pattern.direction == Direction.OUT:
+                if edge.dst.id != dst_node.id:
+                    continue
+            elif rel_pattern.direction == Direction.IN:
+                if edge.src.id != dst_node.id:
+                    continue
+            elif rel_pattern.direction == Direction.UNDIRECTED:
+                # For undirected, dst_node can be on either end
+                if dst_node.id not in (edge.dst.id, edge.src.id):
+                    continue
 
             # Check if edge type matches
             if edge.type != rel_type:
@@ -2322,9 +2348,17 @@ class QueryExecutor:
             return False
         else:
             # Relationship doesn't exist - create it and return True (was_created = True)
-            edge = self._create_relationship_from_pattern(
-                src_node, dst_node, rel_type, rel_pattern, ctx
-            )
+            # For IN direction, swap src and dst so stored edge direction is correct
+            if rel_pattern.direction == Direction.IN:
+                # Pattern: (src)<-[r]-(dst) means dst->src in storage
+                edge = self._create_relationship_from_pattern(
+                    dst_node, src_node, rel_type, rel_pattern, ctx
+                )
+            else:
+                # OUT and UNDIRECTED: (src)-[r]->(dst) or (src)-[r]-(dst)
+                edge = self._create_relationship_from_pattern(
+                    src_node, dst_node, rel_type, rel_pattern, ctx
+                )
             if rel_pattern.variable:
                 ctx.bindings[rel_pattern.variable] = edge
             return True
