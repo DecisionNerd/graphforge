@@ -265,18 +265,21 @@ class GraphForge:
             branch_operators = []
             # Get statistics once for all branches
             stats = self.graph.get_statistics()
+            # Create optimizer once for all branches
+            optimizer_with_stats = None
+            if self.optimizer:
+                optimizer_with_stats = QueryOptimizer(
+                    enable_filter_pushdown=self.optimizer.enable_filter_pushdown,
+                    enable_join_reorder=self.optimizer.enable_join_reorder,
+                    enable_predicate_reorder=self.optimizer.enable_predicate_reorder,
+                    enable_redundant_elimination=self.optimizer.enable_redundant_elimination,
+                    enable_aggregate_pushdown=self.optimizer.enable_aggregate_pushdown,
+                    statistics=stats,
+                )
             for branch_ast in ast.branches:
                 branch_ops = self.planner.plan(branch_ast)
                 # Optimize each branch independently with statistics
-                if self.optimizer:
-                    optimizer_with_stats = QueryOptimizer(
-                        enable_filter_pushdown=self.optimizer.enable_filter_pushdown,
-                        enable_join_reorder=self.optimizer.enable_join_reorder,
-                        enable_predicate_reorder=self.optimizer.enable_predicate_reorder,
-                        enable_redundant_elimination=self.optimizer.enable_redundant_elimination,
-                        enable_aggregate_pushdown=self.optimizer.enable_aggregate_pushdown,
-                        statistics=stats,
-                    )
+                if optimizer_with_stats:
                     branch_ops = optimizer_with_stats.optimize(branch_ops)
                 branch_operators.append(branch_ops)
 
@@ -289,20 +292,20 @@ class GraphForge:
             # Regular query
             operators = self.planner.plan(ast)
 
-        # Optimize query plan with current graph statistics
-        if self.optimizer:
-            # Get current statistics for cost-based optimization
-            stats = self.graph.get_statistics()
-            # Create optimizer with statistics
-            optimizer_with_stats = QueryOptimizer(
-                enable_filter_pushdown=self.optimizer.enable_filter_pushdown,
-                enable_join_reorder=self.optimizer.enable_join_reorder,
-                enable_predicate_reorder=self.optimizer.enable_predicate_reorder,
-                enable_redundant_elimination=self.optimizer.enable_redundant_elimination,
-                enable_aggregate_pushdown=self.optimizer.enable_aggregate_pushdown,
-                statistics=stats,
-            )
-            operators = optimizer_with_stats.optimize(operators)
+            # Optimize query plan with current graph statistics
+            if self.optimizer:
+                # Get current statistics for cost-based optimization
+                stats = self.graph.get_statistics()
+                # Create optimizer with statistics
+                optimizer_with_stats = QueryOptimizer(
+                    enable_filter_pushdown=self.optimizer.enable_filter_pushdown,
+                    enable_join_reorder=self.optimizer.enable_join_reorder,
+                    enable_predicate_reorder=self.optimizer.enable_predicate_reorder,
+                    enable_redundant_elimination=self.optimizer.enable_redundant_elimination,
+                    enable_aggregate_pushdown=self.optimizer.enable_aggregate_pushdown,
+                    statistics=stats,
+                )
+                operators = optimizer_with_stats.optimize(operators)
 
         # Execute
         results = self.executor.execute(operators)

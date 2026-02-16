@@ -145,7 +145,7 @@ class DependencyAnalyzer:
 
         valid_orderings: list[list[OperatorNode]] = []
 
-        def backtrack(remaining: set[int], current_ordering: list[OperatorNode]):
+        def backtrack(remaining: set[int], current_ordering: list[OperatorNode], placed: set[int]):
             """Recursive backtracking to find all valid orderings."""
             # Stop if we've found enough orderings
             if len(valid_orderings) >= max_orderings:
@@ -161,15 +161,17 @@ class DependencyAnalyzer:
                     return
 
                 deps = dependencies.get(node_idx, set())
-                # Check if all dependencies are already in current ordering
-                if all(d in [n.index for n in current_ordering] for d in deps):
+                # Check if all dependencies are already placed (O(1) with set)
+                if deps.issubset(placed):
                     remaining.remove(node_idx)
+                    placed.add(node_idx)
                     current_ordering.append(nodes[node_idx])
-                    backtrack(remaining, current_ordering)
+                    backtrack(remaining, current_ordering, placed)
                     current_ordering.pop()
+                    placed.discard(node_idx)
                     remaining.add(node_idx)
 
-        backtrack(set(range(len(nodes))), [])
+        backtrack(set(range(len(nodes))), [], set())
 
         # If enumeration was cut short, add greedy fallback
         if len(valid_orderings) >= max_orderings:

@@ -208,8 +208,8 @@ class Graph:
 
         # Recompute average degree for this type
         # Average degree = count of edges / count of unique source nodes
-        edges_of_type = [e for e in self._edges.values() if e.type == edge.type]
-        unique_sources = len({e.src.id for e in edges_of_type})
+        edge_ids_of_type = self._type_index.get(edge.type, set())
+        unique_sources = len({self._edges[eid].src.id for eid in edge_ids_of_type})
         avg_degree = new_edge_counts[edge.type] / max(unique_sources, 1)
 
         new_avg_degrees = dict(self._statistics.avg_degree_by_type)
@@ -260,13 +260,11 @@ class Graph:
                 if new_edge_counts[old_edge.type] == 0:
                     del new_edge_counts[old_edge.type]
             # Recompute avg degree for old type
-            edges_of_old_type = [
-                e for e in self._edges.values() if e.type == old_edge.type and e.id != edge.id
-            ]
+            edge_ids_of_old_type = self._type_index.get(old_edge.type, set()) - {edge.id}
             new_avg_degrees = dict(self._statistics.avg_degree_by_type)
-            if edges_of_old_type:
-                unique_sources = len({e.src.id for e in edges_of_old_type})
-                new_avg_degrees[old_edge.type] = len(edges_of_old_type) / max(unique_sources, 1)
+            if edge_ids_of_old_type:
+                unique_sources = len({self._edges[eid].src.id for eid in edge_ids_of_old_type})
+                new_avg_degrees[old_edge.type] = len(edge_ids_of_old_type) / max(unique_sources, 1)
             elif old_edge.type in new_avg_degrees:
                 del new_avg_degrees[old_edge.type]
             self._statistics = self._statistics.model_copy(
@@ -296,8 +294,8 @@ class Graph:
             new_edge_counts[edge.type] = new_edge_counts.get(edge.type, 0) + 1
 
             # Recompute avg degree for new type
-            edges_of_type = [e for e in self._edges.values() if e.type == edge.type]
-            unique_sources = len({e.src.id for e in edges_of_type})
+            edge_ids_of_type = self._type_index.get(edge.type, set())
+            unique_sources = len({self._edges[eid].src.id for eid in edge_ids_of_type})
             avg_degree = new_edge_counts[edge.type] / max(unique_sources, 1)
 
             new_avg_degrees = dict(self._statistics.avg_degree_by_type)

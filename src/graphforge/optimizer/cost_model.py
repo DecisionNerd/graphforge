@@ -81,12 +81,12 @@ class CardinalityEstimator:
             else:
                 avg_degree = 1.0
         else:
-            # Specific edge types - average their degrees
+            # Specific edge types - sum their degrees (OR condition)
             type_degrees = [
                 self.statistics.avg_degree_by_type.get(edge_type, 1.0)
                 for edge_type in op.edge_types
             ]
-            avg_degree = sum(type_degrees) / max(len(type_degrees), 1)
+            avg_degree = sum(type_degrees)
 
         # Output cardinality = input * avg degree
         estimate = int(input_cardinality * avg_degree)
@@ -109,7 +109,7 @@ class CardinalityEstimator:
             Estimated number of output rows
         """
         selectivity = PredicateAnalysis.estimate_selectivity(op.predicate)
-        return int(input_cardinality * selectivity)
+        return max(int(input_cardinality * selectivity), 0)
 
     def estimate_cost(self, operators: list[Any]) -> float:
         """Estimate total execution cost of an operator sequence.

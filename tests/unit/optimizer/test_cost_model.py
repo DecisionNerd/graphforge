@@ -155,7 +155,7 @@ class TestExpandEdgesEstimation:
         assert estimate == 30
 
     def test_expand_multiple_edge_types(self):
-        """Expand with multiple types should average their degrees."""
+        """Expand with multiple types should sum their degrees (OR semantics)."""
         stats = GraphStatistics(
             total_nodes=100,
             total_edges=200,
@@ -168,8 +168,8 @@ class TestExpandEdgesEstimation:
         )
         estimate = estimator.estimate_expand_edges(op, input_cardinality=10)
 
-        # 10 input * ((4.0 + 2.0) / 2 = 3.0) = 30
-        assert estimate == 30
+        # 10 input * (4.0 + 2.0 = 6.0) = 60
+        assert estimate == 60
 
     def test_expand_unknown_edge_type_defaults_to_one(self):
         """Expand with unknown type should default to degree 1.0."""
