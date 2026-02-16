@@ -1707,12 +1707,15 @@ def _extract_map_param(map_val: CypherMap, key: str, default: Any = None) -> Any
         default: Default value if key not present
 
     Returns:
-        Python value (int, float, str) or default
+        Python value (int for numerics, str for strings) or default
     """
     cypher_val = map_val.value.get(key)
     if cypher_val is None or isinstance(cypher_val, CypherNull):
         return default
-    if isinstance(cypher_val, (CypherInt, CypherFloat, CypherString)):
+    if isinstance(cypher_val, (CypherInt, CypherFloat)):
+        # Coerce numeric values to int for datetime constructors
+        return int(cypher_val.value)
+    elif isinstance(cypher_val, CypherString):
         return cypher_val.value
     else:
         raise TypeError(

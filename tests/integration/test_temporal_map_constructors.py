@@ -367,3 +367,35 @@ class TestTemporalMapErrorCases:
         """Time with unsupported parameter type raises error."""
         with pytest.raises(TypeError, match="Temporal map parameter 'hour' must be"):
             gf.execute("RETURN time({hour: [12]}) AS t")
+
+    def test_date_float_parameters_coerced_to_int(self, gf):
+        """Date with float parameters coerces to integers."""
+        result = gf.execute("RETURN date({year: 2015.0, month: 6.0, day: 15.0}) AS d")
+        assert len(result) == 1
+        assert result[0]["d"].value.year == 2015
+        assert result[0]["d"].value.month == 6
+        assert result[0]["d"].value.day == 15
+
+    def test_datetime_float_parameters_coerced_to_int(self, gf):
+        """DateTime with float parameters coerces to integers."""
+        result = gf.execute(
+            "RETURN datetime({year: 2015.0, month: 6.0, day: 15.0, "
+            "hour: 12.0, minute: 30.0, second: 45.0}) AS dt"
+        )
+        assert len(result) == 1
+        dt = result[0]["dt"].value
+        assert dt.year == 2015
+        assert dt.month == 6
+        assert dt.day == 15
+        assert dt.hour == 12
+        assert dt.minute == 30
+        assert dt.second == 45
+
+    def test_time_float_parameters_coerced_to_int(self, gf):
+        """Time with float parameters coerces to integers."""
+        result = gf.execute("RETURN time({hour: 14.0, minute: 30.0, second: 15.0}) AS t")
+        assert len(result) == 1
+        t = result[0]["t"].value
+        assert t.hour == 14
+        assert t.minute == 30
+        assert t.second == 15
