@@ -703,13 +703,9 @@ class QueryExecutor:
                 group_key_values = []
                 for var_name in hint.group_by:
                     val = temp_ctx.get(var_name)
-                    # Use a hashable representation
-                    if hasattr(val, "id"):
-                        group_key_values.append(("node", val.id))
-                    elif hasattr(val, "value"):
-                        group_key_values.append(("value", val.value))
-                    else:
-                        group_key_values.append(("obj", id(val)))
+                    # Use the existing hashable conversion helper
+                    hashable_val = self._value_to_hashable(val)
+                    group_key_values.append(hashable_val)
                 group_key = tuple(group_key_values)
 
                 # Initialize aggregate for this group if needed
@@ -720,7 +716,14 @@ class QueryExecutor:
 
                 # Update aggregate
                 if func_name == "COUNT":
-                    aggregates[group_key] += 1
+                    if hint.expr is not None:
+                        # COUNT(expr) - only count non-NULL values
+                        value = evaluate_expression(hint.expr, temp_ctx, self)
+                        if not isinstance(value, CypherNull):
+                            aggregates[group_key] += 1
+                    else:
+                        # COUNT(*) - count all rows
+                        aggregates[group_key] += 1
                 elif func_name == "SUM":
                     # Evaluate expression and add to sum
                     if hint.expr is not None:

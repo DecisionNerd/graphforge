@@ -335,6 +335,39 @@ class TestAggregatePushdownEmptyResults:
         # No matches, no results
         assert len(results) == 0
 
+    def test_count_with_null_values(self):
+        """COUNT(expr) should skip NULL values, COUNT(*) should count all."""
+        gf = GraphForge()
+
+        gf.execute("CREATE (:Person {name: 'Alice'})")
+        gf.execute("CREATE (:Task {id: 1, status: 'done'})")
+        gf.execute("CREATE (:Task {id: 2})")  # No status property
+        gf.execute("CREATE (:Task {id: 3, status: 'todo'})")
+
+        gf.execute("MATCH (p:Person {name: 'Alice'}), (t:Task {id: 1}) CREATE (p)-[:ASSIGNED]->(t)")
+        gf.execute("MATCH (p:Person {name: 'Alice'}), (t:Task {id: 2}) CREATE (p)-[:ASSIGNED]->(t)")
+        gf.execute("MATCH (p:Person {name: 'Alice'}), (t:Task {id: 3}) CREATE (p)-[:ASSIGNED]->(t)")
+
+        # COUNT(*) should count all tasks (3)
+        query_star = """
+        MATCH (p:Person)-[:ASSIGNED]->(t:Task)
+        WITH p, count(*) AS total_tasks
+        RETURN p.name AS name, total_tasks
+        """
+        results_star = gf.execute(query_star)
+        assert len(results_star) == 1
+        assert results_star[0]["total_tasks"].value == 3
+
+        # COUNT(t.status) should only count non-NULL status values (2)
+        query_expr = """
+        MATCH (p:Person)-[:ASSIGNED]->(t:Task)
+        WITH p, count(t.status) AS tasks_with_status
+        RETURN p.name AS name, tasks_with_status
+        """
+        results_expr = gf.execute(query_expr)
+        assert len(results_expr) == 1
+        assert results_expr[0]["tasks_with_status"].value == 2
+
     def test_sum_with_null_values(self):
         """SUM should skip NULL values."""
         gf = GraphForge()

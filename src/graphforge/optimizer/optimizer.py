@@ -542,11 +542,29 @@ class QueryOptimizer:
             # COUNT can have no args (COUNT(*)) or args (COUNT(expr))
             expr = agg_expr.args[0] if agg_expr.args else None
 
-        # Extract group by variable names
+        # Extract group by variable names, mapping to their output aliases
         group_by_vars = []
         for group_expr in agg_op.grouping_exprs:
             if isinstance(group_expr, Variable):
-                group_by_vars.append(group_expr.name)
+                # Check if this variable has an alias in return_items
+                alias = None
+                for item in agg_op.return_items:
+                    if (
+                        hasattr(item, "expression")
+                        and isinstance(item.expression, Variable)
+                        and item.expression.name == group_expr.name
+                    ):
+                        # Use the alias if present
+                        if hasattr(item, "alias") and item.alias:
+                            alias = item.alias
+                            break
+
+                # If no alias found, use the original variable name
+                # This handles cases where the variable is used but not aliased
+                if alias is None:
+                    alias = group_expr.name
+
+                group_by_vars.append(alias)
             else:
                 # Complex grouping expressions not supported yet
                 return None
