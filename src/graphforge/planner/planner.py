@@ -42,6 +42,7 @@ from graphforge.planner.operators import (
     Unwind,
     With,
 )
+from graphforge.planner.types import VariableType
 
 
 class QueryPlanner:
@@ -49,7 +50,10 @@ class QueryPlanner:
 
     def __init__(self):
         """Initialize the query planner."""
+        from graphforge.planner.types import TypeContext
+
         self._anon_counter = 0
+        self._type_context = TypeContext()
 
     def _generate_anonymous_variable(self) -> str:
         """Generate a unique variable name for anonymous patterns."""
@@ -74,6 +78,11 @@ class QueryPlanner:
         Returns:
             List of logical plan operators
         """
+        from graphforge.planner.types import TypeContext
+
+        # Reset type context for new query
+        self._type_context = TypeContext()
+
         # Check if query contains WITH clauses
         has_with = any(isinstance(c, WithClause) for c in ast.clauses)
 
@@ -150,10 +159,14 @@ class QueryPlanner:
 
         # 3. CREATE
         for create in create_clauses:
+            # Validate and bind variable types from CREATE patterns
+            self._validate_pattern_types(create.patterns)
             operators.append(Create(patterns=create.patterns))
 
         # 4. MERGE
         for merge in merge_clauses:
+            # Validate and bind variable types from MERGE patterns
+            self._validate_pattern_types(merge.patterns)
             operators.append(
                 Merge(patterns=merge.patterns, on_create=merge.on_create, on_match=merge.on_match)
             )
@@ -250,6 +263,9 @@ class QueryPlanner:
             if isinstance(segment, WithClause):
                 # Validate WITH clause (Issue #172)
                 self._validate_with_clause(segment)
+
+                # Infer and register variable types from WITH expressions
+                self._infer_with_types(segment)
 
                 # Check if WITH contains aggregations
                 has_aggregates = any(
@@ -360,9 +376,22 @@ class QueryPlanner:
             # Handle simple node pattern
             if len(pattern_parts) == 1 and isinstance(pattern_parts[0], NodePattern):
                 node_pattern = pattern_parts[0]
+                var_name = node_pattern.variable or self._generate_anonymous_variable()
+
+                # VALIDATE: Check if variable already bound to incompatible type
+                self._type_context.validate_compatible(var_name, VariableType.NODE)
+
+                # BIND: Register as node type
+                self._type_context.bind_variable(var_name, VariableType.NODE)
+
+                # Handle path variable if present
+                if path_var:
+                    self._type_context.validate_compatible(path_var, VariableType.PATH)
+                    self._type_context.bind_variable(path_var, VariableType.PATH)
+
                 operators.append(
                     ScanNodes(
-                        variable=node_pattern.variable,  # type: ignore[arg-type]
+                        variable=var_name,
                         labels=node_pattern.labels if node_pattern.labels else None,
                         path_var=path_var,
                     )
@@ -387,6 +416,13 @@ class QueryPlanner:
                         if src_pattern.variable
                         else self._generate_anonymous_variable()
                     )
+
+                    # VALIDATE: Check if variable already bound to incompatible type
+                    self._type_context.validate_compatible(src_var, VariableType.NODE)
+
+                    # BIND: Register as node type
+                    self._type_context.bind_variable(src_var, VariableType.NODE)
+
                     operators.append(
                         ScanNodes(
                             variable=src_var,
@@ -455,6 +491,16 @@ class QueryPlanner:
                             else self._generate_anonymous_variable()
                         )
 
+                        # VALIDATE and BIND types
+                        if rel_var:
+                            self._type_context.validate_compatible(
+                                rel_var, VariableType.RELATIONSHIP
+                            )
+                            self._type_context.bind_variable(rel_var, VariableType.RELATIONSHIP)
+
+                        self._type_context.validate_compatible(dst_var, VariableType.NODE)
+                        self._type_context.bind_variable(dst_var, VariableType.NODE)
+
                         hops.append(
                             (
                                 rel_var,
@@ -472,6 +518,11 @@ class QueryPlanner:
                                 dst_pattern.properties,
                             )
                             filters.append(Filter(predicate=predicate))
+
+                    # Handle path variable if present
+                    if path_var:
+                        self._type_context.validate_compatible(path_var, VariableType.PATH)
+                        self._type_context.bind_variable(path_var, VariableType.PATH)
 
                     # Add ExpandMultiHop operator first
                     operators.append(
@@ -521,10 +572,25 @@ class QueryPlanner:
                             else self._generate_anonymous_variable()
                         )
 
+                        # VALIDATE and BIND types
+                        if rel_var:
+                            self._type_context.validate_compatible(
+                                rel_var, VariableType.RELATIONSHIP
+                            )
+                            self._type_context.bind_variable(rel_var, VariableType.RELATIONSHIP)
+
+                        self._type_context.validate_compatible(dst_var, VariableType.NODE)
+                        self._type_context.bind_variable(dst_var, VariableType.NODE)
+
                         # For single-hop patterns with path binding:
                         # Set path_var on the (only) hop
                         is_single_hop = num_hops == 1
                         hop_path_var = path_var if is_single_hop else None
+
+                        # Handle path variable if present on this hop
+                        if hop_path_var:
+                            self._type_context.validate_compatible(hop_path_var, VariableType.PATH)
+                            self._type_context.bind_variable(hop_path_var, VariableType.PATH)
 
                         # Check if this is a variable-length pattern
                         if rel_pattern.min_hops is not None or rel_pattern.max_hops is not None:
@@ -755,6 +821,114 @@ class QueryPlanner:
                 raise SyntaxError(
                     "NoExpressionAlias: All non-variable expressions in WITH must be aliased"
                 )
+
+    def _infer_with_types(self, with_clause: WithClause) -> None:
+        """Infer and register variable types from WITH clause expressions.
+
+        Args:
+            with_clause: WITH clause to analyze
+        """
+        from graphforge.ast.expression import Variable
+
+        for item in with_clause.items:
+            # Get the alias (explicit or implicit from Variable)
+            alias = (
+                item.alias
+                if item.alias
+                else (item.expression.name if isinstance(item.expression, Variable) else None)
+            )
+
+            if not alias:
+                continue
+
+            # Infer type from expression
+            expr_type = self._infer_expression_type(item.expression)
+
+            # Register the variable type
+            self._type_context.bind_variable(alias, expr_type)
+
+    def _infer_expression_type(self, expr: Any) -> "VariableType":
+        """Infer the type of an expression.
+
+        Args:
+            expr: Expression to analyze
+
+        Returns:
+            VariableType for the expression
+        """
+        from graphforge.ast.expression import FunctionCall, Literal, PropertyAccess, Variable
+
+        if isinstance(expr, Literal):
+            # All literal values are scalar types
+            return VariableType.SCALAR
+
+        elif isinstance(expr, Variable):
+            # Look up the variable's type
+            return self._type_context.get_type(expr.name)
+
+        elif isinstance(expr, PropertyAccess):
+            # Property access on any type returns scalar
+            return VariableType.SCALAR
+
+        elif isinstance(expr, FunctionCall):
+            # Function calls return scalars
+            # (Special cases like nodes() or relationships() are rare)
+            return VariableType.SCALAR
+
+        else:
+            # Default to SCALAR for other expression types
+            return VariableType.SCALAR
+
+    def _validate_pattern_types(self, patterns: list[Any]) -> None:
+        """Validate and bind variable types from CREATE/MERGE patterns.
+
+        Args:
+            patterns: List of patterns to validate
+        """
+        from graphforge.ast.pattern import NodePattern, RelationshipPattern
+
+        for pattern in patterns:
+            # Get pattern parts - patterns can be dicts or objects with parts/elements
+            parts = None
+            path_var = None
+
+            if isinstance(pattern, dict):
+                parts = pattern.get("parts", pattern.get("elements", []))
+                path_var = pattern.get("path_variable")
+            elif hasattr(pattern, "parts"):
+                parts = pattern.parts
+                path_var = getattr(pattern, "path_variable", None)
+            elif hasattr(pattern, "elements"):
+                parts = pattern.elements
+                path_var = getattr(pattern, "path_variable", None)
+
+            # Validate each part (node or relationship)
+            if parts:
+                for part in parts:
+                    if isinstance(part, NodePattern):
+                        if part.variable:
+                            # VALIDATE: Check if variable already bound to incompatible type
+                            self._type_context.validate_compatible(part.variable, VariableType.NODE)
+                            # BIND: Register as node type
+                            self._type_context.bind_variable(part.variable, VariableType.NODE)
+
+                    elif isinstance(part, RelationshipPattern):
+                        if part.variable:
+                            # VALIDATE: Check if variable already bound to incompatible type
+                            self._type_context.validate_compatible(
+                                part.variable, VariableType.RELATIONSHIP
+                            )
+                            # BIND: Register as relationship type
+                            self._type_context.bind_variable(
+                                part.variable, VariableType.RELATIONSHIP
+                            )
+
+            # Handle path variable if present
+            if path_var:
+                # VALIDATE: Check if variable already bound to incompatible type
+                self._type_context.validate_compatible(path_var, VariableType.PATH)
+                # BIND: Register as path type
+                self._type_context.bind_variable(path_var, VariableType.PATH)
 
     def _has_aggregations(self, return_clause: ReturnClause) -> bool:
         """Check if RETURN clause contains any aggregation functions.
