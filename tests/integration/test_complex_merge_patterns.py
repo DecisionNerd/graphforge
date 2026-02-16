@@ -3,8 +3,6 @@
 Tests for edge cases in MERGE operations with various patterns.
 """
 
-import pytest
-
 from graphforge import GraphForge
 
 
@@ -71,7 +69,6 @@ class TestComplexMergePatterns:
         all_results = gf.execute("MATCH (i:Item) RETURN count(i) AS count")
         assert all_results[0]["count"].value == 1
 
-    @pytest.mark.skip(reason="MERGE after MATCH not supported - grammar limitation")
     def test_merge_relationship_both_nodes_exist(self):
         """MERGE relationship when both nodes already exist."""
         gf = GraphForge()
@@ -96,9 +93,6 @@ class TestComplexMergePatterns:
         """)
         assert len(rel_results) == 1
 
-    @pytest.mark.skip(
-        reason="MERGE relationship pattern requires variables to be bound - limitation"
-    )
     def test_merge_relationship_creates_nodes(self):
         """MERGE relationship pattern creates missing nodes."""
         gf = GraphForge()
@@ -120,7 +114,6 @@ class TestComplexMergePatterns:
         rel_results = gf.execute("MATCH ()-[r:KNOWS]->() RETURN count(r) AS count")
         assert rel_results[0]["count"].value == 1
 
-    @pytest.mark.skip(reason="MERGE followed by SET not supported - grammar limitation")
     def test_merge_with_set_clause(self):
         """MERGE followed by SET to update properties."""
         gf = GraphForge()
@@ -166,7 +159,6 @@ class TestComplexMergePatterns:
         node_results = gf.execute("MATCH (p:Person) RETURN count(p) AS count")
         assert node_results[0]["count"].value == 3
 
-    @pytest.mark.skip(reason="MERGE after MATCH not supported - grammar limitation")
     def test_merge_after_match(self):
         """MERGE after MATCH to conditionally create."""
         gf = GraphForge()
@@ -185,7 +177,6 @@ class TestComplexMergePatterns:
         assert results[0]["a_name"].value == "Alice"
         assert results[0]["b_name"].value == "Bob"
 
-    @pytest.mark.skip(reason="MERGE after MATCH not supported - grammar limitation")
     def test_merge_with_where_clause(self):
         """MERGE combined with WHERE filtering."""
         gf = GraphForge()
