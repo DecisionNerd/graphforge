@@ -159,8 +159,8 @@ class QueryPlanner:
 
         # 3. CREATE
         for create in create_clauses:
-            # Validate and bind variable types from CREATE patterns
-            self._validate_pattern_types(create.patterns)
+            # Bind variable types from CREATE patterns (but don't validate - executor handles that)
+            self._bind_pattern_types(create.patterns)
             operators.append(Create(patterns=create.patterns))
 
         # 4. MERGE
@@ -879,8 +879,75 @@ class QueryPlanner:
             # Default to SCALAR for other expression types
             return VariableType.SCALAR
 
+    def _bind_pattern_types(self, patterns: list[Any]) -> None:
+        """Bind variable types from CREATE patterns with limited validation.
+
+        CREATE should validate variables from PREVIOUS clauses (e.g., WITH 123 AS n, CREATE (n))
+        but NOT validate duplicate variables within the SAME pattern (e.g., self-loops).
+
+        Args:
+            patterns: List of patterns to process
+        """
+        from graphforge.ast.pattern import NodePattern, RelationshipPattern
+
+        for pattern in patterns:
+            # Get pattern parts - patterns can be dicts or objects with parts/element
+            parts = None
+            path_var = None
+
+            if isinstance(pattern, dict):
+                parts = pattern.get("parts", pattern.get("elements", []))
+                path_var = pattern.get("path_variable")
+            elif hasattr(pattern, "parts"):
+                parts = pattern.parts
+                path_var = getattr(pattern, "path_variable", None)
+            elif hasattr(pattern, "elements"):
+                parts = pattern.elements
+                path_var = getattr(pattern, "path_variable", None)
+
+            # Take snapshot of variables bound BEFORE this pattern
+            pre_existing_vars = set()
+            if parts:
+                for part in parts:
+                    if isinstance(part, (NodePattern, RelationshipPattern)) and part.variable:
+                        if self._type_context.has_variable(part.variable):
+                            pre_existing_vars.add(part.variable)
+
+            # Now validate and bind
+            if parts:
+                for part in parts:
+                    if isinstance(part, NodePattern):
+                        if part.variable:
+                            # Only validate if variable existed BEFORE this pattern
+                            if part.variable in pre_existing_vars:
+                                self._type_context.validate_compatible(
+                                    part.variable, VariableType.NODE
+                                )
+                            # BIND: Register as node type
+                            self._type_context.bind_variable(part.variable, VariableType.NODE)
+
+                    elif isinstance(part, RelationshipPattern):
+                        if part.variable:
+                            # Only validate if variable existed BEFORE this pattern
+                            if part.variable in pre_existing_vars:
+                                self._type_context.validate_compatible(
+                                    part.variable, VariableType.RELATIONSHIP
+                                )
+                            # BIND: Register as relationship type
+                            self._type_context.bind_variable(
+                                part.variable, VariableType.RELATIONSHIP
+                            )
+
+            # Handle path variable if present
+            if path_var:
+                # Validate if from previous clause
+                if path_var in pre_existing_vars or self._type_context.has_variable(path_var):
+                    self._type_context.validate_compatible(path_var, VariableType.PATH)
+                # BIND: Register as path type
+                self._type_context.bind_variable(path_var, VariableType.PATH)
+
     def _validate_pattern_types(self, patterns: list[Any]) -> None:
-        """Validate and bind variable types from CREATE/MERGE patterns.
+        """Validate and bind variable types from MERGE patterns.
 
         Args:
             patterns: List of patterns to validate
