@@ -109,7 +109,13 @@ class DependencyAnalyzer:
         """
         required = set()
 
-        if isinstance(op, ExpandEdges):
+        if isinstance(op, ScanNodes):
+            # ScanNodes with predicate requires variables in predicate (excluding bound variables)
+            if op.predicate:
+                pred_vars = PredicateAnalysis.get_referenced_variables(op.predicate)
+                required.update(pred_vars - self._get_bound_variables(op))
+
+        elif isinstance(op, ExpandEdges):
             # ExpandEdges requires source variable
             required.add(op.src_var)
             # Plus any variables in predicate (excluding bound variables)
