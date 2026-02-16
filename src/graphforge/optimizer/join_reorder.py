@@ -348,12 +348,44 @@ class JoinReorderOptimizer:
         if self._segment_has_side_effects(operators):
             return operators
 
-        # Identify reorderable operators (pattern matching + filters)
+        # First pass: identify variables created by Aggregate operators
+        agg_result_vars: set[str] = set()
+        for op in operators:
+            if isinstance(op, Aggregate):
+                # Aggregation results are the aliases in return_items
+                for return_item in op.return_items:
+                    if return_item.alias:
+                        agg_result_vars.add(return_item.alias)
+
+        # Second pass: collect variables bound by pattern operators (ScanNodes, ExpandEdges)
+        # These are the only variables that reorderable operators can reference
+        pattern_bound_vars: set[str] = set()
+        for op in operators:
+            if isinstance(op, (ScanNodes, ExpandEdges)):
+                pattern_bound_vars.update(self.analyzer._get_bound_variables(op))
+
+        # Third pass: identify reorderable operators
         # Sort, Project, Aggregate are result-producing and must stay in order
-        reorderable_ops = []
-        reorderable_indices = []
+        # Filters can only be reordered if:
+        # 1. They don't reference aggregation results
+        # 2. All their required variables are bound by pattern operators
+        reorderable_ops: list[ScanNodes | ExpandEdges | Filter] = []
+        reorderable_indices: list[int] = []
         for i, op in enumerate(operators):
-            if isinstance(op, (ScanNodes, ExpandEdges, Filter)):
+            if isinstance(op, (ScanNodes, ExpandEdges)):
+                reorderable_ops.append(op)
+                reorderable_indices.append(i)
+            elif isinstance(op, Filter):
+                # Check if Filter references any aggregation result variables
+                filter_vars = PredicateAnalysis.get_referenced_variables(op.predicate)
+                if filter_vars.intersection(agg_result_vars):
+                    # Filter references aggregation results, not reorderable
+                    continue
+                # Check if all filter variables are bound by pattern operators
+                if not filter_vars.issubset(pattern_bound_vars):
+                    # Filter references variables not bound by reorderable patterns
+                    continue
+                # Filter is safe to reorder
                 reorderable_ops.append(op)
                 reorderable_indices.append(i)
 
