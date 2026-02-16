@@ -263,11 +263,21 @@ class GraphForge:
         if isinstance(ast, UnionQuery):
             # Handle UNION query: plan and optimize each branch separately
             branch_operators = []
+            # Get statistics once for all branches
+            stats = self.graph.get_statistics()
             for branch_ast in ast.branches:
                 branch_ops = self.planner.plan(branch_ast)
-                # Optimize each branch independently
+                # Optimize each branch independently with statistics
                 if self.optimizer:
-                    branch_ops = self.optimizer.optimize(branch_ops)
+                    optimizer_with_stats = QueryOptimizer(
+                        enable_filter_pushdown=self.optimizer.enable_filter_pushdown,
+                        enable_join_reorder=self.optimizer.enable_join_reorder,
+                        enable_predicate_reorder=self.optimizer.enable_predicate_reorder,
+                        enable_redundant_elimination=self.optimizer.enable_redundant_elimination,
+                        enable_aggregate_pushdown=self.optimizer.enable_aggregate_pushdown,
+                        statistics=stats,
+                    )
+                    branch_ops = optimizer_with_stats.optimize(branch_ops)
                 branch_operators.append(branch_ops)
 
             # Create Union operator
@@ -279,9 +289,20 @@ class GraphForge:
             # Regular query
             operators = self.planner.plan(ast)
 
-        # Optimize query plan
+        # Optimize query plan with current graph statistics
         if self.optimizer:
-            operators = self.optimizer.optimize(operators)
+            # Get current statistics for cost-based optimization
+            stats = self.graph.get_statistics()
+            # Create optimizer with statistics
+            optimizer_with_stats = QueryOptimizer(
+                enable_filter_pushdown=self.optimizer.enable_filter_pushdown,
+                enable_join_reorder=self.optimizer.enable_join_reorder,
+                enable_predicate_reorder=self.optimizer.enable_predicate_reorder,
+                enable_redundant_elimination=self.optimizer.enable_redundant_elimination,
+                enable_aggregate_pushdown=self.optimizer.enable_aggregate_pushdown,
+                statistics=stats,
+            )
+            operators = optimizer_with_stats.optimize(operators)
 
         # Execute
         results = self.executor.execute(operators)

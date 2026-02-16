@@ -6,6 +6,7 @@ This module implements durable graph storage using SQLite with WAL mode.
 from pathlib import Path
 import sqlite3
 
+from graphforge.optimizer.statistics import GraphStatistics
 from graphforge.storage.serialization import (
     deserialize_labels,
     deserialize_properties,
@@ -108,6 +109,14 @@ class SQLiteBackend:
 
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_edges_dst ON edges(dst_id)
+        """)
+
+        # Statistics table for cost-based optimization
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS statistics (
+                key TEXT PRIMARY KEY,
+                value BLOB NOT NULL
+            )
         """)
 
         self.conn.commit()
@@ -254,3 +263,36 @@ class SQLiteBackend:
         if not self._closed:
             self.conn.close()
             self._closed = True
+
+    def save_statistics(self, stats: GraphStatistics):
+        """Save graph statistics to the database.
+
+        Args:
+            stats: GraphStatistics instance to save
+        """
+        from graphforge.storage.pydantic_serialization import serialize_model_to_json
+
+        stats_json = serialize_model_to_json(stats, indent=None)  # Compact JSON
+        self.conn.execute(
+            "INSERT OR REPLACE INTO statistics (key, value) VALUES (?, ?)",
+            ("graph_statistics", stats_json.encode("utf-8")),
+        )
+
+    def load_statistics(self) -> GraphStatistics | None:
+        """Load graph statistics from the database.
+
+        Returns:
+            GraphStatistics instance if found, None otherwise
+        """
+        from graphforge.storage.pydantic_serialization import (
+            deserialize_model_from_json,
+        )
+
+        cursor = self.conn.execute(
+            "SELECT value FROM statistics WHERE key = ?", ("graph_statistics",)
+        )
+        row = cursor.fetchone()
+        if row:
+            stats_json = row[0].decode("utf-8")
+            return deserialize_model_from_json(GraphStatistics, stats_json)
+        return None
