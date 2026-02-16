@@ -264,6 +264,49 @@ class TestRedundantEliminationNonDuplicates:
         assert result[2].min_hops == 2
         assert result[2].max_hops == 5
 
+    def test_dont_eliminate_different_path_vars(self):
+        """Operators with different path_var are not eliminated."""
+        ops = [
+            ScanNodes(variable="a", labels=[["Person"]], path_var="p1"),
+            ScanNodes(variable="a", labels=[["Person"]], path_var="p2"),
+        ]
+
+        optimizer = QueryOptimizer()
+        result = optimizer.optimize(ops)
+
+        # Both should remain (different path_var)
+        assert len(result) == 2
+        assert result[0].path_var == "p1"
+        assert result[1].path_var == "p2"
+
+    def test_eliminate_with_same_path_var(self):
+        """Operators with same path_var are eliminated."""
+        ops = [
+            ExpandEdges(
+                src_var="a",
+                edge_var="r",
+                dst_var="b",
+                edge_types=["KNOWS"],
+                direction="OUT",
+                path_var="p",
+            ),
+            ExpandEdges(
+                src_var="a",
+                edge_var="r",
+                dst_var="b",
+                edge_types=["KNOWS"],
+                direction="OUT",
+                path_var="p",
+            ),
+        ]
+
+        optimizer = QueryOptimizer()
+        result = optimizer.optimize(ops)
+
+        # Second should be eliminated (identical including path_var)
+        assert len(result) == 1
+        assert result[0].path_var == "p"
+
 
 class TestRedundantEliminationBoundaries:
     """Test cases for pipeline boundaries."""

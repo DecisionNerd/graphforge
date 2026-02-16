@@ -367,7 +367,7 @@ class QueryOptimizer:
         if isinstance(op, ScanNodes):
             labels_tuple = tuple(tuple(g) for g in op.labels) if op.labels else None
             predicate_repr = self._predicate_signature(op.predicate) if op.predicate else None
-            return ("ScanNodes", op.variable, labels_tuple, predicate_repr)
+            return ("ScanNodes", op.variable, labels_tuple, op.path_var, predicate_repr)
 
         # ExpandEdges signature
         elif isinstance(op, ExpandEdges):
@@ -379,6 +379,7 @@ class QueryOptimizer:
                 op.dst_var,
                 tuple(op.edge_types),
                 op.direction,
+                op.path_var,
                 predicate_repr,
             )
 
@@ -394,6 +395,7 @@ class QueryOptimizer:
                 op.direction,
                 op.min_hops,
                 op.max_hops,
+                op.path_var,
                 predicate_repr,
             )
 

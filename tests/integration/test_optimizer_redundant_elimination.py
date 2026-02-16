@@ -202,7 +202,8 @@ class TestRedundantEliminationIntegration:
         )
 
         query = """
-        MATCH (a:Person {name: 'Alice'})-[*1..2]->(b)
+        MATCH (a:Person {name: 'Alice'})-[r*1..2]->(b)
+        MATCH (a:Person {name: 'Alice'})-[r*1..2]->(b)
         RETURN b.name AS reachable
         ORDER BY reachable
         """
@@ -210,6 +211,8 @@ class TestRedundantEliminationIntegration:
         results = gf.execute(query)
 
         # Should find Bob (1 hop) and Charlie (2 hops)
+        # With redundant elimination, second MATCH is removed so we get 2 results
+        # Without elimination, we'd get 4 results (cartesian product)
         assert len(results) == 2
         names = {r["reachable"].value for r in results}
         assert names == {"Bob", "Charlie"}
