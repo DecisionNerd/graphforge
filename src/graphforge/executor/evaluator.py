@@ -690,7 +690,9 @@ TYPE_FUNCTIONS = {"TOBOOLEAN", "TOINTEGER", "TOFLOAT", "TOSTRING", "TYPE"}
 TEMPORAL_FUNCTIONS = {
     "DATE",
     "DATETIME",
+    "LOCALDATETIME",
     "TIME",
+    "LOCALTIME",
     "DURATION",
     "YEAR",
     "MONTH",
@@ -1698,7 +1700,11 @@ def _evaluate_type_function(func_name: str, args: list[CypherValue]) -> CypherVa
     raise ValueError(f"Unknown type function: {func_name}")
 
 
-def _extract_map_param(map_val: CypherMap, key: str, default: Any = None) -> Any:
+# Sentinel value to distinguish missing keys from explicit null
+_MISSING = object()
+
+
+def _extract_map_param(map_val: CypherMap, key: str, default: Any = _MISSING) -> Any:
     """Extract a parameter from a CypherMap.
 
     Args:
@@ -1707,11 +1713,16 @@ def _extract_map_param(map_val: CypherMap, key: str, default: Any = None) -> Any
         default: Default value if key not present
 
     Returns:
-        Python value (int for numerics, str for strings) or default
+        - int for CypherInt/CypherFloat
+        - str for CypherString
+        - CypherNull for present-but-null values
+        - default (or _MISSING sentinel) for absent keys
     """
     cypher_val = map_val.value.get(key)
-    if cypher_val is None or isinstance(cypher_val, CypherNull):
+    if cypher_val is None:
         return default
+    if isinstance(cypher_val, CypherNull):
+        return cypher_val  # Return CypherNull itself to distinguish from missing
     if isinstance(cypher_val, (CypherInt, CypherFloat)):
         # Coerce numeric values to int for datetime constructors
         return int(cypher_val.value)
@@ -1761,11 +1772,25 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 day_of_quarter = _extract_map_param(arg, "dayOfQuarter")
                 ordinal_day = _extract_map_param(arg, "ordinalDay")
 
+                # Check if any parameter is explicitly null
+                all_params = [
+                    year,
+                    month,
+                    day,
+                    week,
+                    day_of_week,
+                    quarter,
+                    day_of_quarter,
+                    ordinal_day,
+                ]
+                if any(isinstance(p, CypherNull) for p in all_params):
+                    return CypherNull()
+
                 # Calendar date: year, month, day
-                if year is not None and month is not None and day is not None:
+                if year is not _MISSING and month is not _MISSING and day is not _MISSING:
                     return CypherDate(datetime.date(year, month, day))
                 # Week date: year, week, dayOfWeek
-                elif year is not None and week is not None and day_of_week is not None:
+                elif year is not _MISSING and week is not _MISSING and day_of_week is not _MISSING:
                     # Validate week and dayOfWeek ranges
                     if not (1 <= week <= 53):
                         raise ValueError(f"week must be between 1 and 53, got {week}")
@@ -1779,7 +1804,11 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                     )
                     return CypherDate(target_date)
                 # Quarter date: year, quarter, dayOfQuarter
-                elif year is not None and quarter is not None and day_of_quarter is not None:
+                elif (
+                    year is not _MISSING
+                    and quarter is not _MISSING
+                    and day_of_quarter is not _MISSING
+                ):
                     # Validate quarter and dayOfQuarter ranges
                     if not (1 <= quarter <= 4):
                         raise ValueError(f"quarter must be between 1 and 4, got {quarter}")
@@ -1805,7 +1834,7 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                     target_date = first_day + datetime.timedelta(days=day_of_quarter - 1)
                     return CypherDate(target_date)
                 # Ordinal date: year, ordinalDay
-                elif year is not None and ordinal_day is not None:
+                elif year is not _MISSING and ordinal_day is not _MISSING:
                     # Validate ordinalDay range (366 for leap years, 365 otherwise)
                     import calendar
 
@@ -1858,6 +1887,27 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 day_of_quarter = _extract_map_param(arg, "dayOfQuarter")
                 ordinal_day = _extract_map_param(arg, "ordinalDay")
 
+                # Check if any parameter is explicitly null
+                all_params = [
+                    year,
+                    month,
+                    day,
+                    hour,
+                    minute,
+                    second,
+                    millisecond,
+                    microsecond,
+                    nanosecond,
+                    timezone,
+                    week,
+                    day_of_week,
+                    quarter,
+                    day_of_quarter,
+                    ordinal_day,
+                ]
+                if any(isinstance(p, CypherNull) for p in all_params):
+                    return CypherNull()
+
                 # Total microseconds from all sub-second components
                 total_microsecond = microsecond + (millisecond * 1000) + (nanosecond // 1000)
 
@@ -1877,10 +1927,10 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 hour += carry_hours
 
                 # Determine date part
-                if year is not None and month is not None and day is not None:
+                if year is not _MISSING and month is not _MISSING and day is not _MISSING:
                     # Calendar date
                     date_part = datetime.date(year, month, day)
-                elif year is not None and week is not None and day_of_week is not None:
+                elif year is not _MISSING and week is not _MISSING and day_of_week is not _MISSING:
                     # Validate week and dayOfWeek ranges
                     if not (1 <= week <= 53):
                         raise ValueError(f"week must be between 1 and 53, got {week}")
@@ -1892,7 +1942,11 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                     date_part = week_one_monday + datetime.timedelta(
                         weeks=week - 1, days=day_of_week - 1
                     )
-                elif year is not None and quarter is not None and day_of_quarter is not None:
+                elif (
+                    year is not _MISSING
+                    and quarter is not _MISSING
+                    and day_of_quarter is not _MISSING
+                ):
                     # Validate quarter and dayOfQuarter ranges
                     if not (1 <= quarter <= 4):
                         raise ValueError(f"quarter must be between 1 and 4, got {quarter}")
@@ -1916,7 +1970,7 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                         )
                     first_day = datetime.date(year, first_month, 1)
                     date_part = first_day + datetime.timedelta(days=day_of_quarter - 1)
-                elif year is not None and ordinal_day is not None:
+                elif year is not _MISSING and ordinal_day is not _MISSING:
                     # Validate ordinalDay range (366 for leap years, 365 otherwise)
                     import calendar
 
@@ -1948,7 +2002,7 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 )
 
                 # Handle timezone if provided
-                if timezone:
+                if timezone is not _MISSING:
                     from dateutil import tz
 
                     tzinfo = tz.gettz(timezone)
@@ -1982,6 +2036,11 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 nanosecond = _extract_map_param(arg, "nanosecond", 0)
                 timezone = _extract_map_param(arg, "timezone")
 
+                # Check if any parameter is explicitly null
+                all_params = [hour, minute, second, millisecond, microsecond, nanosecond, timezone]
+                if any(isinstance(p, CypherNull) for p in all_params):
+                    return CypherNull()
+
                 # Total microseconds from all sub-second components
                 total_microsecond = microsecond + (millisecond * 1000) + (nanosecond // 1000)
 
@@ -2011,7 +2070,7 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 t = datetime.time(hour, minute, second, total_microsecond)
 
                 # Handle timezone if provided
-                if timezone:
+                if timezone is not _MISSING:
                     from dateutil import tz
 
                     tzinfo = tz.gettz(timezone)
@@ -2024,6 +2083,202 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 raise TypeError(f"TIME expects string or map, got {type(arg).__name__}")
         else:
             raise TypeError(f"TIME expects 0 or 1 argument, got {len(args)}")
+
+    elif func_name == "LOCALDATETIME":
+        # localdatetime(), localdatetime(string), or localdatetime(map)
+        if len(args) == 0:
+            # localdatetime() returns current datetime without timezone
+            return CypherDateTime(datetime.datetime.now().replace(tzinfo=None))
+        elif len(args) == 1:
+            arg = args[0]
+            if isinstance(arg, CypherString):
+                # localdatetime(string) parses ISO 8601 datetime without timezone
+                return CypherDateTime(arg.value)
+            elif isinstance(arg, CypherMap):
+                # localdatetime(map) builds from components (no timezone)
+                year = _extract_map_param(arg, "year")
+                month = _extract_map_param(arg, "month")
+                day = _extract_map_param(arg, "day")
+                hour = _extract_map_param(arg, "hour", 0)
+                minute = _extract_map_param(arg, "minute", 0)
+                second = _extract_map_param(arg, "second", 0)
+                millisecond = _extract_map_param(arg, "millisecond", 0)
+                microsecond = _extract_map_param(arg, "microsecond", 0)
+                nanosecond = _extract_map_param(arg, "nanosecond", 0)
+
+                week = _extract_map_param(arg, "week")
+                day_of_week = _extract_map_param(arg, "dayOfWeek")
+                quarter = _extract_map_param(arg, "quarter")
+                day_of_quarter = _extract_map_param(arg, "dayOfQuarter")
+                ordinal_day = _extract_map_param(arg, "ordinalDay")
+
+                # Check if any parameter is explicitly null
+                all_params = [
+                    year,
+                    month,
+                    day,
+                    hour,
+                    minute,
+                    second,
+                    millisecond,
+                    microsecond,
+                    nanosecond,
+                    week,
+                    day_of_week,
+                    quarter,
+                    day_of_quarter,
+                    ordinal_day,
+                ]
+                if any(isinstance(p, CypherNull) for p in all_params):
+                    return CypherNull()
+
+                # Total microseconds from all sub-second components
+                total_microsecond = microsecond + (millisecond * 1000) + (nanosecond // 1000)
+
+                # Normalize microseconds overflow into seconds
+                carry_seconds = total_microsecond // 1_000_000
+                total_microsecond = total_microsecond % 1_000_000
+                second += carry_seconds
+
+                # Normalize seconds overflow into minutes
+                carry_minutes = second // 60
+                second = second % 60
+                minute += carry_minutes
+
+                # Normalize minutes overflow into hours
+                carry_hours = minute // 60
+                minute = minute % 60
+                hour += carry_hours
+
+                # Determine date part (same logic as DATETIME)
+                if year is not _MISSING and month is not _MISSING and day is not _MISSING:
+                    date_part = datetime.date(year, month, day)
+                elif year is not _MISSING and week is not _MISSING and day_of_week is not _MISSING:
+                    if not (1 <= week <= 53):
+                        raise ValueError(f"week must be between 1 and 53, got {week}")
+                    if not (1 <= day_of_week <= 7):
+                        raise ValueError(f"dayOfWeek must be between 1 and 7, got {day_of_week}")
+                    jan4 = datetime.date(year, 1, 4)
+                    week_one_monday = jan4 - datetime.timedelta(days=jan4.weekday())
+                    date_part = week_one_monday + datetime.timedelta(
+                        weeks=week - 1, days=day_of_week - 1
+                    )
+                elif (
+                    year is not _MISSING
+                    and quarter is not _MISSING
+                    and day_of_quarter is not _MISSING
+                ):
+                    if not (1 <= quarter <= 4):
+                        raise ValueError(f"quarter must be between 1 and 4, got {quarter}")
+                    first_month = (quarter - 1) * 3 + 1
+                    if quarter == 4:
+                        last_month = 12
+                    else:
+                        last_month = first_month + 2
+                    import calendar
+
+                    days_in_quarter = sum(
+                        calendar.monthrange(year, m)[1] for m in range(first_month, last_month + 1)
+                    )
+                    if not (1 <= day_of_quarter <= days_in_quarter):
+                        raise ValueError(
+                            f"dayOfQuarter must be between 1 and {days_in_quarter} "
+                            f"for quarter {quarter} of year {year}, got {day_of_quarter}"
+                        )
+                    first_day = datetime.date(year, first_month, 1)
+                    date_part = first_day + datetime.timedelta(days=day_of_quarter - 1)
+                elif year is not _MISSING and ordinal_day is not _MISSING:
+                    import calendar
+
+                    max_ordinal_day = 366 if calendar.isleap(year) else 365
+                    if not (1 <= ordinal_day <= max_ordinal_day):
+                        raise ValueError(
+                            f"ordinalDay must be between 1 and {max_ordinal_day} "
+                            f"for year {year}, got {ordinal_day}"
+                        )
+                    jan1 = datetime.date(year, 1, 1)
+                    date_part = jan1 + datetime.timedelta(days=ordinal_day - 1)
+                else:
+                    raise TypeError(
+                        "LOCALDATETIME map constructor requires date components: "
+                        "(year, month, day) OR (year, week, dayOfWeek) OR "
+                        "(year, quarter, dayOfQuarter) OR (year, ordinalDay)"
+                    )
+
+                # Normalize hour overflow into days
+                carry_days = hour // 24
+                hour = hour % 24
+                if carry_days > 0:
+                    date_part = date_part + datetime.timedelta(days=carry_days)
+
+                # Combine date and time (no timezone for LOCALDATETIME)
+                dt = datetime.datetime.combine(
+                    date_part, datetime.time(hour, minute, second, total_microsecond)
+                )
+
+                return CypherDateTime(dt)
+            else:
+                raise TypeError(f"LOCALDATETIME expects string or map, got {type(arg).__name__}")
+        else:
+            raise TypeError(f"LOCALDATETIME expects 0 or 1 argument, got {len(args)}")
+
+    elif func_name == "LOCALTIME":
+        # localtime(), localtime(string), or localtime(map)
+        if len(args) == 0:
+            # localtime() returns current time without timezone
+            return CypherTime(datetime.datetime.now().time().replace(tzinfo=None))
+        elif len(args) == 1:
+            arg = args[0]
+            if isinstance(arg, CypherString):
+                # localtime(string) parses ISO 8601 time without timezone
+                return CypherTime(arg.value)
+            elif isinstance(arg, CypherMap):
+                # localtime(map) builds from components (no timezone)
+                hour = _extract_map_param(arg, "hour", 0)
+                minute = _extract_map_param(arg, "minute", 0)
+                second = _extract_map_param(arg, "second", 0)
+                millisecond = _extract_map_param(arg, "millisecond", 0)
+                microsecond = _extract_map_param(arg, "microsecond", 0)
+                nanosecond = _extract_map_param(arg, "nanosecond", 0)
+
+                # Check if any parameter is explicitly null
+                all_params = [hour, minute, second, millisecond, microsecond, nanosecond]
+                if any(isinstance(p, CypherNull) for p in all_params):
+                    return CypherNull()
+
+                # Total microseconds from all sub-second components
+                total_microsecond = microsecond + (millisecond * 1000) + (nanosecond // 1000)
+
+                # Normalize microseconds overflow into seconds
+                carry_seconds = total_microsecond // 1_000_000
+                total_microsecond = total_microsecond % 1_000_000
+                second += carry_seconds
+
+                # Normalize seconds overflow into minutes
+                carry_minutes = second // 60
+                second = second % 60
+                minute += carry_minutes
+
+                # Normalize minutes overflow into hours
+                carry_hours = minute // 60
+                minute = minute % 60
+                hour += carry_hours
+
+                # Validate hour range (LOCALTIME cannot have day overflow)
+                if hour >= 24:
+                    raise ValueError(
+                        f"LOCALTIME hour overflow: hour must be 0-23 after normalization, "
+                        f"got {hour}. Consider using LOCALDATETIME if day rollover is needed."
+                    )
+
+                # Create time object (no timezone for LOCALTIME)
+                t = datetime.time(hour, minute, second, total_microsecond)
+
+                return CypherTime(t)
+            else:
+                raise TypeError(f"LOCALTIME expects string or map, got {type(arg).__name__}")
+        else:
+            raise TypeError(f"LOCALTIME expects 0 or 1 argument, got {len(args)}")
 
     elif func_name == "DURATION":
         # duration(string) or duration(map)

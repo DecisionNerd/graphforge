@@ -399,3 +399,86 @@ class TestTemporalMapErrorCases:
         assert t.hour == 14
         assert t.minute == 30
         assert t.second == 15
+
+    def test_date_with_null_parameter_returns_null(self, gf):
+        """Date with explicit null parameter returns null."""
+        from graphforge.types.values import CypherNull
+
+        result = gf.execute("RETURN date({year: 2015, month: null, day: 1}) AS d")
+        assert len(result) == 1
+        assert isinstance(result[0]["d"], CypherNull)
+
+    def test_datetime_with_null_parameter_returns_null(self, gf):
+        """DateTime with explicit null parameter returns null."""
+        from graphforge.types.values import CypherNull
+
+        result = gf.execute("RETURN datetime({year: 2015, month: 1, day: null, hour: 12}) AS dt")
+        assert len(result) == 1
+        assert isinstance(result[0]["dt"], CypherNull)
+
+    def test_time_with_null_parameter_returns_null(self, gf):
+        """Time with explicit null parameter returns null."""
+        from graphforge.types.values import CypherNull
+
+        result = gf.execute("RETURN time({hour: 12, minute: null}) AS t")
+        assert len(result) == 1
+        assert isinstance(result[0]["t"], CypherNull)
+
+
+class TestLocalDateTimeConstructors:
+    """Tests for localdatetime() and localtime() constructors."""
+
+    def test_localdatetime_map_constructor(self, gf):
+        """LocalDateTime with map constructor (no timezone)."""
+        result = gf.execute(
+            "RETURN localdatetime({year: 2015, month: 6, day: 15, hour: 12, minute: 30}) AS ldt"
+        )
+        assert len(result) == 1
+        ldt = result[0]["ldt"].value
+        assert ldt.year == 2015
+        assert ldt.month == 6
+        assert ldt.day == 15
+        assert ldt.hour == 12
+        assert ldt.minute == 30
+        assert ldt.tzinfo is None  # No timezone for localdatetime
+
+    def test_localdatetime_with_week_params(self, gf):
+        """LocalDateTime with week parameters."""
+        result = gf.execute(
+            "RETURN localdatetime({year: 2016, week: 1, dayOfWeek: 3, hour: 10}) AS ldt"
+        )
+        assert len(result) == 1
+        ldt = result[0]["ldt"].value
+        assert ldt.year == 2016
+        assert ldt.month == 1
+        assert ldt.day == 6
+        assert ldt.hour == 10
+        assert ldt.tzinfo is None
+
+    def test_localtime_map_constructor(self, gf):
+        """LocalTime with map constructor (no timezone)."""
+        result = gf.execute("RETURN localtime({hour: 14, minute: 30, second: 45}) AS lt")
+        assert len(result) == 1
+        lt = result[0]["lt"].value
+        assert lt.hour == 14
+        assert lt.minute == 30
+        assert lt.second == 45
+        assert lt.tzinfo is None  # No timezone for localtime
+
+    def test_localdatetime_with_null_returns_null(self, gf):
+        """LocalDateTime with null parameter returns null."""
+        from graphforge.types.values import CypherNull
+
+        result = gf.execute(
+            "RETURN localdatetime({year: 2015, month: null, day: 1, hour: 12}) AS ldt"
+        )
+        assert len(result) == 1
+        assert isinstance(result[0]["ldt"], CypherNull)
+
+    def test_localtime_with_null_returns_null(self, gf):
+        """LocalTime with null parameter returns null."""
+        from graphforge.types.values import CypherNull
+
+        result = gf.execute("RETURN localtime({hour: 12, minute: null}) AS lt")
+        assert len(result) == 1
+        assert isinstance(result[0]["lt"], CypherNull)
