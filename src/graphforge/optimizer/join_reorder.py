@@ -344,8 +344,6 @@ class JoinReorderOptimizer:
         Returns:
             Reordered list of operators
         """
-        from graphforge.planner.operators import Project, Sort
-
         # Can't reorder if segment has side effects
         if self._segment_has_side_effects(operators):
             return operators
@@ -360,9 +358,7 @@ class JoinReorderOptimizer:
                 reorderable_indices.append(i)
 
         # Need at least 2 pattern operators to reorder
-        pattern_count = sum(
-            1 for op in reorderable_ops if isinstance(op, (ScanNodes, ExpandEdges))
-        )
+        pattern_count = sum(1 for op in reorderable_ops if isinstance(op, (ScanNodes, ExpandEdges)))
         if pattern_count < 2:
             return operators
 
