@@ -75,7 +75,10 @@ class TestDateTimeMapConstructor:
         result = gf.execute("RETURN datetime({year: 2016, week: 1, dayOfWeek: 3, hour: 10}) AS dt")
         assert len(result) == 1
         dt = result[0]["dt"].value
+        # Week 1 of 2016, day 3 (Wednesday) should be 2016-01-06
         assert dt.year == 2016
+        assert dt.month == 1
+        assert dt.day == 6
         assert dt.hour == 10
 
     def test_datetime_quarter(self, gf):
@@ -96,7 +99,10 @@ class TestDateTimeMapConstructor:
         )
         assert len(result) == 1
         dt = result[0]["dt"].value
+        # 100th day of 2015 should be 2015-04-10
         assert dt.year == 2015
+        assert dt.month == 4
+        assert dt.day == 10
         assert dt.hour == 9
         assert dt.minute == 30
 
@@ -331,3 +337,33 @@ class TestTemporalMapErrorCases:
         assert dt.minute == 30
         assert dt.second == 46  # 45 + 1 carry
         assert dt.microsecond == 500000  # 1500000 % 1000000
+
+    def test_time_hour_overflow_error(self, gf):
+        """Time with hour overflow raises error (no date to roll into)."""
+        with pytest.raises(ValueError, match="TIME hour overflow"):
+            # 23 hours + 120 minutes (2 hours) = 25 hours, exceeds 24
+            gf.execute("RETURN time({hour: 23, minute: 120}) AS t")
+
+    def test_datetime_hour_overflow_to_next_day(self, gf):
+        """DateTime with hour overflow rolls into next day."""
+        result = gf.execute(
+            "RETURN datetime({year: 2015, month: 1, day: 1, hour: 23, minute: 120}) AS dt"
+        )
+        assert len(result) == 1
+        dt = result[0]["dt"].value
+        # 23 hours + 120 minutes (2 hours) = 25 hours -> rolls to next day
+        assert dt.year == 2015
+        assert dt.month == 1
+        assert dt.day == 2  # Rolled to next day
+        assert dt.hour == 1  # 25 % 24 = 1
+        assert dt.minute == 0  # 120 % 60 = 0
+
+    def test_date_unsupported_parameter_type(self, gf):
+        """Date with unsupported parameter type raises error."""
+        with pytest.raises(TypeError, match="Temporal map parameter 'year' must be"):
+            gf.execute("RETURN date({year: true}) AS d")
+
+    def test_time_unsupported_parameter_type(self, gf):
+        """Time with unsupported parameter type raises error."""
+        with pytest.raises(TypeError, match="Temporal map parameter 'hour' must be"):
+            gf.execute("RETURN time({hour: [12]}) AS t")

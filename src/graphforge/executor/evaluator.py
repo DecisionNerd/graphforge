@@ -1715,7 +1715,10 @@ def _extract_map_param(map_val: CypherMap, key: str, default: Any = None) -> Any
     if isinstance(cypher_val, (CypherInt, CypherFloat, CypherString)):
         return cypher_val.value
     else:
-        return cypher_val.value
+        raise TypeError(
+            f"Temporal map parameter '{key}' must be int, float, or string, "
+            f"got {type(cypher_val).__name__}: {cypher_val}"
+        )
 
 
 def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> CypherValue:
@@ -1930,6 +1933,12 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                         "(year, quarter, dayOfQuarter) OR (year, ordinalDay)"
                     )
 
+                # Normalize hour overflow into days
+                carry_days = hour // 24
+                hour = hour % 24
+                if carry_days > 0:
+                    date_part = date_part + datetime.timedelta(days=carry_days)
+
                 # Combine date and time
                 dt = datetime.datetime.combine(
                     date_part, datetime.time(hour, minute, second, total_microsecond)
@@ -1987,6 +1996,13 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 carry_hours = minute // 60
                 minute = minute % 60
                 hour += carry_hours
+
+                # Validate hour range (TIME cannot have day overflow)
+                if hour >= 24:
+                    raise ValueError(
+                        f"TIME hour overflow: hour must be 0-23 after normalization, got {hour}. "
+                        f"Consider using DATETIME if day rollover is needed."
+                    )
 
                 # Create time object
                 t = datetime.time(hour, minute, second, total_microsecond)
