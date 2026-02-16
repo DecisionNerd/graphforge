@@ -2,8 +2,11 @@
 
 from typing import Any
 
+from graphforge.ast.expression import FunctionCall, Variable
 from graphforge.optimizer.predicate_utils import PredicateAnalysis
 from graphforge.planner.operators import (
+    Aggregate,
+    AggregationHint,
     ExpandEdges,
     ExpandVariableLength,
     Filter,
@@ -27,11 +30,13 @@ class QueryOptimizer:
         1. Filter pushdown - Move WHERE predicates into ScanNodes/ExpandEdges
         2. Predicate reordering - Evaluate more selective predicates first
         3. Redundant traversal elimination - Remove duplicate pattern scans
+        4. Aggregate pushdown - Move aggregations into traversal operators
 
     Attributes:
         enable_filter_pushdown: Enable filter pushdown optimization
         enable_predicate_reorder: Enable predicate reordering optimization
         enable_redundant_elimination: Enable redundant traversal elimination
+        enable_aggregate_pushdown: Enable aggregate pushdown optimization
     """
 
     def __init__(
@@ -39,6 +44,7 @@ class QueryOptimizer:
         enable_filter_pushdown: bool = True,
         enable_predicate_reorder: bool = True,
         enable_redundant_elimination: bool = True,
+        enable_aggregate_pushdown: bool = True,
     ):
         """Initialize query optimizer.
 
@@ -46,10 +52,12 @@ class QueryOptimizer:
             enable_filter_pushdown: Enable filter pushdown pass
             enable_predicate_reorder: Enable predicate reordering pass
             enable_redundant_elimination: Enable redundant traversal elimination
+            enable_aggregate_pushdown: Enable aggregate pushdown pass
         """
         self.enable_filter_pushdown = enable_filter_pushdown
         self.enable_predicate_reorder = enable_predicate_reorder
         self.enable_redundant_elimination = enable_redundant_elimination
+        self.enable_aggregate_pushdown = enable_aggregate_pushdown
         self._predicate_analysis = PredicateAnalysis()
 
     def optimize(self, operators: list[Any]) -> list[Any]:
@@ -69,9 +77,13 @@ class QueryOptimizer:
         if self.enable_predicate_reorder:
             operators = self._predicate_reorder_pass(operators)
 
-        # Finally eliminate redundant traversals
+        # Eliminate redundant traversals
         if self.enable_redundant_elimination:
             operators = self._redundant_traversal_elimination_pass(operators)
+
+        # Finally push aggregations into traversals (work with simplified operator list)
+        if self.enable_aggregate_pushdown:
+            operators = self._aggregate_pushdown_pass(operators)
 
         return operators
 
@@ -413,3 +425,166 @@ class QueryOptimizer:
         """
         # For Pydantic models, repr() gives structural representation
         return repr(predicate)
+
+    def _aggregate_pushdown_pass(self, operators: list[Any]) -> list[Any]:
+        """Push aggregations into traversal operators when safe.
+
+        This optimization computes aggregations incrementally during traversal
+        instead of materializing all rows first. Only applies to COUNT, SUM,
+        MIN, MAX with simple GROUP BY patterns.
+
+        Algorithm:
+            1. Scan for ExpandEdges followed by Aggregate
+            2. Check if pushdown is safe (safety checks detailed below)
+            3. If safe:
+               - Add agg_hint to ExpandEdges
+               - Remove Aggregate operator
+               - Update downstream operators to use new variable bindings
+
+        Safety checks:
+            - Must have exactly one aggregation function
+            - Function must be COUNT, SUM, MIN, or MAX (not COLLECT, AVG, etc.)
+            - No DISTINCT modifier on aggregation
+            - GROUP BY must include source variable
+            - Can't push across pipeline boundaries (With, Union, Subquery)
+            - Can't push into Optional operators (breaks NULL semantics)
+
+        Args:
+            operators: Input operator list
+
+        Returns:
+            Transformed operator list with aggregations pushed down
+        """
+        result: list[Any] = []
+        i = 0
+
+        while i < len(operators):
+            op = operators[i]
+
+            # Look for pattern: ExpandEdges + Aggregate
+            if isinstance(op, ExpandEdges) and i + 1 < len(operators):
+                next_op = operators[i + 1]
+
+                if isinstance(next_op, Aggregate):
+                    # Check if pushdown is safe
+                    agg_hint = self._try_create_aggregation_hint(op, next_op)
+
+                    if agg_hint is not None:
+                        # Push aggregation into ExpandEdges
+                        enhanced_op = op.model_copy(update={"agg_hint": agg_hint})
+                        result.append(enhanced_op)
+
+                        # Skip the Aggregate operator
+                        i += 2
+                        continue
+
+            # Pipeline boundaries reset optimization potential
+            if isinstance(op, (With, Union, Subquery)):
+                result.append(op)
+                i += 1
+                continue
+
+            result.append(op)
+            i += 1
+
+        return result
+
+    def _try_create_aggregation_hint(
+        self, expand_op: ExpandEdges, agg_op: Aggregate
+    ) -> AggregationHint | None:
+        """Try to create an aggregation hint for pushdown.
+
+        Args:
+            expand_op: ExpandEdges operator
+            agg_op: Aggregate operator
+
+        Returns:
+            AggregationHint if pushdown is safe, None otherwise
+        """
+        # Must have exactly one aggregation function
+        if len(agg_op.agg_exprs) != 1:
+            return None
+
+        agg_expr = agg_op.agg_exprs[0]
+        if not isinstance(agg_expr, FunctionCall):
+            return None
+
+        func_name = agg_expr.name.upper()
+
+        # Only support COUNT, SUM, MIN, MAX
+        if func_name not in ("COUNT", "SUM", "MIN", "MAX"):
+            return None
+
+        # Don't push down DISTINCT aggregations
+        if getattr(agg_expr, "distinct", False):
+            return None
+
+        # Must have grouping expressions
+        if not agg_op.grouping_exprs:
+            return None
+
+        # GROUP BY must include source variable
+        source_var_in_group = any(
+            isinstance(expr, Variable) and expr.name == expand_op.src_var
+            for expr in agg_op.grouping_exprs
+        )
+
+        if not source_var_in_group:
+            return None
+
+        # For SUM/MIN/MAX, must have argument expression
+        if func_name in ("SUM", "MIN", "MAX"):
+            if not agg_expr.args or len(agg_expr.args) == 0:
+                return None
+            # Use first argument as expression to aggregate
+            expr = agg_expr.args[0]
+        else:
+            # COUNT can have no args (COUNT(*)) or args (COUNT(expr))
+            expr = agg_expr.args[0] if agg_expr.args else None
+
+        # Extract group by variable names, mapping to their output aliases
+        group_by_vars = []
+        for group_expr in agg_op.grouping_exprs:
+            if isinstance(group_expr, Variable):
+                # Check if this variable has an alias in return_items
+                alias = None
+                for item in agg_op.return_items:
+                    if (
+                        hasattr(item, "expression")
+                        and isinstance(item.expression, Variable)
+                        and item.expression.name == group_expr.name
+                    ):
+                        # Use the alias if present
+                        if hasattr(item, "alias") and item.alias:
+                            alias = item.alias
+                            break
+
+                # If no alias found, use the original variable name
+                # This handles cases where the variable is used but not aliased
+                if alias is None:
+                    alias = group_expr.name
+
+                group_by_vars.append(alias)
+            else:
+                # Complex grouping expressions not supported yet
+                return None
+
+        # Find result variable from return items
+        # The aggregation result should be bound to an alias
+        result_var = None
+        for item in agg_op.return_items:
+            # Check if this return item is the aggregation
+            if hasattr(item, "expression") and item.expression == agg_expr:
+                # Use alias if present, otherwise generate from function name
+                if hasattr(item, "alias") and item.alias:
+                    result_var = item.alias
+                    break
+
+        if result_var is None:
+            # Can't determine result variable, can't push down
+            return None
+
+        # Create aggregation hint
+        return AggregationHint(
+            func=func_name, expr=expr, group_by=group_by_vars, result_var=result_var
+        )
