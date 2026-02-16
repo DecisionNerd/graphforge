@@ -51,6 +51,7 @@ class QueryOptimizer:
         enable_redundant_elimination: bool = True,
         enable_aggregate_pushdown: bool = True,
         statistics: GraphStatistics | None = None,
+        max_orderings: int = 1000,
     ):
         """Initialize query optimizer.
 
@@ -61,6 +62,7 @@ class QueryOptimizer:
             enable_redundant_elimination: Enable redundant traversal elimination
             enable_aggregate_pushdown: Enable aggregate pushdown pass
             statistics: Graph statistics for cost-based optimization (optional)
+            max_orderings: Maximum orderings to enumerate in join reordering (default 1000)
         """
         self.enable_filter_pushdown = enable_filter_pushdown
         self.enable_join_reorder = enable_join_reorder
@@ -68,6 +70,7 @@ class QueryOptimizer:
         self.enable_redundant_elimination = enable_redundant_elimination
         self.enable_aggregate_pushdown = enable_aggregate_pushdown
         self._statistics = statistics
+        self._max_orderings = max_orderings
         self._predicate_analysis = PredicateAnalysis()
 
     def optimize(self, operators: list[Any]) -> list[Any]:
@@ -634,7 +637,14 @@ class QueryOptimizer:
         Returns:
             Operator list with join patterns reordered for minimum cost
         """
+        # Can't reorder without statistics
+        if self._statistics is None:
+            return operators
+
         from graphforge.optimizer.join_reorder import JoinReorderOptimizer
 
-        optimizer = JoinReorderOptimizer(self._statistics)  # type: ignore
+        optimizer = JoinReorderOptimizer(
+            self._statistics,
+            max_orderings=self._max_orderings,
+        )
         return optimizer.reorder_joins(operators)

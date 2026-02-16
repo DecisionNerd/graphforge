@@ -84,11 +84,16 @@ class DependencyAnalyzer:
             Set of variable names bound by this operator
         """
         if isinstance(op, ScanNodes):
-            return {op.variable}
+            bound = {op.variable}
+            if op.path_var:
+                bound.add(op.path_var)
+            return bound
         elif isinstance(op, ExpandEdges):
             bound = {op.dst_var}
             if op.edge_var:
                 bound.add(op.edge_var)
+            if op.path_var:
+                bound.add(op.path_var)
             return bound
         return set()
 
@@ -119,27 +124,42 @@ class DependencyAnalyzer:
         return required
 
     def find_valid_orderings(
-        self, nodes: list[OperatorNode], dependencies: dict[int, set[int]]
+        self,
+        nodes: list[OperatorNode],
+        dependencies: dict[int, set[int]],
+        max_orderings: int = 1000,
     ) -> list[list[OperatorNode]]:
-        """Find all valid topological orderings.
+        """Find valid topological orderings with a configurable limit.
 
         Args:
             nodes: List of OperatorNode objects
             dependencies: Dict mapping node index to dependency indices
+            max_orderings: Maximum number of orderings to enumerate (default 1000)
 
         Returns:
             List of valid orderings (each is a list of OperatorNode)
         """
-        valid_orderings = []
+        # Use greedy approach if max_orderings is 1 or nodes are too many
+        if max_orderings == 1 or len(nodes) > 10:
+            return [self._greedy_ordering(nodes, dependencies)]
+
+        valid_orderings: list[list[OperatorNode]] = []
 
         def backtrack(remaining: set[int], current_ordering: list[OperatorNode]):
             """Recursive backtracking to find all valid orderings."""
+            # Stop if we've found enough orderings
+            if len(valid_orderings) >= max_orderings:
+                return
+
             if not remaining:
                 valid_orderings.append(current_ordering.copy())
                 return
 
             # Try each remaining node that has all dependencies satisfied
             for node_idx in list(remaining):
+                if len(valid_orderings) >= max_orderings:
+                    return
+
                 deps = dependencies.get(node_idx, set())
                 # Check if all dependencies are already in current ordering
                 if all(d in [n.index for n in current_ordering] for d in deps):
@@ -150,21 +170,67 @@ class DependencyAnalyzer:
                     remaining.add(node_idx)
 
         backtrack(set(range(len(nodes))), [])
-        return valid_orderings
+
+        # If enumeration was cut short, add greedy fallback
+        if len(valid_orderings) >= max_orderings:
+            greedy = self._greedy_ordering(nodes, dependencies)
+            if greedy not in valid_orderings:
+                valid_orderings.append(greedy)
+
+        return valid_orderings if valid_orderings else [self._greedy_ordering(nodes, dependencies)]
+
+    def _greedy_ordering(
+        self, nodes: list[OperatorNode], dependencies: dict[int, set[int]]
+    ) -> list[OperatorNode]:
+        """Build a greedy ordering by repeatedly choosing the next node with minimal dependencies.
+
+        Args:
+            nodes: List of OperatorNode objects
+            dependencies: Dict mapping node index to dependency indices
+
+        Returns:
+            A single valid ordering
+        """
+        remaining = set(range(len(nodes)))
+        ordering = []
+        bound_indices = set()
+
+        while remaining:
+            # Find nodes with all dependencies satisfied
+            available = [
+                idx
+                for idx in remaining
+                if all(dep in bound_indices for dep in dependencies.get(idx, set()))
+            ]
+
+            if not available:
+                # Should not happen in valid dependency graph
+                # Just pick first remaining
+                available = [next(iter(remaining))]
+
+            # Pick the one with smallest index (deterministic)
+            chosen = min(available)
+            remaining.remove(chosen)
+            bound_indices.add(chosen)
+            ordering.append(nodes[chosen])
+
+        return ordering
 
 
 class JoinReorderOptimizer:
     """Performs join reordering optimization."""
 
-    def __init__(self, statistics: GraphStatistics):
+    def __init__(self, statistics: GraphStatistics, max_orderings: int = 1000):
         """Initialize optimizer with graph statistics.
 
         Args:
             statistics: GraphStatistics instance for cost estimation
+            max_orderings: Maximum number of orderings to enumerate (default 1000)
         """
         self.statistics = statistics
         self.estimator = CardinalityEstimator(statistics)
         self.analyzer = DependencyAnalyzer()
+        self.max_orderings = max_orderings
 
     def can_reorder(self, operators: list[Any]) -> bool:
         """Check if operators are eligible for reordering.
@@ -180,14 +246,18 @@ class JoinReorderOptimizer:
         if len(pattern_ops) < 2:
             return False
 
-        # Can't reorder if there are side effects
-        has_side_effects = any(
-            isinstance(op, (Create, Set, Delete, Remove, Merge)) for op in operators
-        )
-        if has_side_effects:
-            return False
-
         return True
+
+    def _segment_has_side_effects(self, operators: list[Any]) -> bool:
+        """Check if a segment has side effects that prevent reordering.
+
+        Args:
+            operators: List of operators in segment
+
+        Returns:
+            True if segment has side effects, False otherwise
+        """
+        return any(isinstance(op, (Create, Set, Delete, Remove, Merge)) for op in operators)
 
     def reorder_joins(self, operators: list[Any]) -> list[Any]:
         """Reorder operators to minimize cost.
@@ -218,17 +288,38 @@ class JoinReorderOptimizer:
     def _reorder_segment(self, operators: list[Any]) -> list[Any]:
         """Reorder a single segment without boundaries.
 
+        Only reorders pattern operators (ScanNodes, ExpandEdges) while keeping
+        other operators (Aggregate, Filter, Project, etc.) in their original positions.
+
         Args:
             operators: List of operators in segment
 
         Returns:
             Reordered list of operators
         """
-        # Build dependency graph
-        nodes, dependencies = self.analyzer.build_dependency_graph(operators)
+        # Can't reorder if segment has side effects
+        if self._segment_has_side_effects(operators):
+            return operators
+
+        # Extract pattern operators and their positions
+        pattern_ops = []
+        pattern_indices = []
+        for i, op in enumerate(operators):
+            if isinstance(op, (ScanNodes, ExpandEdges)):
+                pattern_ops.append(op)
+                pattern_indices.append(i)
+
+        # Need at least 2 pattern operators to reorder
+        if len(pattern_ops) < 2:
+            return operators
+
+        # Build dependency graph for pattern operators only
+        nodes, dependencies = self.analyzer.build_dependency_graph(pattern_ops)
 
         # Find all valid orderings
-        valid_orderings = self.analyzer.find_valid_orderings(nodes, dependencies)
+        valid_orderings = self.analyzer.find_valid_orderings(
+            nodes, dependencies, max_orderings=self.max_orderings
+        )
 
         if len(valid_orderings) <= 1:
             # Only one valid ordering, return original
@@ -241,9 +332,15 @@ class JoinReorderOptimizer:
             cost = self.estimator.estimate_cost(ops)
             costs.append((cost, ops))
 
-        # Return ordering with minimum cost
-        _min_cost, best_ops = min(costs, key=lambda x: x[0])
-        return best_ops
+        # Get best ordering
+        _min_cost, best_pattern_ops = min(costs, key=lambda x: x[0])
+
+        # Reconstruct full operator list with reordered pattern operators
+        result = list(operators)
+        for i, idx in enumerate(pattern_indices):
+            result[idx] = best_pattern_ops[i]
+
+        return result
 
     def _split_at_boundaries(self, operators: list[Any]) -> list[Any]:
         """Split operator list at pipeline boundaries.

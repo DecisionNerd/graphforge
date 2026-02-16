@@ -166,7 +166,7 @@ class TestJoinReorderOptimizer:
         assert optimizer.can_reorder(ops) is False
 
     def test_cannot_reorder_with_side_effects(self):
-        """Should not reorder if side effects present."""
+        """Should not reorder if side effects present in segment."""
         stats = GraphStatistics(total_nodes=100, total_edges=200)
         optimizer = JoinReorderOptimizer(stats)
 
@@ -181,7 +181,9 @@ class TestJoinReorderOptimizer:
             Create(patterns=[pattern]),  # Side effect
         ]
 
-        assert optimizer.can_reorder(ops) is False
+        # Should return original order (no reordering)
+        reordered = optimizer.reorder_joins(ops)
+        assert reordered == ops
 
     def test_split_at_boundaries_with_operator(self):
         """Should split at With boundary."""
@@ -330,7 +332,8 @@ class TestJoinReorderIntegration:
         assert len(reordered) == 3
         assert isinstance(reordered[0], ScanNodes)
         assert isinstance(reordered[1], ExpandEdges)
-        # The expand should come before the second scan
-        expand_idx = 1
-        company_scan_idx = 2
-        assert expand_idx < company_scan_idx
+        assert isinstance(reordered[2], ScanNodes)
+        # The expand should come before the Company scan
+        assert reordered[0].variable == "a"  # Person scan first
+        assert reordered[1].src_var == "a"  # Expand from a
+        assert reordered[2].variable == "b"  # Company scan last

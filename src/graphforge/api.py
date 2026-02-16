@@ -678,6 +678,11 @@ class GraphForge:
 
             graph.add_edge(edge)
 
+        # Load statistics
+        loaded_stats = self.backend.load_statistics()
+        if loaded_stats is not None:
+            graph._statistics = loaded_stats
+
         return graph
 
     def _save_graph_to_backend(self):
@@ -689,6 +694,10 @@ class GraphForge:
         # Save all edges
         for edge in self.graph.get_all_edges():
             self.backend.save_edge(edge)
+
+        # Save statistics
+        stats = self.graph.get_statistics()
+        self.backend.save_statistics(stats)
 
         # Commit transaction
         self.backend.commit()
