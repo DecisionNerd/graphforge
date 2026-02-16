@@ -290,8 +290,8 @@ class JoinReorderOptimizer:
     def _reorder_segment(self, operators: list[Any]) -> list[Any]:
         """Reorder a single segment without boundaries.
 
-        Only reorders pattern operators (ScanNodes, ExpandEdges) while keeping
-        other operators (Aggregate, Filter, Project, etc.) in their original positions.
+        Reorders pattern operators while ensuring all operator dependencies
+        (including non-pattern operators like Filter) remain satisfied.
 
         Args:
             operators: List of operators in segment
@@ -303,22 +303,18 @@ class JoinReorderOptimizer:
         if self._segment_has_side_effects(operators):
             return operators
 
-        # Extract pattern operators and their positions
-        pattern_ops = []
-        pattern_indices = []
-        for i, op in enumerate(operators):
-            if isinstance(op, (ScanNodes, ExpandEdges)):
-                pattern_ops.append(op)
-                pattern_indices.append(i)
-
         # Need at least 2 pattern operators to reorder
-        if len(pattern_ops) < 2:
+        pattern_op_count = sum(
+            1 for op in operators if isinstance(op, (ScanNodes, ExpandEdges))
+        )
+        if pattern_op_count < 2:
             return operators
 
-        # Build dependency graph for pattern operators only
-        nodes, dependencies = self.analyzer.build_dependency_graph(pattern_ops)
+        # Build dependency graph for ALL operators (not just pattern ops)
+        # This ensures non-pattern operators like Filter maintain valid bindings
+        nodes, dependencies = self.analyzer.build_dependency_graph(operators)
 
-        # Find all valid orderings
+        # Find all valid orderings that respect ALL dependencies
         valid_orderings = self.analyzer.find_valid_orderings(
             nodes, dependencies, max_orderings=self.max_orderings
         )
@@ -327,7 +323,7 @@ class JoinReorderOptimizer:
             # Only one valid ordering, return original
             return operators
 
-        # Estimate cost for each ordering
+        # Estimate cost for each ordering and choose the best
         costs = []
         for ordering in valid_orderings:
             ops = [node.operator for node in ordering]
@@ -335,14 +331,9 @@ class JoinReorderOptimizer:
             costs.append((cost, ops))
 
         # Get best ordering
-        _min_cost, best_pattern_ops = min(costs, key=lambda x: x[0])
+        _min_cost, best_ops = min(costs, key=lambda x: x[0])
 
-        # Reconstruct full operator list with reordered pattern operators
-        result = list(operators)
-        for i, idx in enumerate(pattern_indices):
-            result[idx] = best_pattern_ops[i]
-
-        return result
+        return best_ops
 
     def _split_at_boundaries(self, operators: list[Any]) -> list[Any]:
         """Split operator list at pipeline boundaries.
