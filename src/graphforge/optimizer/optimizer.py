@@ -5,6 +5,7 @@ from typing import Any
 from graphforge.optimizer.predicate_utils import PredicateAnalysis
 from graphforge.planner.operators import (
     ExpandEdges,
+    ExpandVariableLength,
     Filter,
     OptionalExpandEdges,
     OptionalScanNodes,
@@ -25,25 +26,30 @@ class QueryOptimizer:
     Optimization passes:
         1. Filter pushdown - Move WHERE predicates into ScanNodes/ExpandEdges
         2. Predicate reordering - Evaluate more selective predicates first
+        3. Redundant traversal elimination - Remove duplicate pattern scans
 
     Attributes:
         enable_filter_pushdown: Enable filter pushdown optimization
         enable_predicate_reorder: Enable predicate reordering optimization
+        enable_redundant_elimination: Enable redundant traversal elimination
     """
 
     def __init__(
         self,
         enable_filter_pushdown: bool = True,
         enable_predicate_reorder: bool = True,
+        enable_redundant_elimination: bool = True,
     ):
         """Initialize query optimizer.
 
         Args:
             enable_filter_pushdown: Enable filter pushdown pass
             enable_predicate_reorder: Enable predicate reordering pass
+            enable_redundant_elimination: Enable redundant traversal elimination
         """
         self.enable_filter_pushdown = enable_filter_pushdown
         self.enable_predicate_reorder = enable_predicate_reorder
+        self.enable_redundant_elimination = enable_redundant_elimination
         self._predicate_analysis = PredicateAnalysis()
 
     def optimize(self, operators: list[Any]) -> list[Any]:
@@ -62,6 +68,10 @@ class QueryOptimizer:
         # Then reorder predicates within operators
         if self.enable_predicate_reorder:
             operators = self._predicate_reorder_pass(operators)
+
+        # Finally eliminate redundant traversals
+        if self.enable_redundant_elimination:
+            operators = self._redundant_traversal_elimination_pass(operators)
 
         return operators
 
@@ -279,3 +289,125 @@ class QueryOptimizer:
 
         # Recombine with AND
         return PredicateAnalysis.combine_with_and(sorted_conjuncts)
+
+    def _redundant_traversal_elimination_pass(self, operators: list[Any]) -> list[Any]:
+        """Eliminate redundant pattern scan operators.
+
+        Detects duplicate ScanNodes/ExpandEdges operators and removes them,
+        reusing results from the first occurrence.
+
+        Algorithm:
+            1. Track operator signatures as we scan forward
+            2. For each operator, check if signature already seen
+            3. If duplicate: mark for removal
+            4. If first occurrence: record in signature map
+            5. Return operator list with duplicates removed
+
+        Safety checks:
+            - Don't merge across pipeline boundaries (With, Union, Subquery)
+            - Don't merge operators with side effects (Create, Set, Delete, Merge)
+            - Don't merge Optional operators (breaks NULL semantics)
+            - Variables must have same binding (same variable name)
+
+        Args:
+            operators: Input operator list
+
+        Returns:
+            Transformed operator list with duplicates removed
+        """
+        result: list[Any] = []
+        seen_signatures: dict[tuple, int] = {}  # signature -> index in result
+
+        for op in operators:
+            # Reset tracking at pipeline boundaries
+            if isinstance(op, (With, Union, Subquery)):
+                result.append(op)
+                seen_signatures.clear()  # Variables rescoped
+                continue
+
+            # Compute signature for pattern scan operators
+            signature = self._compute_operator_signature(op)
+
+            if signature is None:
+                # Not a pattern scan operator, keep as-is
+                result.append(op)
+                continue
+
+            # Check if we've seen this exact operator before
+            if signature in seen_signatures:
+                # Duplicate found - skip it (first occurrence handles the work)
+                continue
+
+            # First occurrence - record and keep
+            seen_signatures[signature] = len(result)
+            result.append(op)
+
+        return result
+
+    def _compute_operator_signature(self, op: Any) -> tuple | None:
+        """Compute a unique signature for an operator.
+
+        Returns a hashable tuple representing the operator's semantics,
+        or None if operator should not be considered for elimination.
+
+        Signature includes:
+            - Operator type (class name)
+            - Variable bindings
+            - Labels/types
+            - Direction
+            - Predicate (if present)
+
+        Args:
+            op: Operator to compute signature for
+
+        Returns:
+            Signature tuple, or None if not applicable
+        """
+        # ScanNodes signature
+        if isinstance(op, ScanNodes):
+            labels_tuple = tuple(tuple(g) for g in op.labels) if op.labels else None
+            predicate_repr = self._predicate_signature(op.predicate) if op.predicate else None
+            return ("ScanNodes", op.variable, labels_tuple, predicate_repr)
+
+        # ExpandEdges signature
+        elif isinstance(op, ExpandEdges):
+            predicate_repr = self._predicate_signature(op.predicate) if op.predicate else None
+            return (
+                "ExpandEdges",
+                op.src_var,
+                op.edge_var,
+                op.dst_var,
+                tuple(op.edge_types),
+                op.direction,
+                predicate_repr,
+            )
+
+        # ExpandVariableLength signature
+        elif isinstance(op, ExpandVariableLength):
+            predicate_repr = self._predicate_signature(op.predicate) if op.predicate else None
+            return (
+                "ExpandVariableLength",
+                op.src_var,
+                op.edge_var,
+                op.dst_var,
+                tuple(op.edge_types),
+                op.direction,
+                op.min_hops,
+                op.max_hops,
+                predicate_repr,
+            )
+
+        # Not a pattern scan operator
+        return None
+
+    def _predicate_signature(self, predicate: Any) -> str:
+        """Convert predicate to hashable signature.
+
+        Args:
+            predicate: Predicate AST node
+
+        Returns:
+            String representation of predicate structure
+        """
+        # For Pydantic models, repr() gives structural representation
+        return repr(predicate)
