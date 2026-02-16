@@ -555,6 +555,11 @@ class QueryExecutor:
         self, op: ExpandEdges, input_rows: list[ExecutionContext]
     ) -> list[ExecutionContext]:
         """Execute ExpandEdges operator."""
+        # Check if we need to do incremental aggregation
+        if op.agg_hint is not None:
+            return self._execute_expand_with_aggregation(op, input_rows)
+
+        # Standard expansion without aggregation
         result = []
 
         for ctx in input_rows:
@@ -619,6 +624,195 @@ class QueryExecutor:
                 result.append(new_ctx)
 
         return result
+
+    def _execute_expand_with_aggregation(
+        self, op: ExpandEdges, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute ExpandEdges with incremental aggregation.
+
+        Instead of materializing all edges, computes aggregations incrementally
+        during traversal and yields one result per group.
+
+        Args:
+            op: ExpandEdges operator with agg_hint set
+            input_rows: Input execution contexts
+
+        Returns:
+            List of execution contexts with aggregation results
+        """
+        hint = op.agg_hint
+        assert hint is not None, "agg_hint must be set when calling this method"
+        func_name = hint.func.upper()
+
+        # Map: (group_key_tuple) -> aggregate_value
+        # Group key is tuple of values for group_by variables
+        aggregates: dict[tuple, Any] = {}
+
+        # Map: (group_key_tuple) -> ExecutionContext (for binding group variables)
+        group_contexts: dict[tuple, ExecutionContext] = {}
+
+        # Process all expansions, accumulating aggregates
+        for ctx in input_rows:
+            src_node = ctx.get(op.src_var)
+
+            # Get edges based on direction
+            if op.direction == "OUT":
+                edges = self.graph.get_outgoing_edges(src_node.id)
+            elif op.direction == "IN":
+                edges = self.graph.get_incoming_edges(src_node.id)
+            else:  # UNDIRECTED
+                outgoing = self.graph.get_outgoing_edges(src_node.id)
+                incoming = self.graph.get_incoming_edges(src_node.id)
+                seen_edge_ids = set()
+                edges = []
+                for edge in outgoing + incoming:
+                    if edge.id not in seen_edge_ids:
+                        edges.append(edge)
+                        seen_edge_ids.add(edge.id)
+
+            # Filter by type if specified
+            if op.edge_types:
+                edges = [e for e in edges if e.type in op.edge_types]
+
+            # Process each edge and update aggregates
+            for edge in edges:
+                # Create temporary context for expression evaluation
+                temp_ctx = ExecutionContext()
+                temp_ctx.bindings = dict(ctx.bindings)
+
+                if op.edge_var:
+                    temp_ctx.bind(op.edge_var, edge)
+
+                # Determine dst node
+                if op.direction == "OUT":
+                    dst_node = edge.dst
+                elif op.direction == "IN":
+                    dst_node = edge.src
+                else:  # UNDIRECTED
+                    dst_node = edge.dst if edge.src.id == src_node.id else edge.src
+
+                temp_ctx.bind(op.dst_var, dst_node)
+
+                # Apply pattern predicate if specified
+                if op.predicate is not None:
+                    predicate_result = evaluate_expression(op.predicate, temp_ctx, self)
+                    if not (isinstance(predicate_result, CypherBool) and predicate_result.value):
+                        continue  # Skip this edge
+
+                # Compute group key from group_by variables
+                group_key_values = []
+                for var_name in hint.group_by:
+                    val = temp_ctx.get(var_name)
+                    # Use a hashable representation
+                    if hasattr(val, "id"):
+                        group_key_values.append(("node", val.id))
+                    elif hasattr(val, "value"):
+                        group_key_values.append(("value", val.value))
+                    else:
+                        group_key_values.append(("obj", id(val)))
+                group_key = tuple(group_key_values)
+
+                # Initialize aggregate for this group if needed
+                if group_key not in aggregates:
+                    aggregates[group_key] = self._initial_aggregate_value(func_name)
+                    # Store the first context for this group (for binding group vars)
+                    group_contexts[group_key] = temp_ctx
+
+                # Update aggregate
+                if func_name == "COUNT":
+                    aggregates[group_key] += 1
+                elif func_name == "SUM":
+                    # Evaluate expression and add to sum
+                    if hint.expr is not None:
+                        value = evaluate_expression(hint.expr, temp_ctx, self)
+                        if not isinstance(value, CypherNull):
+                            # Extract numeric value
+                            if hasattr(value, "value"):
+                                aggregates[group_key] += value.value
+                elif func_name == "MIN":
+                    if hint.expr is not None:
+                        value = evaluate_expression(hint.expr, temp_ctx, self)
+                        if not isinstance(value, CypherNull):
+                            val = value.value if hasattr(value, "value") else value
+                            if aggregates[group_key] is None or val < aggregates[group_key]:
+                                aggregates[group_key] = val
+                elif func_name == "MAX":
+                    if hint.expr is not None:
+                        value = evaluate_expression(hint.expr, temp_ctx, self)
+                        if not isinstance(value, CypherNull):
+                            val = value.value if hasattr(value, "value") else value
+                            if aggregates[group_key] is None or val > aggregates[group_key]:
+                                aggregates[group_key] = val
+
+        # Yield one context per group with aggregation result
+        result = []
+        for group_key, agg_value in aggregates.items():
+            # Start with the context from this group
+            ctx = group_contexts[group_key]
+            new_ctx = ExecutionContext()
+
+            # Bind group variables
+            for var_name in hint.group_by:
+                new_ctx.bind(var_name, ctx.get(var_name))
+
+            # Bind aggregate result
+            wrapped_value = self._wrap_aggregate_value(func_name, agg_value)
+            new_ctx.bind(hint.result_var, wrapped_value)
+
+            result.append(new_ctx)
+
+        return result
+
+    def _initial_aggregate_value(self, func_name: str) -> Any:
+        """Get initial value for an aggregate function.
+
+        Args:
+            func_name: Aggregation function name
+
+        Returns:
+            Initial value for the aggregate
+        """
+        if func_name in {"COUNT", "SUM"}:
+            return 0
+        elif func_name in ("MIN", "MAX"):
+            return None  # No value yet
+        else:
+            raise ValueError(f"Unsupported aggregate function: {func_name}")
+
+    def _wrap_aggregate_value(self, func_name: str, value: Any) -> Any:
+        """Wrap aggregate result as CypherValue.
+
+        Args:
+            func_name: Aggregation function name
+            value: Raw aggregate value
+
+        Returns:
+            Wrapped CypherValue
+        """
+        from graphforge.types.values import CypherFloat, CypherInt, CypherNull
+
+        if func_name == "COUNT":
+            return CypherInt(value)
+        elif func_name == "SUM":
+            # Sum could be int or float
+            if isinstance(value, float):
+                return CypherFloat(value)
+            else:
+                return CypherInt(value)
+        elif func_name in ("MIN", "MAX"):
+            if value is None:
+                return CypherNull()
+            elif isinstance(value, float):
+                return CypherFloat(value)
+            elif isinstance(value, int):
+                return CypherInt(value)
+            else:
+                # For other types, return as-is (could be string, etc.)
+                from graphforge.types.values import CypherString
+
+                return CypherString(str(value))
+        else:
+            raise ValueError(f"Unsupported aggregate function: {func_name}")
 
     def _execute_variable_expand(
         self, op: ExpandVariableLength, input_rows: list[ExecutionContext]

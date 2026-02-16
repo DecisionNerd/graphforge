@@ -24,6 +24,45 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
+class AggregationHint(BaseModel):
+    """Hint for incremental aggregation during traversal.
+
+    Used by the optimizer to push aggregations into traversal operators
+    for improved performance. Only safe for certain aggregation patterns.
+
+    Attributes:
+        func: Aggregation function name ("COUNT", "SUM", "MIN", "MAX")
+        expr: Expression to aggregate (None for COUNT(*))
+        group_by: List of variable names to group by
+        result_var: Variable name to bind aggregation result to
+    """
+
+    func: str = Field(..., description="Aggregation function name")
+    expr: Any | None = Field(default=None, description="Expression to aggregate")
+    group_by: list[str] = Field(..., description="Variables to group by")
+    result_var: str = Field(..., min_length=1, description="Result variable name")
+
+    @field_validator("func")
+    @classmethod
+    def validate_func(cls, v: str) -> str:
+        """Validate aggregation function."""
+        valid_funcs = {"COUNT", "SUM", "MIN", "MAX"}
+        v_upper = v.upper()
+        if v_upper not in valid_funcs:
+            raise ValueError(f"Function must be one of {valid_funcs}, got {v}")
+        return v_upper
+
+    @field_validator("result_var")
+    @classmethod
+    def validate_result_var(cls, v: str) -> str:
+        """Validate result variable name."""
+        if not v[0].isalpha() and v[0] != "_":
+            raise ValueError(f"Variable must start with letter or underscore: {v}")
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
 class ScanNodes(BaseModel):
     """Operator for scanning nodes.
 
@@ -101,6 +140,7 @@ class ExpandEdges(BaseModel):
         edge_types: List of edge types to match
         direction: Direction to traverse ('OUT', 'IN', 'UNDIRECTED')
         predicate: WHERE predicate expression to filter edges (None if not specified)
+        agg_hint: Optional hint for incremental aggregation during traversal
     """
 
     src_var: str = Field(..., min_length=1, description="Source variable name")
@@ -111,6 +151,9 @@ class ExpandEdges(BaseModel):
     direction: str = Field(..., description="Traversal direction")
     predicate: Any | None = Field(
         default=None, description="WHERE predicate expression to filter edges"
+    )
+    agg_hint: AggregationHint | None = Field(
+        default=None, description="Optional hint for incremental aggregation"
     )
 
     @field_validator("direction")
@@ -140,6 +183,7 @@ class ExpandVariableLength(BaseModel):
         min_hops: Minimum number of hops (1 by default)
         max_hops: Maximum number of hops (None for unbounded)
         predicate: WHERE predicate expression to filter edges (None if not specified)
+        agg_hint: Optional hint for incremental aggregation during traversal
     """
 
     src_var: str = Field(..., min_length=1, description="Source variable name")
@@ -152,6 +196,9 @@ class ExpandVariableLength(BaseModel):
     max_hops: int | None = Field(default=None, description="Maximum hops (None=unbounded)")
     predicate: Any | None = Field(
         default=None, description="WHERE predicate expression to filter edges"
+    )
+    agg_hint: AggregationHint | None = Field(
+        default=None, description="Optional hint for incremental aggregation"
     )
 
     @field_validator("direction")
