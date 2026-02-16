@@ -1698,6 +1698,26 @@ def _evaluate_type_function(func_name: str, args: list[CypherValue]) -> CypherVa
     raise ValueError(f"Unknown type function: {func_name}")
 
 
+def _extract_map_param(map_val: CypherMap, key: str, default: Any = None) -> Any:
+    """Extract a parameter from a CypherMap.
+
+    Args:
+        map_val: CypherMap containing parameters
+        key: Parameter key to extract
+        default: Default value if key not present
+
+    Returns:
+        Python value (int, float, str) or default
+    """
+    cypher_val = map_val.value.get(key)
+    if cypher_val is None or isinstance(cypher_val, CypherNull):
+        return default
+    if isinstance(cypher_val, (CypherInt, CypherFloat, CypherString)):
+        return cypher_val.value
+    else:
+        return cypher_val.value
+
+
 def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> CypherValue:
     """Evaluate temporal functions.
 
@@ -1712,58 +1732,231 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
         ValueError: If function is unknown
         TypeError: If arguments have invalid types
     """
+    import datetime
+
     if func_name == "DATE":
-        # date() or date(string)
+        # date(), date(string), or date(map)
         if len(args) == 0:
             # date() returns current date
-            import datetime
-
             return CypherDate(datetime.date.today())
         elif len(args) == 1:
-            # date(string) parses ISO 8601 date
-            if not isinstance(args[0], CypherString):
-                raise TypeError(f"DATE expects string, got {type(args[0]).__name__}")
-            return CypherDate(args[0].value)
+            arg = args[0]
+            if isinstance(arg, CypherString):
+                # date(string) parses ISO 8601 date
+                return CypherDate(arg.value)
+            elif isinstance(arg, CypherMap):
+                # date(map) builds from components
+                year = _extract_map_param(arg, "year")
+                month = _extract_map_param(arg, "month")
+                day = _extract_map_param(arg, "day")
+                week = _extract_map_param(arg, "week")
+                day_of_week = _extract_map_param(arg, "dayOfWeek")
+                quarter = _extract_map_param(arg, "quarter")
+                day_of_quarter = _extract_map_param(arg, "dayOfQuarter")
+                ordinal_day = _extract_map_param(arg, "ordinalDay")
+
+                # Calendar date: year, month, day
+                if year is not None and month is not None and day is not None:
+                    return CypherDate(datetime.date(year, month, day))
+                # Week date: year, week, dayOfWeek
+                elif year is not None and week is not None and day_of_week is not None:
+                    # ISO week date to calendar date
+                    jan4 = datetime.date(year, 1, 4)
+                    week_one_monday = jan4 - datetime.timedelta(days=jan4.weekday())
+                    target_date = week_one_monday + datetime.timedelta(
+                        weeks=week - 1, days=day_of_week - 1
+                    )
+                    return CypherDate(target_date)
+                # Quarter date: year, quarter, dayOfQuarter
+                elif year is not None and quarter is not None and day_of_quarter is not None:
+                    # Quarter to month: Q1=Jan, Q2=Apr, Q3=Jul, Q4=Oct
+                    first_month = (quarter - 1) * 3 + 1
+                    first_day = datetime.date(year, first_month, 1)
+                    target_date = first_day + datetime.timedelta(days=day_of_quarter - 1)
+                    return CypherDate(target_date)
+                # Ordinal date: year, ordinalDay
+                elif year is not None and ordinal_day is not None:
+                    jan1 = datetime.date(year, 1, 1)
+                    target_date = jan1 + datetime.timedelta(days=ordinal_day - 1)
+                    return CypherDate(target_date)
+                else:
+                    raise TypeError(
+                        "DATE map constructor requires: (year, month, day) OR "
+                        "(year, week, dayOfWeek) OR (year, quarter, dayOfQuarter) OR "
+                        "(year, ordinalDay)"
+                    )
+            else:
+                raise TypeError(f"DATE expects string or map, got {type(arg).__name__}")
         else:
             raise TypeError(f"DATE expects 0 or 1 argument, got {len(args)}")
 
     elif func_name == "DATETIME":
-        # datetime() or datetime(string)
+        # datetime(), datetime(string), or datetime(map)
         if len(args) == 0:
             # datetime() returns current datetime
-            import datetime
-
             return CypherDateTime(datetime.datetime.now())
         elif len(args) == 1:
-            # datetime(string) parses ISO 8601 datetime
-            if not isinstance(args[0], CypherString):
-                raise TypeError(f"DATETIME expects string, got {type(args[0]).__name__}")
-            return CypherDateTime(args[0].value)
+            arg = args[0]
+            if isinstance(arg, CypherString):
+                # datetime(string) parses ISO 8601 datetime
+                return CypherDateTime(arg.value)
+            elif isinstance(arg, CypherMap):
+                # datetime(map) builds from components
+                year = _extract_map_param(arg, "year")
+                month = _extract_map_param(arg, "month")
+                day = _extract_map_param(arg, "day")
+                hour = _extract_map_param(arg, "hour", 0)
+                minute = _extract_map_param(arg, "minute", 0)
+                second = _extract_map_param(arg, "second", 0)
+                millisecond = _extract_map_param(arg, "millisecond", 0)
+                microsecond = _extract_map_param(arg, "microsecond", 0)
+                nanosecond = _extract_map_param(arg, "nanosecond", 0)
+                timezone = _extract_map_param(arg, "timezone")
+
+                week = _extract_map_param(arg, "week")
+                day_of_week = _extract_map_param(arg, "dayOfWeek")
+                quarter = _extract_map_param(arg, "quarter")
+                day_of_quarter = _extract_map_param(arg, "dayOfQuarter")
+                ordinal_day = _extract_map_param(arg, "ordinalDay")
+
+                # Total microseconds from all sub-second components
+                total_microsecond = microsecond + (millisecond * 1000) + (nanosecond // 1000)
+
+                # Determine date part
+                if year is not None and month is not None and day is not None:
+                    # Calendar date
+                    date_part = datetime.date(year, month, day)
+                elif year is not None and week is not None and day_of_week is not None:
+                    # Week date
+                    jan4 = datetime.date(year, 1, 4)
+                    week_one_monday = jan4 - datetime.timedelta(days=jan4.weekday())
+                    date_part = week_one_monday + datetime.timedelta(
+                        weeks=week - 1, days=day_of_week - 1
+                    )
+                elif year is not None and quarter is not None and day_of_quarter is not None:
+                    # Quarter date
+                    first_month = (quarter - 1) * 3 + 1
+                    first_day = datetime.date(year, first_month, 1)
+                    date_part = first_day + datetime.timedelta(days=day_of_quarter - 1)
+                elif year is not None and ordinal_day is not None:
+                    # Ordinal date
+                    jan1 = datetime.date(year, 1, 1)
+                    date_part = jan1 + datetime.timedelta(days=ordinal_day - 1)
+                else:
+                    raise TypeError(
+                        "DATETIME map constructor requires date components: "
+                        "(year, month, day) OR (year, week, dayOfWeek) OR "
+                        "(year, quarter, dayOfQuarter) OR (year, ordinalDay)"
+                    )
+
+                # Combine date and time
+                dt = datetime.datetime.combine(
+                    date_part, datetime.time(hour, minute, second, total_microsecond)
+                )
+
+                # Handle timezone if provided
+                if timezone:
+                    from dateutil import tz
+
+                    dt = dt.replace(tzinfo=tz.gettz(timezone))
+
+                return CypherDateTime(dt)
+            else:
+                raise TypeError(f"DATETIME expects string or map, got {type(arg).__name__}")
         else:
             raise TypeError(f"DATETIME expects 0 or 1 argument, got {len(args)}")
 
     elif func_name == "TIME":
-        # time() or time(string)
+        # time(), time(string), or time(map)
         if len(args) == 0:
             # time() returns current time
-            import datetime
-
             return CypherTime(datetime.datetime.now().time())
         elif len(args) == 1:
-            # time(string) parses ISO 8601 time
-            if not isinstance(args[0], CypherString):
-                raise TypeError(f"TIME expects string, got {type(args[0]).__name__}")
-            return CypherTime(args[0].value)
+            arg = args[0]
+            if isinstance(arg, CypherString):
+                # time(string) parses ISO 8601 time
+                return CypherTime(arg.value)
+            elif isinstance(arg, CypherMap):
+                # time(map) builds from components
+                hour = _extract_map_param(arg, "hour", 0)
+                minute = _extract_map_param(arg, "minute", 0)
+                second = _extract_map_param(arg, "second", 0)
+                millisecond = _extract_map_param(arg, "millisecond", 0)
+                microsecond = _extract_map_param(arg, "microsecond", 0)
+                nanosecond = _extract_map_param(arg, "nanosecond", 0)
+                timezone = _extract_map_param(arg, "timezone")
+
+                # Total microseconds from all sub-second components
+                total_microsecond = microsecond + (millisecond * 1000) + (nanosecond // 1000)
+
+                # Create time object
+                t = datetime.time(hour, minute, second, total_microsecond)
+
+                # Handle timezone if provided
+                if timezone:
+                    from dateutil import tz
+
+                    t = t.replace(tzinfo=tz.gettz(timezone))
+
+                return CypherTime(t)
+            else:
+                raise TypeError(f"TIME expects string or map, got {type(arg).__name__}")
         else:
             raise TypeError(f"TIME expects 0 or 1 argument, got {len(args)}")
 
     elif func_name == "DURATION":
-        # duration(string)
+        # duration(string) or duration(map)
         if len(args) != 1:
             raise TypeError(f"DURATION expects 1 argument, got {len(args)}")
-        if not isinstance(args[0], CypherString):
-            raise TypeError(f"DURATION expects string, got {type(args[0]).__name__}")
-        return CypherDuration(args[0].value)
+
+        arg = args[0]
+        if isinstance(arg, CypherString):
+            # duration(string) parses ISO 8601 duration
+            return CypherDuration(arg.value)
+        elif isinstance(arg, CypherMap):
+            # duration(map) builds from components
+            years = _extract_map_param(arg, "years", 0)
+            months = _extract_map_param(arg, "months", 0)
+            weeks = _extract_map_param(arg, "weeks", 0)
+            days = _extract_map_param(arg, "days", 0)
+            hours = _extract_map_param(arg, "hours", 0)
+            minutes = _extract_map_param(arg, "minutes", 0)
+            seconds = _extract_map_param(arg, "seconds", 0)
+            milliseconds = _extract_map_param(arg, "milliseconds", 0)
+            microseconds = _extract_map_param(arg, "microseconds", 0)
+            nanoseconds = _extract_map_param(arg, "nanoseconds", 0)
+
+            # If years or months are present, use isodate.Duration
+            if years != 0 or months != 0:
+                import isodate
+
+                # Create Duration with all components
+                dur = isodate.Duration(
+                    years=years,
+                    months=months,
+                    weeks=weeks,
+                    days=days,
+                    hours=hours,
+                    minutes=minutes,
+                    seconds=seconds,
+                    milliseconds=milliseconds,
+                    microseconds=microseconds + (nanoseconds // 1000),
+                )
+                return CypherDuration(dur)
+            else:
+                # Simple timedelta
+                td = datetime.timedelta(
+                    weeks=weeks,
+                    days=days,
+                    hours=hours,
+                    minutes=minutes,
+                    seconds=seconds,
+                    milliseconds=milliseconds,
+                    microseconds=microseconds + (nanoseconds // 1000),
+                )
+                return CypherDuration(td)
+        else:
+            raise TypeError(f"DURATION expects string or map, got {type(arg).__name__}")
 
     # Temporal component extraction functions
     elif func_name == "YEAR":
