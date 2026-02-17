@@ -1138,20 +1138,10 @@ def _evaluate_function(
     # EXISTS function for property existence checking
     # Must be evaluated BEFORE NULL propagation to handle property access correctly
     if func_name == "EXISTS":
-        # exists() checks if a property exists on a node/relationship
-        # For property access expressions, check if property is NULL
         if len(func_call.args) != 1:
             raise ValueError("EXISTS expects exactly one argument")
 
         arg_expr = func_call.args[0]
-
-        # If the argument is a property access, evaluate and check for NULL
-        if isinstance(arg_expr, PropertyAccess):
-            result = evaluate_expression(arg_expr, ctx, executor)
-            # exists() returns false if property is NULL, true otherwise
-            return CypherBool(not isinstance(result, CypherNull))
-
-        # For other expressions, evaluate and check if NULL
         result = evaluate_expression(arg_expr, ctx, executor)
         return CypherBool(not isinstance(result, CypherNull))
 
@@ -1171,10 +1161,10 @@ def _evaluate_function(
 
     # ISEMPTY function for lists, strings, and maps
     if func_name == "ISEMPTY":
+        if len(args) == 0:
+            raise TypeError("ISEMPTY expects exactly one argument")
         arg = args[0]
-        if isinstance(arg, (CypherList, CypherString)):
-            return CypherBool(len(arg.value) == 0)
-        if isinstance(arg, CypherMap):
+        if isinstance(arg, (CypherList, CypherString, CypherMap)):
             return CypherBool(len(arg.value) == 0)
         raise TypeError(f"ISEMPTY expects list, string, or map, got {type(arg).__name__}")
 

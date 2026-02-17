@@ -32,7 +32,7 @@ class TestExistsFunction:
         assert len(result) == 0
 
     def test_exists_property_null(self):
-        """exists() returns false when property is explicitly NULL."""
+        """exists() returns false when property is absent (NULL values are not stored)."""
         gf = GraphForge()
         gf.execute("CREATE (:Person {name: 'Alice', age: NULL})")
         result = gf.execute("""
@@ -141,29 +141,20 @@ class TestExistsFunction:
 class TestIsEmptyFunction:
     """Test isEmpty() predicate function."""
 
-    def test_is_empty_empty_list(self):
-        """isEmpty() returns true for empty list."""
+    @pytest.mark.parametrize(
+        "query,expected",
+        [
+            ("RETURN isEmpty([]) AS result", True),
+            ("RETURN isEmpty([1, 2, 3]) AS result", False),
+            ("RETURN isEmpty('') AS result", True),
+            ("RETURN isEmpty('hello') AS result", False),
+        ],
+    )
+    def test_is_empty_scalars(self, query, expected):
+        """Test isEmpty() on scalar types (lists and strings)."""
         gf = GraphForge()
-        result = gf.execute("RETURN isEmpty([]) AS result")
-        assert result[0]["result"].value is True
-
-    def test_is_empty_non_empty_list(self):
-        """isEmpty() returns false for non-empty list."""
-        gf = GraphForge()
-        result = gf.execute("RETURN isEmpty([1, 2, 3]) AS result")
-        assert result[0]["result"].value is False
-
-    def test_is_empty_empty_string(self):
-        """isEmpty() returns true for empty string."""
-        gf = GraphForge()
-        result = gf.execute("RETURN isEmpty('') AS result")
-        assert result[0]["result"].value is True
-
-    def test_is_empty_non_empty_string(self):
-        """isEmpty() returns false for non-empty string."""
-        gf = GraphForge()
-        result = gf.execute("RETURN isEmpty('hello') AS result")
-        assert result[0]["result"].value is False
+        result = gf.execute(query)
+        assert result[0]["result"].value is expected
 
     def test_is_empty_non_empty_map(self):
         """isEmpty() returns false for non-empty map."""
