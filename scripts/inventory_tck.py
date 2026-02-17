@@ -3,8 +3,9 @@
 Inventory all TCK test scenarios and generate a comprehensive report.
 """
 
+import sys
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import re
 
@@ -40,6 +41,9 @@ def categorize_file(file_path):
             category = parts[idx + 1]  # clauses, expressions, etc.
             if idx + 2 < len(parts):
                 subcategory = parts[idx + 2]  # match, aggregation, etc.
+                # Check if subcategory is actually the feature filename
+                if subcategory == file_path.name or file_path.suffix == ".feature":
+                    return category
                 return f"{category}/{subcategory}"
             return category
 
@@ -49,6 +53,12 @@ def categorize_file(file_path):
 
 def main():
     tck_dir = Path("tests/tck/features")
+
+    # Check if TCK directory exists
+    if not tck_dir.exists() or not tck_dir.is_dir():
+        print(f"ERROR: TCK directory not found: {tck_dir}")
+        print("Make sure to run this script from the repository root.")
+        sys.exit(1)
 
     # Find all feature files
     feature_files = sorted(tck_dir.glob("**/*.feature"))
@@ -81,9 +91,7 @@ def main():
         "Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) "
         "test scenarios in GraphForge.\n"
     )
-    generated_time = datetime.fromtimestamp(Path(__file__).stat().st_mtime).strftime(
-        "%Y-%m-%d %H:%M:%S"
-    )
+    generated_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
     output.append(f"**Generated:** {generated_time}\n")
     output.append(f"**Total feature files:** {len(feature_files)}\n")
     output.append(f"**Total scenarios:** {total_scenarios}\n")
@@ -139,6 +147,7 @@ def main():
 
     # Write output
     output_file = Path("docs/reference/tck-inventory.md")
+    output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text("".join(output))
     print(f"✅ TCK inventory written to {output_file}")
     print(f"   {len(feature_files)} feature files")

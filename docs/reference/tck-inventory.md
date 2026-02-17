@@ -1,97 +1,29 @@
 # TCK Test Scenario Inventory
 Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) test scenarios in GraphForge.
-**Generated:** 2026-02-17 10:01:35
+**Generated:** 2026-02-17 21:56:38 UTC
 **Total feature files:** 222
 **Total scenarios:** 1626
 
 ## Table of Contents
-- [clauses/call](#clauses-call) (6 files, 41 scenarios)
-- [clauses/create](#clauses-create) (6 files, 78 scenarios)
-- [clauses/delete](#clauses-delete) (6 files, 41 scenarios)
-- [clauses/match](#clauses-match) (9 files, 161 scenarios)
-- [clauses/match-where](#clauses-match-where) (6 files, 34 scenarios)
-- [clauses/merge](#clauses-merge) (9 files, 75 scenarios)
-- [clauses/remove](#clauses-remove) (3 files, 33 scenarios)
-- [clauses/return](#clauses-return) (8 files, 63 scenarios)
-- [clauses/return-orderby](#clauses-return-orderby) (6 files, 35 scenarios)
-- [clauses/return-skip-limit](#clauses-return-skip-limit) (3 files, 31 scenarios)
-- [clauses/set](#clauses-set) (6 files, 53 scenarios)
-- [clauses/union](#clauses-union) (3 files, 12 scenarios)
-- [clauses/unwind](#clauses-unwind) (1 files, 14 scenarios)
-- [clauses/with](#clauses-with) (7 files, 29 scenarios)
-- [clauses/with-orderBy](#clauses-with-orderBy) (4 files, 99 scenarios)
-- [clauses/with-skip-limit](#clauses-with-skip-limit) (3 files, 9 scenarios)
-- [clauses/with-where](#clauses-with-where) (7 files, 19 scenarios)
-- [expressions/aggregation](#expressions-aggregation) (8 files, 27 scenarios)
-- [expressions/boolean](#expressions-boolean) (5 files, 36 scenarios)
-- [expressions/comparison](#expressions-comparison) (4 files, 33 scenarios)
-- [expressions/conditional](#expressions-conditional) (2 files, 2 scenarios)
-- [expressions/existentialSubqueries](#expressions-existentialSubqueries) (3 files, 10 scenarios)
-- [expressions/graph](#expressions-graph) (9 files, 48 scenarios)
-- [expressions/list](#expressions-list) (12 files, 94 scenarios)
-- [expressions/literals](#expressions-literals) (8 files, 131 scenarios)
-- [expressions/map](#expressions-map) (3 files, 19 scenarios)
-- [expressions/mathematical](#expressions-mathematical) (17 files, 6 scenarios)
-- [expressions/null](#expressions-null) (3 files, 16 scenarios)
-- [expressions/path](#expressions-path) (3 files, 7 scenarios)
-- [expressions/pattern](#expressions-pattern) (2 files, 36 scenarios)
-- [expressions/precedence](#expressions-precedence) (4 files, 43 scenarios)
-- [expressions/quantifier](#expressions-quantifier) (12 files, 100 scenarios)
-- [expressions/string](#expressions-string) (14 files, 32 scenarios)
-- [expressions/temporal](#expressions-temporal) (10 files, 89 scenarios)
-- [expressions/typeConversion](#expressions-typeConversion) (6 files, 29 scenarios)
+- [clauses](#clauses) (93 files, 827 scenarios)
+- [expressions](#expressions) (125 files, 758 scenarios)
 - [legacy](#legacy) (2 files, 11 scenarios)
-- [useCases/countingSubgraphMatches](#useCases-countingSubgraphMatches) (1 files, 11 scenarios)
-- [useCases/triadicSelection](#useCases-triadicSelection) (1 files, 19 scenarios)
+- [useCases](#useCases) (2 files, 30 scenarios)
 
 ## Summary Statistics
 | Category | Feature Files | Scenarios | Avg Scenarios/File |
 |----------|---------------|-----------|--------------------|
-| clauses/call | 6 | 41 | 6.8 |
-| clauses/create | 6 | 78 | 13.0 |
-| clauses/delete | 6 | 41 | 6.8 |
-| clauses/match | 9 | 161 | 17.9 |
-| clauses/match-where | 6 | 34 | 5.7 |
-| clauses/merge | 9 | 75 | 8.3 |
-| clauses/remove | 3 | 33 | 11.0 |
-| clauses/return | 8 | 63 | 7.9 |
-| clauses/return-orderby | 6 | 35 | 5.8 |
-| clauses/return-skip-limit | 3 | 31 | 10.3 |
-| clauses/set | 6 | 53 | 8.8 |
-| clauses/union | 3 | 12 | 4.0 |
-| clauses/unwind | 1 | 14 | 14.0 |
-| clauses/with | 7 | 29 | 4.1 |
-| clauses/with-orderBy | 4 | 99 | 24.8 |
-| clauses/with-skip-limit | 3 | 9 | 3.0 |
-| clauses/with-where | 7 | 19 | 2.7 |
-| expressions/aggregation | 8 | 27 | 3.4 |
-| expressions/boolean | 5 | 36 | 7.2 |
-| expressions/comparison | 4 | 33 | 8.2 |
-| expressions/conditional | 2 | 2 | 1.0 |
-| expressions/existentialSubqueries | 3 | 10 | 3.3 |
-| expressions/graph | 9 | 48 | 5.3 |
-| expressions/list | 12 | 94 | 7.8 |
-| expressions/literals | 8 | 131 | 16.4 |
-| expressions/map | 3 | 19 | 6.3 |
-| expressions/mathematical | 17 | 6 | 0.4 |
-| expressions/null | 3 | 16 | 5.3 |
-| expressions/path | 3 | 7 | 2.3 |
-| expressions/pattern | 2 | 36 | 18.0 |
-| expressions/precedence | 4 | 43 | 10.8 |
-| expressions/quantifier | 12 | 100 | 8.3 |
-| expressions/string | 14 | 32 | 2.3 |
-| expressions/temporal | 10 | 89 | 8.9 |
-| expressions/typeConversion | 6 | 29 | 4.8 |
+| clauses | 93 | 827 | 8.9 |
+| expressions | 125 | 758 | 6.1 |
 | legacy | 2 | 11 | 5.5 |
-| useCases/countingSubgraphMatches | 1 | 11 | 11.0 |
-| useCases/triadicSelection | 1 | 19 | 19.0 |
+| useCases | 2 | 30 | 15.0 |
 | **TOTAL** | **222** | **1626** | **7.3** |
 
 ## Detailed Inventory by Category
 
-### clauses/call
+### clauses
 
-**6 feature files, 41 scenarios**
+**93 feature files, 827 scenarios**
 
 #### `official/clauses/call/Call1.feature`
 
@@ -175,10 +107,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 1. [1] Calling the same STRING procedure twice using the same outputs in each call (Scenario, line 33)
 2. [2] Project procedure results between query scopes with WITH clause (Scenario, line 54)
 3. [3] Project procedure results between query scopes with WITH clause and rename the projection (Scenario, line 69)
-
-### clauses/create
-
-**6 feature files, 78 scenarios**
 
 #### `official/clauses/create/Create1.feature`
 
@@ -300,10 +228,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 13. [13] Aggregating in `RETURN` after creating relationships affects the result set but not the side effects (Scenario, line 242)
 14. [14] Aggregating in `WITH` after creating relationships affects the result set but not the side effects (Scenario, line 258)
 
-### clauses/delete
-
-**6 feature files, 41 scenarios**
-
 #### `official/clauses/delete/Delete1.feature`
 
 **Feature:** Delete1 - Deleting nodes
@@ -387,9 +311,81 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 13. [13] Aggregating in `RETURN` after deleting relationships affects the result set but not the side effects (Scenario, line 325)
 14. [14] Aggregating in `WITH` after deleting relationships affects the result set but not the side effects (Scenario, line 349)
 
-### clauses/match
+#### `official/clauses/match-where/MatchWhere1.feature`
 
-**9 feature files, 161 scenarios**
+**Feature:** MatchWhere1 - Filter single variable
+
+**Scenarios:** 15
+
+1. [1] Filter node with node label predicate on multi variables with multiple bindings (Scenario, line 33)
+2. [2] Filter node with node label predicate on multi variables without any bindings (Scenario, line 50)
+3. [3] Filter node with property predicate on a single variable with multiple bindings (Scenario, line 66)
+4. [4] Filter start node of relationship with property predicate on multi variables with multiple bindings (Scenario, line 83)
+5. [5] Filter end node of relationship with property predicate on multi variables with multiple bindings (Scenario, line 103)
+6. [6] Filter node with a parameter in a property predicate on multi variables with one binding (Scenario, line 120)
+7. [7] Filter relationship with relationship type predicate on multi variables with multiple bindings (Scenario, line 139)
+8. [8] Filter relationship with property predicate on multi variables with multiple bindings (Scenario, line 160)
+9. [9] Filter relationship with a parameter in a property predicate on multi variables with one binding (Scenario, line 177)
+10. [10] Filter node with disjunctive property predicate on single variables with multiple bindings (Scenario, line 196)
+11. [11] Filter relationship with disjunctive relationship type predicate on multi variables with multiple bindings (Scenario, line 216)
+12. [12] Filter path with path length predicate on multi variables with one binding (Scenario, line 239)
+13. [13] Filter path with false path length predicate on multi variables with one binding (Scenario, line 256)
+14. [14] Fail when filtering path with property predicate (Scenario, line 272)
+15. [15] Fail on aggregation in WHERE (Scenario, line 283)
+
+#### `official/clauses/match-where/MatchWhere2.feature`
+
+**Feature:** MatchWhere2 - Filter multiple variables
+
+**Scenarios:** 2
+
+1. [1] Filter nodes with conjunctive two-part property predicate on multi variables with multiple bindings (Scenario, line 33)
+2. [2] Filter node with conjunctive multi-part property predicates on multi variables with multiple bindings (Scenario, line 58)
+
+#### `official/clauses/match-where/MatchWhere3.feature`
+
+**Feature:** MatchWhere3 - Equi-Joins on variables
+
+**Scenarios:** 3
+
+1. [1] Join between node identities (Scenario, line 33)
+2. [2] Join between node properties of disconnected nodes (Scenario, line 51)
+3. [3] Join between node properties of adjacent nodes (Scenario, line 71)
+
+#### `official/clauses/match-where/MatchWhere4.feature`
+
+**Feature:** MatchWhere4 - Non-Equi-Joins on variables
+
+**Scenarios:** 2
+
+1. [1] Join nodes on inequality (Scenario, line 33)
+2. [2] Join with disjunctive multi-part predicates including patterns (Scenario, line 51)
+
+#### `official/clauses/match-where/MatchWhere5.feature`
+
+**Feature:** MatchWhere5 - Filter on predicate resulting in null
+
+**Scenarios:** 4
+
+1. [1] Filter out on null (Scenario, line 33)
+2. [2] Filter out on null if the AND'd predicate evaluates to false (Scenario, line 54)
+3. [3] Filter out on null if the AND'd predicate evaluates to true (Scenario, line 75)
+4. [4] Do not filter out on null if the OR'd predicate evaluates to true (Scenario, line 96)
+
+#### `official/clauses/match-where/MatchWhere6.feature`
+
+**Feature:** MatchWhere6 - Filter optional matches
+
+**Scenarios:** 8
+
+1. [1] Filter node with node label predicate on multi variables with multiple bindings after MATCH and OPTIONAL MATCH (Scenario, line 33)
+2. [2] Filter node with false node label predicate after OPTIONAL MATCH (Scenario, line 55)
+3. [3] Filter node with property predicate on multi variables with multiple bindings after OPTIONAL MATCH (Scenario, line 78)
+4. [4] Do not fail when predicates on optionally matched and missed nodes are invalid (Scenario, line 101)
+5. [5] Matching and optionally matching with unbound nodes and equality predicate in reverse direction (Scenario, line 120)
+6. [6] Join nodes on non-equality of properties – OPTIONAL MATCH and WHERE (Scenario, line 140)
+7. [7] Join nodes on non-equality of properties – OPTIONAL MATCH on two relationships and WHERE (Scenario, line 163)
+8. [8] Join nodes on non-equality of properties – Two OPTIONAL MATCH clauses and WHERE (Scenario, line 186)
 
 #### `official/clauses/match/Match1.feature`
 
@@ -615,90 +611,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 8. [8] Variable length relationship in OPTIONAL MATCH (Scenario, line 163)
 9. [9] Optionally matching named paths with variable length patterns (Scenario, line 182)
 
-### clauses/match-where
-
-**6 feature files, 34 scenarios**
-
-#### `official/clauses/match-where/MatchWhere1.feature`
-
-**Feature:** MatchWhere1 - Filter single variable
-
-**Scenarios:** 15
-
-1. [1] Filter node with node label predicate on multi variables with multiple bindings (Scenario, line 33)
-2. [2] Filter node with node label predicate on multi variables without any bindings (Scenario, line 50)
-3. [3] Filter node with property predicate on a single variable with multiple bindings (Scenario, line 66)
-4. [4] Filter start node of relationship with property predicate on multi variables with multiple bindings (Scenario, line 83)
-5. [5] Filter end node of relationship with property predicate on multi variables with multiple bindings (Scenario, line 103)
-6. [6] Filter node with a parameter in a property predicate on multi variables with one binding (Scenario, line 120)
-7. [7] Filter relationship with relationship type predicate on multi variables with multiple bindings (Scenario, line 139)
-8. [8] Filter relationship with property predicate on multi variables with multiple bindings (Scenario, line 160)
-9. [9] Filter relationship with a parameter in a property predicate on multi variables with one binding (Scenario, line 177)
-10. [10] Filter node with disjunctive property predicate on single variables with multiple bindings (Scenario, line 196)
-11. [11] Filter relationship with disjunctive relationship type predicate on multi variables with multiple bindings (Scenario, line 216)
-12. [12] Filter path with path length predicate on multi variables with one binding (Scenario, line 239)
-13. [13] Filter path with false path length predicate on multi variables with one binding (Scenario, line 256)
-14. [14] Fail when filtering path with property predicate (Scenario, line 272)
-15. [15] Fail on aggregation in WHERE (Scenario, line 283)
-
-#### `official/clauses/match-where/MatchWhere2.feature`
-
-**Feature:** MatchWhere2 - Filter multiple variables
-
-**Scenarios:** 2
-
-1. [1] Filter nodes with conjunctive two-part property predicate on multi variables with multiple bindings (Scenario, line 33)
-2. [2] Filter node with conjunctive multi-part property predicates on multi variables with multiple bindings (Scenario, line 58)
-
-#### `official/clauses/match-where/MatchWhere3.feature`
-
-**Feature:** MatchWhere3 - Equi-Joins on variables
-
-**Scenarios:** 3
-
-1. [1] Join between node identities (Scenario, line 33)
-2. [2] Join between node properties of disconnected nodes (Scenario, line 51)
-3. [3] Join between node properties of adjacent nodes (Scenario, line 71)
-
-#### `official/clauses/match-where/MatchWhere4.feature`
-
-**Feature:** MatchWhere4 - Non-Equi-Joins on variables
-
-**Scenarios:** 2
-
-1. [1] Join nodes on inequality (Scenario, line 33)
-2. [2] Join with disjunctive multi-part predicates including patterns (Scenario, line 51)
-
-#### `official/clauses/match-where/MatchWhere5.feature`
-
-**Feature:** MatchWhere5 - Filter on predicate resulting in null
-
-**Scenarios:** 4
-
-1. [1] Filter out on null (Scenario, line 33)
-2. [2] Filter out on null if the AND'd predicate evaluates to false (Scenario, line 54)
-3. [3] Filter out on null if the AND'd predicate evaluates to true (Scenario, line 75)
-4. [4] Do not filter out on null if the OR'd predicate evaluates to true (Scenario, line 96)
-
-#### `official/clauses/match-where/MatchWhere6.feature`
-
-**Feature:** MatchWhere6 - Filter optional matches
-
-**Scenarios:** 8
-
-1. [1] Filter node with node label predicate on multi variables with multiple bindings after MATCH and OPTIONAL MATCH (Scenario, line 33)
-2. [2] Filter node with false node label predicate after OPTIONAL MATCH (Scenario, line 55)
-3. [3] Filter node with property predicate on multi variables with multiple bindings after OPTIONAL MATCH (Scenario, line 78)
-4. [4] Do not fail when predicates on optionally matched and missed nodes are invalid (Scenario, line 101)
-5. [5] Matching and optionally matching with unbound nodes and equality predicate in reverse direction (Scenario, line 120)
-6. [6] Join nodes on non-equality of properties – OPTIONAL MATCH and WHERE (Scenario, line 140)
-7. [7] Join nodes on non-equality of properties – OPTIONAL MATCH on two relationships and WHERE (Scenario, line 163)
-8. [8] Join nodes on non-equality of properties – Two OPTIONAL MATCH clauses and WHERE (Scenario, line 186)
-
-### clauses/merge
-
-**9 feature files, 75 scenarios**
-
 #### `official/clauses/merge/Merge1.feature`
 
 **Feature:** Merge1 - Merge node
@@ -837,10 +749,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 3. [3] Mixing MERGE with CREATE (Scenario, line 64)
 4. [4] MERGE after WITH with predicate and WITH with aggregation (Scenario, line 81)
 
-### clauses/remove
-
-**3 feature files, 33 scenarios**
-
 #### `official/clauses/remove/Remove1.feature`
 
 **Feature:** Remove1 - Remove a Property
@@ -895,9 +803,134 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 20. [20] Aggregating in `RETURN` after removing a property from relationships affects the result set but not the side effects (Scenario, line 459)
 21. [21] Aggregating in `WITH` after removing a property from relationships affects the result set but not the side effects (Scenario, line 481)
 
-### clauses/return
+#### `official/clauses/return-orderby/ReturnOrderBy1.feature`
 
-**8 feature files, 63 scenarios**
+**Feature:** ReturnOrderBy1 - Order by a single variable (correct order of values according to their type)
+
+**Scenarios:** 12
+
+1. [1] ORDER BY should order booleans in the expected order (Scenario, line 33)
+2. [2] ORDER BY DESC should order booleans in the expected order (Scenario, line 47)
+3. [3] ORDER BY should order strings in the expected order (Scenario, line 61)
+4. [4] ORDER BY DESC should order strings in the expected order (Scenario, line 77)
+5. [5] ORDER BY should order ints in the expected order (Scenario, line 93)
+6. [6] ORDER BY DESC should order ints in the expected order (Scenario, line 108)
+7. [7] ORDER BY should order floats in the expected order (Scenario, line 123)
+8. [8] ORDER BY DESC should order floats in the expected order (Scenario, line 138)
+9. [9] ORDER BY should order lists in the expected order (Scenario, line 153)
+10. [10] ORDER BY DESC should order lists in the expected order (Scenario, line 173)
+11. [11] ORDER BY should order distinct types in the expected order (Scenario, line 193)
+12. [12] ORDER BY DESC should order distinct types in the expected order (Scenario, line 220)
+
+#### `official/clauses/return-orderby/ReturnOrderBy2.feature`
+
+**Feature:** ReturnOrderBy2 - Order by a single expression (order of projection)
+
+**Scenarios:** 14
+
+1. [1] ORDER BY should return results in ascending order (Scenario, line 33)
+2. [2] ORDER BY DESC should return results in descending order (Scenario, line 54)
+3. [3] Sort on aggregated function (Scenario, line 75)
+4. [4] Support sort and distinct (Scenario, line 98)
+5. [5] Support ordering by a property after being distinct-ified (Scenario, line 119)
+6. [6] Count star should count everything in scope (Scenario, line 136)
+7. [7] Ordering with aggregation (Scenario, line 155)
+8. [8] Returning all variables with ordering (Scenario, line 172)
+9. [9] Using aliased DISTINCT expression in ORDER BY (Scenario, line 190)
+10. [10] Returned columns do not change from using ORDER BY (Scenario, line 208)
+11. [11] Aggregates ordered by arithmetics (Scenario, line 226)
+12. [12] Aggregation of named paths (Scenario, line 243)
+13. [13] Fail when sorting on variable removed by DISTINCT (Scenario, line 266)
+14. [14] Fail on aggregation in ORDER BY after RETURN (Scenario, line 280)
+
+#### `official/clauses/return-orderby/ReturnOrderBy3.feature`
+
+**Feature:** ReturnOrderBy3 - Order by multiple expressions (order obey priority of expressions)
+
+**Scenarios:** 1
+
+1. [1] Sort on aggregate function and normal property (Scenario, line 33)
+
+#### `official/clauses/return-orderby/ReturnOrderBy4.feature`
+
+**Feature:** ReturnOrderBy4 - Order by in combination with projection
+
+**Scenarios:** 2
+
+1. [1] ORDER BY of a column introduced in RETURN should return salient results in ascending order (Scenario, line 33)
+2. [2] Handle projections with ORDER BY (Scenario, line 50)
+
+#### `official/clauses/return-orderby/ReturnOrderBy5.feature`
+
+**Feature:** ReturnOrderBy5 - Order by in combination with column renaming
+
+**Scenarios:** 1
+
+1. [1] Renaming columns before ORDER BY should return results in ascending order (Scenario, line 33)
+
+#### `official/clauses/return-orderby/ReturnOrderBy6.feature`
+
+**Feature:** ReturnOrderBy6 - Aggregation expressions in order by
+
+**Scenarios:** 5
+
+1. [1] Handle constants and parameters inside an order by item which contains an aggregation expression (Scenario, line 33)
+2. [2] Handle returned aliases inside an order by item which contains an aggregation expression (Scenario, line 48)
+3. [3] Handle returned property accesses inside an order by item which contains an aggregation expression (Scenario, line 60)
+4. [4] Fail if not returned variables are used inside an order by item which contains an aggregation expression (Scenario, line 72)
+5. [5] Fail if more complex expressions, even if returned, are used inside an order by item which contains an aggregation expression (Scenario, line 82)
+
+#### `official/clauses/return-skip-limit/ReturnSkipLimit1.feature`
+
+**Feature:** ReturnSkipLimit1 - Skip
+
+**Scenarios:** 11
+
+1. [1] Start the result from the second row (Scenario, line 33)
+2. [2] Start the result from the second row by param (Scenario, line 57)
+3. [3] SKIP with an expression that does not depend on variables (Scenario, line 83)
+4. [4] Accept skip zero (Scenario, line 102)
+5. [5] SKIP with an expression that depends on variables should fail (Scenario, line 114)
+6. [6] Negative parameter for SKIP should fail (Scenario, line 122)
+7. [7] Negative SKIP should fail (Scenario, line 139)
+8. [8] Floating point parameter for SKIP should fail (Scenario, line 154)
+9. [9] Floating point SKIP should fail (Scenario, line 171)
+10. [10] Fail when using non-constants in SKIP (Scenario, line 186)
+11. [11] Fail when using negative value in SKIP (Scenario, line 196)
+
+#### `official/clauses/return-skip-limit/ReturnSkipLimit2.feature`
+
+**Feature:** ReturnSkipLimit2 - Limit
+
+**Scenarios:** 17
+
+1. [1] Limit to two hits (Scenario, line 33)
+2. [2] Limit to two hits with explicit order (Scenario, line 47)
+3. [3] LIMIT 0 should return an empty result (Scenario, line 70)
+4. [4] Handle ORDER BY with LIMIT 1 (Scenario, line 86)
+5. [5] ORDER BY with LIMIT 0 should not generate errors (Scenario, line 105)
+6. [6] LIMIT with an expression that does not depend on variables (Scenario, line 118)
+7. [7] Limit to more rows than actual results 1 (Scenario, line 136)
+8. [8] Limit to more rows than actual results 2 (Scenario, line 156)
+9. [9] Fail when using non-constants in LIMIT (Scenario, line 180)
+10. [10] Negative parameter for LIMIT should fail (Scenario, line 188)
+11. [11] Negative parameter for LIMIT with ORDER BY should fail (Scenario, line 205)
+12. [12] Fail when using negative value in LIMIT 1 (Scenario, line 222)
+13. [13] Fail when using negative value in LIMIT 2 (Scenario, line 232)
+14. [14] Floating point parameter for LIMIT should fail (Scenario, line 247)
+15. [15] Floating point parameter for LIMIT with ORDER BY should fail (Scenario, line 264)
+16. [16] Fail when using floating point in LIMIT 1 (Scenario, line 281)
+17. [17] Fail when using floating point in LIMIT 2 (Scenario, line 291)
+
+#### `official/clauses/return-skip-limit/ReturnSkipLimit3.feature`
+
+**Feature:** ReturnSkipLimit3 - Skip and limit
+
+**Scenarios:** 3
+
+1. [1] Get rows in the middle (Scenario, line 33)
+2. [2] Get rows in the middle by param (Scenario, line 57)
+3. [3] Limiting amount of rows when there are fewer left than the LIMIT argument (Scenario, line 84)
 
 #### `official/clauses/return/Return1.feature`
 
@@ -1018,147 +1051,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 
 1. [1] Return aggregation after With filtering (Scenario, line 33)
 
-### clauses/return-orderby
-
-**6 feature files, 35 scenarios**
-
-#### `official/clauses/return-orderby/ReturnOrderBy1.feature`
-
-**Feature:** ReturnOrderBy1 - Order by a single variable (correct order of values according to their type)
-
-**Scenarios:** 12
-
-1. [1] ORDER BY should order booleans in the expected order (Scenario, line 33)
-2. [2] ORDER BY DESC should order booleans in the expected order (Scenario, line 47)
-3. [3] ORDER BY should order strings in the expected order (Scenario, line 61)
-4. [4] ORDER BY DESC should order strings in the expected order (Scenario, line 77)
-5. [5] ORDER BY should order ints in the expected order (Scenario, line 93)
-6. [6] ORDER BY DESC should order ints in the expected order (Scenario, line 108)
-7. [7] ORDER BY should order floats in the expected order (Scenario, line 123)
-8. [8] ORDER BY DESC should order floats in the expected order (Scenario, line 138)
-9. [9] ORDER BY should order lists in the expected order (Scenario, line 153)
-10. [10] ORDER BY DESC should order lists in the expected order (Scenario, line 173)
-11. [11] ORDER BY should order distinct types in the expected order (Scenario, line 193)
-12. [12] ORDER BY DESC should order distinct types in the expected order (Scenario, line 220)
-
-#### `official/clauses/return-orderby/ReturnOrderBy2.feature`
-
-**Feature:** ReturnOrderBy2 - Order by a single expression (order of projection)
-
-**Scenarios:** 14
-
-1. [1] ORDER BY should return results in ascending order (Scenario, line 33)
-2. [2] ORDER BY DESC should return results in descending order (Scenario, line 54)
-3. [3] Sort on aggregated function (Scenario, line 75)
-4. [4] Support sort and distinct (Scenario, line 98)
-5. [5] Support ordering by a property after being distinct-ified (Scenario, line 119)
-6. [6] Count star should count everything in scope (Scenario, line 136)
-7. [7] Ordering with aggregation (Scenario, line 155)
-8. [8] Returning all variables with ordering (Scenario, line 172)
-9. [9] Using aliased DISTINCT expression in ORDER BY (Scenario, line 190)
-10. [10] Returned columns do not change from using ORDER BY (Scenario, line 208)
-11. [11] Aggregates ordered by arithmetics (Scenario, line 226)
-12. [12] Aggregation of named paths (Scenario, line 243)
-13. [13] Fail when sorting on variable removed by DISTINCT (Scenario, line 266)
-14. [14] Fail on aggregation in ORDER BY after RETURN (Scenario, line 280)
-
-#### `official/clauses/return-orderby/ReturnOrderBy3.feature`
-
-**Feature:** ReturnOrderBy3 - Order by multiple expressions (order obey priority of expressions)
-
-**Scenarios:** 1
-
-1. [1] Sort on aggregate function and normal property (Scenario, line 33)
-
-#### `official/clauses/return-orderby/ReturnOrderBy4.feature`
-
-**Feature:** ReturnOrderBy4 - Order by in combination with projection
-
-**Scenarios:** 2
-
-1. [1] ORDER BY of a column introduced in RETURN should return salient results in ascending order (Scenario, line 33)
-2. [2] Handle projections with ORDER BY (Scenario, line 50)
-
-#### `official/clauses/return-orderby/ReturnOrderBy5.feature`
-
-**Feature:** ReturnOrderBy5 - Order by in combination with column renaming
-
-**Scenarios:** 1
-
-1. [1] Renaming columns before ORDER BY should return results in ascending order (Scenario, line 33)
-
-#### `official/clauses/return-orderby/ReturnOrderBy6.feature`
-
-**Feature:** ReturnOrderBy6 - Aggregation expressions in order by
-
-**Scenarios:** 5
-
-1. [1] Handle constants and parameters inside an order by item which contains an aggregation expression (Scenario, line 33)
-2. [2] Handle returned aliases inside an order by item which contains an aggregation expression (Scenario, line 48)
-3. [3] Handle returned property accesses inside an order by item which contains an aggregation expression (Scenario, line 60)
-4. [4] Fail if not returned variables are used inside an order by item which contains an aggregation expression (Scenario, line 72)
-5. [5] Fail if more complex expressions, even if returned, are used inside an order by item which contains an aggregation expression (Scenario, line 82)
-
-### clauses/return-skip-limit
-
-**3 feature files, 31 scenarios**
-
-#### `official/clauses/return-skip-limit/ReturnSkipLimit1.feature`
-
-**Feature:** ReturnSkipLimit1 - Skip
-
-**Scenarios:** 11
-
-1. [1] Start the result from the second row (Scenario, line 33)
-2. [2] Start the result from the second row by param (Scenario, line 57)
-3. [3] SKIP with an expression that does not depend on variables (Scenario, line 83)
-4. [4] Accept skip zero (Scenario, line 102)
-5. [5] SKIP with an expression that depends on variables should fail (Scenario, line 114)
-6. [6] Negative parameter for SKIP should fail (Scenario, line 122)
-7. [7] Negative SKIP should fail (Scenario, line 139)
-8. [8] Floating point parameter for SKIP should fail (Scenario, line 154)
-9. [9] Floating point SKIP should fail (Scenario, line 171)
-10. [10] Fail when using non-constants in SKIP (Scenario, line 186)
-11. [11] Fail when using negative value in SKIP (Scenario, line 196)
-
-#### `official/clauses/return-skip-limit/ReturnSkipLimit2.feature`
-
-**Feature:** ReturnSkipLimit2 - Limit
-
-**Scenarios:** 17
-
-1. [1] Limit to two hits (Scenario, line 33)
-2. [2] Limit to two hits with explicit order (Scenario, line 47)
-3. [3] LIMIT 0 should return an empty result (Scenario, line 70)
-4. [4] Handle ORDER BY with LIMIT 1 (Scenario, line 86)
-5. [5] ORDER BY with LIMIT 0 should not generate errors (Scenario, line 105)
-6. [6] LIMIT with an expression that does not depend on variables (Scenario, line 118)
-7. [7] Limit to more rows than actual results 1 (Scenario, line 136)
-8. [8] Limit to more rows than actual results 2 (Scenario, line 156)
-9. [9] Fail when using non-constants in LIMIT (Scenario, line 180)
-10. [10] Negative parameter for LIMIT should fail (Scenario, line 188)
-11. [11] Negative parameter for LIMIT with ORDER BY should fail (Scenario, line 205)
-12. [12] Fail when using negative value in LIMIT 1 (Scenario, line 222)
-13. [13] Fail when using negative value in LIMIT 2 (Scenario, line 232)
-14. [14] Floating point parameter for LIMIT should fail (Scenario, line 247)
-15. [15] Floating point parameter for LIMIT with ORDER BY should fail (Scenario, line 264)
-16. [16] Fail when using floating point in LIMIT 1 (Scenario, line 281)
-17. [17] Fail when using floating point in LIMIT 2 (Scenario, line 291)
-
-#### `official/clauses/return-skip-limit/ReturnSkipLimit3.feature`
-
-**Feature:** ReturnSkipLimit3 - Skip and limit
-
-**Scenarios:** 3
-
-1. [1] Get rows in the middle (Scenario, line 33)
-2. [2] Get rows in the middle by param (Scenario, line 57)
-3. [3] Limiting amount of rows when there are fewer left than the LIMIT argument (Scenario, line 84)
-
-### clauses/set
-
-**6 feature files, 53 scenarios**
-
 #### `official/clauses/set/Set1.feature`
 
 **Feature:** Set1 - Set a Property
@@ -1254,10 +1146,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 20. [20] Aggregating in `RETURN` after setting a property on relationships affects the result set but not the side effects (Scenario, line 473)
 21. [21] Aggregating in `WITH` after setting a property on relationships affects the result set but not the side effects (Scenario, line 496)
 
-### clauses/union
-
-**3 feature files, 12 scenarios**
-
 #### `official/clauses/union/Union1.feature`
 
 **Feature:** Union1 - Union
@@ -1291,10 +1179,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 1. [1] Failing when mixing UNION and UNION ALL (Scenario, line 33)
 2. [2] Failing when mixing UNION ALL and UNION (Scenario, line 45)
 
-### clauses/unwind
-
-**1 feature files, 14 scenarios**
-
 #### `official/clauses/unwind/Unwind1.feature`
 
 **Feature:** Unwind1
@@ -1315,92 +1199,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 12. [12] Unwind does not remove variables from scope (Scenario, line 217)
 13. [13] Multiple unwinds after each other (Scenario, line 241)
 14. [14] Unwind with merge (Scenario, line 263)
-
-### clauses/with
-
-**7 feature files, 29 scenarios**
-
-#### `official/clauses/with/With1.feature`
-
-**Feature:** With1 - Forward single variable
-
-**Scenarios:** 6
-
-1. [1] Forwarind a node variable 1 (Scenario, line 34)
-2. [2] Forwarind a node variable 2 (Scenario, line 52)
-3. [3] Forwarding a relationship variable (Scenario, line 71)
-4. [4] Forwarding a path variable (Scenario, line 92)
-5. [5] Forwarding null (Scenario, line 109)
-6. [6] Forwarding a node variable possibly null (Scenario, line 122)
-
-#### `official/clauses/with/With2.feature`
-
-**Feature:** With2 - Forward single expression
-
-**Scenarios:** 2
-
-1. [1] Forwarding a property to express a join (Scenario, line 34)
-2. [2] Forwarding a nested map literal (Scenario, line 55)
-
-#### `official/clauses/with/With3.feature`
-
-**Feature:** With3 - Forward multiple expressions
-
-**Scenarios:** 1
-
-1. [1] Forwarding multiple node and relationship variables (Scenario, line 33)
-
-#### `official/clauses/with/With4.feature`
-
-**Feature:** With4 - Variable aliasing
-
-**Scenarios:** 7
-
-1. [1] Aliasing relationship variable (Scenario, line 34)
-2. [2] Aliasing expression to new variable name (Scenario, line 53)
-3. [3] Aliasing expression to existing variable name (Scenario, line 74)
-4. [4] Fail when forwarding multiple aliases with the same name (Scenario, line 93)
-5. [5] Fail when not aliasing expressions in WITH (Scenario, line 102)
-6. [6] Reusing variable names in WITH (Scenario, line 112)
-7. [7] Multiple aliasing and backreferencing (Scenario, line 134)
-
-#### `official/clauses/with/With5.feature`
-
-**Feature:** With5 - Implicit grouping with DISTINCT
-
-**Scenarios:** 2
-
-1. [1] DISTINCT on an expression (Scenario, line 33)
-2. [2] Handling DISTINCT with lists in maps (Scenario, line 53)
-
-#### `official/clauses/with/With6.feature`
-
-**Feature:** With6 - Implicit grouping with aggregates
-
-**Scenarios:** 9
-
-1. [1] Implicit grouping with single expression as grouping key and single aggregation (Scenario, line 33)
-2. [2] Implicit grouping with single relationship variable as grouping key and single aggregation (Scenario, line 53)
-3. [3] Implicit grouping with multiple node and relationship variables as grouping key and single aggregation (Scenario, line 74)
-4. [4] Implicit grouping with single path variable as grouping key and single aggregation (Scenario, line 95)
-5. [5] Handle constants and parameters inside an expression which contains an aggregation expression (Scenario, line 116)
-6. [6] Handle projected variables inside an expression which contains an aggregation expression (Scenario, line 131)
-7. [7] Handle projected property accesses inside an expression which contains an aggregation expression (Scenario, line 144)
-8. [8] Fail if not projected variables are used inside an expression which contains an aggregation expression (Scenario, line 156)
-9. [9] Fail if more complex expression, even if projected, are used inside expression which contains an aggregation expression (Scenario, line 166)
-
-#### `official/clauses/with/With7.feature`
-
-**Feature:** With7 - WITH on WITH
-
-**Scenarios:** 2
-
-1. [1] A simple pattern with one bound endpoint (Scenario, line 33)
-2. [2] Multiple WITHs using a predicate and aggregation (Scenario, line 53)
-
-### clauses/with-orderBy
-
-**4 feature files, 99 scenarios**
 
 #### `official/clauses/with-orderBy/WithOrderBy1.feature`
 
@@ -1529,10 +1327,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 19. [19] Fail if not projected variables are used inside an order by item which contains an aggregation expression (Scenario, line 443)
 20. [20] Fail if more complex expressions, even if projected, are used inside an order by item which contains an aggregation expression (Scenario, line 454)
 
-### clauses/with-skip-limit
-
-**3 feature files, 9 scenarios**
-
 #### `official/clauses/with-skip-limit/WithSkipLimit1.feature`
 
 **Feature:** WithSkipLimit1 - Skip
@@ -1562,10 +1356,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 1. [1] Get rows in the middle (Scenario, line 62)
 2. [2] Get rows in the middle by param (Scenario, line 87)
 3. [3] Limiting amount of rows when there are fewer left than the LIMIT argument (Scenario, line 115)
-
-### clauses/with-where
-
-**7 feature files, 19 scenarios**
 
 #### `official/clauses/with-where/WithWhere1.feature`
 
@@ -1635,9 +1425,87 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 2. [2] WHERE sees a variable bound after but not before WITH (Scenario, line 53)
 3. [3] WHERE sees both, variable bound before but not after WITH and variable bound after but not before WITH (Scenario, line 73)
 
-### expressions/aggregation
+#### `official/clauses/with/With1.feature`
 
-**8 feature files, 27 scenarios**
+**Feature:** With1 - Forward single variable
+
+**Scenarios:** 6
+
+1. [1] Forwarind a node variable 1 (Scenario, line 34)
+2. [2] Forwarind a node variable 2 (Scenario, line 52)
+3. [3] Forwarding a relationship variable (Scenario, line 71)
+4. [4] Forwarding a path variable (Scenario, line 92)
+5. [5] Forwarding null (Scenario, line 109)
+6. [6] Forwarding a node variable possibly null (Scenario, line 122)
+
+#### `official/clauses/with/With2.feature`
+
+**Feature:** With2 - Forward single expression
+
+**Scenarios:** 2
+
+1. [1] Forwarding a property to express a join (Scenario, line 34)
+2. [2] Forwarding a nested map literal (Scenario, line 55)
+
+#### `official/clauses/with/With3.feature`
+
+**Feature:** With3 - Forward multiple expressions
+
+**Scenarios:** 1
+
+1. [1] Forwarding multiple node and relationship variables (Scenario, line 33)
+
+#### `official/clauses/with/With4.feature`
+
+**Feature:** With4 - Variable aliasing
+
+**Scenarios:** 7
+
+1. [1] Aliasing relationship variable (Scenario, line 34)
+2. [2] Aliasing expression to new variable name (Scenario, line 53)
+3. [3] Aliasing expression to existing variable name (Scenario, line 74)
+4. [4] Fail when forwarding multiple aliases with the same name (Scenario, line 93)
+5. [5] Fail when not aliasing expressions in WITH (Scenario, line 102)
+6. [6] Reusing variable names in WITH (Scenario, line 112)
+7. [7] Multiple aliasing and backreferencing (Scenario, line 134)
+
+#### `official/clauses/with/With5.feature`
+
+**Feature:** With5 - Implicit grouping with DISTINCT
+
+**Scenarios:** 2
+
+1. [1] DISTINCT on an expression (Scenario, line 33)
+2. [2] Handling DISTINCT with lists in maps (Scenario, line 53)
+
+#### `official/clauses/with/With6.feature`
+
+**Feature:** With6 - Implicit grouping with aggregates
+
+**Scenarios:** 9
+
+1. [1] Implicit grouping with single expression as grouping key and single aggregation (Scenario, line 33)
+2. [2] Implicit grouping with single relationship variable as grouping key and single aggregation (Scenario, line 53)
+3. [3] Implicit grouping with multiple node and relationship variables as grouping key and single aggregation (Scenario, line 74)
+4. [4] Implicit grouping with single path variable as grouping key and single aggregation (Scenario, line 95)
+5. [5] Handle constants and parameters inside an expression which contains an aggregation expression (Scenario, line 116)
+6. [6] Handle projected variables inside an expression which contains an aggregation expression (Scenario, line 131)
+7. [7] Handle projected property accesses inside an expression which contains an aggregation expression (Scenario, line 144)
+8. [8] Fail if not projected variables are used inside an expression which contains an aggregation expression (Scenario, line 156)
+9. [9] Fail if more complex expression, even if projected, are used inside expression which contains an aggregation expression (Scenario, line 166)
+
+#### `official/clauses/with/With7.feature`
+
+**Feature:** With7 - WITH on WITH
+
+**Scenarios:** 2
+
+1. [1] A simple pattern with one bound endpoint (Scenario, line 33)
+2. [2] Multiple WITHs using a predicate and aggregation (Scenario, line 53)
+
+### expressions
+
+**125 feature files, 758 scenarios**
 
 #### `official/expressions/aggregation/Aggregation1.feature`
 
@@ -1720,10 +1588,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 3. [3] Collect distinct nulls (Scenario, line 61)
 4. [4] Collect distinct values mixed with nulls (Scenario, line 73)
 
-### expressions/boolean
-
-**5 feature files, 36 scenarios**
-
 #### `official/expressions/boolean/Boolean1.feature`
 
 **Feature:** Boolean1 - And logical operations
@@ -1795,10 +1659,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 7. [7] De Morgan's law on non-null: the negation of a disjunction is the conjunction of the negations (Scenario, line 195)
 8. [8] De Morgan's law on non-null: the negation of a conjunction is the disjunction of the negations (Scenario, line 211)
 
-### expressions/comparison
-
-**4 feature files, 33 scenarios**
-
 #### `official/expressions/comparison/Comparison1.feature`
 
 **Feature:** Comparison1 - Equality
@@ -1860,10 +1720,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 
 1. [1] Handling long chains of operators (Scenario, line 33)
 
-### expressions/conditional
-
-**2 feature files, 2 scenarios**
-
 #### `official/expressions/conditional/Conditional1.feature`
 
 **Feature:** Conditional1 - Coalesce expression
@@ -1879,10 +1735,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 **Scenarios:** 1
 
 1. [1] Simple cases over integers (Scenario Outline, line 33)
-
-### expressions/existentialSubqueries
-
-**3 feature files, 10 scenarios**
 
 #### `official/expressions/existentialSubqueries/ExistentialSubquery1.feature`
 
@@ -1914,10 +1766,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 1. [1] Nested simple existential subquery (Scenario, line 33)
 2. [2] Nested full existential subquery (Scenario, line 56)
 3. [3] Nested full existential subquery with pattern predicate (Scenario, line 79)
-
-### expressions/graph
-
-**9 feature files, 48 scenarios**
 
 #### `official/expressions/graph/Graph1.feature`
 
@@ -2027,10 +1875,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 5. [5] `properties()` failing on an integer literal (Scenario, line 89)
 6. [6] `properties()` failing on a string literal (Scenario, line 97)
 7. [7] `properties()` failing on a list of booleans (Scenario, line 105)
-
-### expressions/list
-
-**12 feature files, 94 scenarios**
 
 #### `official/expressions/list/List1.feature`
 
@@ -2206,10 +2050,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 **Scenarios:** 1
 
 1. [1] Returning nested expressions based on list property (Scenario, line 33)
-
-### expressions/literals
-
-**8 feature files, 131 scenarios**
 
 #### `official/expressions/literals/Literals1.feature`
 
@@ -2398,10 +2238,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 26. [26] Fail on a map containing a map without key (Scenario, line 362)
 27. [27] Fail on a nested map with non-matching braces (Scenario, line 371)
 
-### expressions/map
-
-**3 feature files, 19 scenarios**
-
 #### `official/expressions/map/Map1.feature`
 
 **Feature:** Map1 - Static value access
@@ -2441,10 +2277,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 3. [3] Using `keys()` on null map (Scenario, line 57)
 4. [4] Using `keys()` on map with null values (Scenario Outline, line 69)
 5. [5] Using `keys()` and `IN` to check field existence (Scenario, line 90)
-
-### expressions/mathematical
-
-**17 feature files, 6 scenarios**
 
 #### `official/expressions/mathematical/Mathematical1.feature`
 
@@ -2559,10 +2391,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 
 **Scenarios:** 0
 
-### expressions/null
-
-**3 feature files, 16 scenarios**
-
 #### `official/expressions/null/Null1.feature`
 
 **Feature:** Null1 - IS NULL validation
@@ -2600,10 +2428,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 3. [3] It is unknown - i.e. null - if a null is not equal to a null (Scenario, line 56)
 4. [4] Using null in IN (Scenario Outline, line 67)
 
-### expressions/path
-
-**3 feature files, 7 scenarios**
-
 #### `official/expressions/path/Path1.feature`
 
 **Feature:** Path1 - Nodes of a path
@@ -2631,10 +2455,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 1. [1] Return a var length path of length zero (Scenario, line 33)
 2. [2] Failing when using `length()` on a node (Scenario, line 51)
 3. [3] Failing when using `length()` on a relationship (Scenario, line 60)
-
-### expressions/pattern
-
-**2 feature files, 36 scenarios**
 
 #### `official/expressions/pattern/Pattern1.feature`
 
@@ -2685,10 +2505,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 9. [9] Use a variable-length pattern comprehension in WITH (Scenario, line 190)
 10. [10] Use a pattern comprehension in RETURN (Scenario, line 207)
 11. [11] Use a pattern comprehension and ORDER BY (Scenario, line 226)
-
-### expressions/precedence
-
-**4 feature files, 43 scenarios**
 
 #### `official/expressions/precedence/Precedence1.feature`
 
@@ -2760,10 +2576,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 2. [2] Null predicate takes precedence over boolean negation (Scenario, line 53)
 3. [3] Null predicate takes precedence over binary boolean operator (Scenario Outline, line 66)
 4. [4] String predicate takes precedence over binary boolean operator (Scenario, line 89)
-
-### expressions/quantifier
-
-**12 feature files, 100 scenarios**
 
 #### `official/expressions/quantifier/Quantifier1.feature`
 
@@ -2949,10 +2761,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 4. [4] None quantifier is always equal the all quantifier on the boolean negative of the predicate (Scenario Outline, line 109)
 5. [5] None quantifier is always equal whether the size of the list filtered with same the predicate is zero (Scenario Outline, line 139)
 
-### expressions/string
-
-**14 feature files, 32 scenarios**
-
 #### `official/expressions/string/String1.feature`
 
 **Feature:** String1 - Substring extraction
@@ -3075,10 +2883,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 7. [7] No string does not end with null (Scenario, line 156)
 8. [8] Handling non-string operands for ENDS WITH (Scenario, line 174)
 9. [9] NOT with ENDS WITH (Scenario, line 195)
-
-### expressions/temporal
-
-**10 feature files, 89 scenarios**
 
 #### `official/expressions/temporal/Temporal1.feature`
 
@@ -3239,10 +3043,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 4. [4] Should truncate localtime (Scenario Outline, line 305)
 5. [5] Should truncate time (Scenario Outline, line 363)
 
-### expressions/typeConversion
-
-**6 feature files, 29 scenarios**
-
 #### `official/expressions/typeConversion/TypeConversion1.feature`
 
 **Feature:** TypeConversion1 - To Boolean
@@ -3341,9 +3141,9 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 4. Match with LIMIT clause (Scenario, line 66)
 5. Match with SKIP clause (Scenario, line 84)
 
-### useCases/countingSubgraphMatches
+### useCases
 
-**1 feature files, 11 scenarios**
+**2 feature files, 30 scenarios**
 
 #### `official/useCases/countingSubgraphMatches/CountingSubgraphMatches1.feature`
 
@@ -3362,10 +3162,6 @@ Comprehensive inventory of all OpenCypher Technology Compatibility Kit (TCK) tes
 9. [9] Counting directed self-relationships (Scenario, line 161)
 10. [10] Mixing directed and undirected pattern parts with self-relationship, count (Scenario, line 178)
 11. [11] Mixing directed and undirected pattern parts with self-relationship, undirected count (Scenario, line 196)
-
-### useCases/triadicSelection
-
-**1 feature files, 19 scenarios**
 
 #### `official/useCases/triadicSelection/TriadicSelection1.feature`
 
