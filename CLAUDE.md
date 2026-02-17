@@ -18,7 +18,256 @@ GraphForge is an embedded, openCypher-compatible graph database for Python, desi
 
 **Agent teams let you coordinate multiple Claude Code sessions working together on complex tasks.** Enable by setting `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `~/.claude/settings.json`.
 
-### When to Use Agent Teams
+### How Agent Teams Work Technically
+
+**Architecture:**
+- **Team lead**: The main Claude Code session that creates the team and coordinates work
+- **Teammates**: Separate, independent Claude Code instances (full sessions with own context windows)
+- **Task list**: Shared file system at `~/.claude/tasks/{team-name}/` that coordinates work
+- **Team config**: `~/.claude/teams/{team-name}/config.json` with member roster
+- **Mailbox**: Messaging system for inter-agent communication (automatic delivery)
+
+**Key mechanics:**
+- Each teammate is a **separate Claude Code process** with its own context window
+- Teammates load project context automatically (CLAUDE.md, MCP servers, skills)
+- Teammates **DO NOT** inherit the lead's conversation history
+- Messages between agents are delivered automatically - no polling required
+- Task claiming uses file locking to prevent race conditions
+- Going idle after every turn is normal - the system sends automatic idle notifications
+
+**Resources are stored locally:**
+- Team config: `~/.claude/teams/{team-name}/config.json`
+- Task list: `~/.claude/tasks/{team-name}/`
+
+**Display modes:**
+- **In-process** (default): All teammates run in your main terminal
+  - Use Shift+Up/Down to select a teammate
+  - Type to message them directly
+  - Press Enter to view their session, Escape to interrupt
+  - Press Ctrl+T to toggle task list
+- **Split panes**: Each teammate gets its own pane (requires tmux or iTerm2)
+  - Click into a pane to interact with that teammate
+  - See everyone's output simultaneously
+  - Set `teammateMode: "in-process"` or `"tmux"` in ~/.claude/settings.json
+  - Or use flag: `claude --teammate-mode in-process`
+
+### Instructions for Teammate Agents
+
+**If you are a teammate agent (spawned by a team lead), follow this protocol:**
+
+#### Critical Context Understanding
+
+**What you receive at spawn:**
+- Your spawn message includes the team name, your role, and task assignment
+- You automatically load project context: CLAUDE.md, MCP servers, and skills
+- **You DO NOT inherit the lead's conversation history** - any context you need must be in your spawn prompt or gathered by you
+
+**About idle state:**
+- **Going idle after every turn is NORMAL and EXPECTED** - this does NOT mean you're done or broken
+- The system automatically sends idle notifications to the team lead when your turn ends
+- Being idle simply means you're waiting for new instructions or task assignments
+- You will be woken up when you receive messages or new task assignments
+
+#### 1. Startup Protocol
+When you receive your spawn message with task assignment:
+1. **Read your assigned task**: Use `TaskGet` to read full task details including description and dependencies
+2. **Check blockers**: Use `TaskList` to see if your task has `blockedBy` dependencies
+3. **Claim if unblocked**: If no blockers, use `TaskUpdate` to:
+   - Set `status="in_progress"`
+   - Set `owner` to your agent name (from spawn message)
+4. **Report if blocked**: If blocked, use `SendMessage` to tell team-lead you're waiting for dependencies
+5. **Gather context if needed**: If your spawn prompt lacks details, read relevant files or ask the lead for clarification
+
+#### 2. Work Execution
+- **Do the work**: Create files, write code, read documentation as needed for your task
+- **Use all available tools**: Read, Write, Edit, Bash, Grep, Glob, Task subagents, etc.
+- **Communicate using SendMessage**: Your plain text output is NOT visible to anyone
+  - Send progress updates if your task is complex or long-running
+  - Report blockers immediately - don't wait
+  - Ask questions if requirements are unclear
+- **DO NOT worry about going idle**: Going idle after completing work is normal and expected
+
+#### 3. Completion Protocol
+When you finish your task:
+1. **Mark task complete**: Use `TaskUpdate(taskId="X", status="completed")`
+2. **Report completion**: Use `SendMessage` with:
+   - `type="message"`
+   - `recipient="team-lead"` (or the lead's actual agent name)
+   - `content`: Detailed summary of what you completed, where files were created, any issues encountered
+   - `summary`: Brief 5-10 word preview (e.g., "Task #1 complete: OpenCypher spec documented")
+3. **Check for more work**: Use `TaskList` to find newly unblocked tasks
+4. **Claim next task or go idle**: If available work exists, claim it. Otherwise, go idle and wait.
+
+**CRITICAL**: The system automatically notifies the lead when you go idle - you don't need to send a separate "I'm done" message.
+
+#### 4. Communication Rules
+
+**Your text output is NOT visible to the team lead or other teammates.**
+
+To communicate, you **MUST** use the `SendMessage` tool:
+
+- **type="message"**: Send to one specific teammate (most common)
+  ```
+  SendMessage(
+    type="message",
+    recipient="team-lead",
+    content="Completed parser work. Found issue: grammar conflicts with OPTIONAL MATCH.",
+    summary="Parser complete with issue found"
+  )
+  ```
+
+- **type="broadcast"**: Send to ALL teammates (use sparingly - scales with team size)
+  - Only use for critical issues affecting everyone
+  - Examples: "blocking bug found, stop work" or "requirements changed"
+
+**Message delivery is automatic**: You don't need to poll for messages - they arrive automatically as new conversation turns.
+
+#### 5. Shutdown Protocol
+
+When you receive a shutdown request (JSON message with `type="shutdown_request"`):
+
+**You MUST respond using SendMessage** - do NOT just acknowledge in text:
+
+```
+SendMessage(
+  type="shutdown_response",
+  request_id="<requestId from the shutdown request>",
+  approve=True  # or False with explanation in content field
+)
+```
+
+- **approve=True**: You exit gracefully
+- **approve=False**: You continue working - include `content` explaining why (e.g., "Still working on task #3, need 5 more minutes")
+
+**Extracting requestId from shutdown request:**
+The shutdown request arrives as a JSON message. Extract the `requestId` field and pass it as `request_id` to SendMessage:
+```
+Received: {"type": "shutdown_request", "requestId": "abc-123", ...}
+Use: SendMessage(type="shutdown_response", request_id="abc-123", approve=True)
+```
+
+#### 7. Error Handling and Recovery
+
+**When you encounter errors:**
+- **DO NOT** give up and go idle immediately
+- Try to fix the error (read error messages, check file paths, adjust approach)
+- If blocked, use `SendMessage` to report the issue to team-lead with details
+- The lead can give you guidance or reassign the task
+
+**When you can't complete a task:**
+- Create a new task describing the blocker: `TaskCreate(...)`
+- Report to team-lead that you're blocked and why
+- Either wait for the blocker to be resolved or ask for a different task
+
+**Quality over speed:**
+- Run tests before marking tasks complete
+- If tests fail, fix them - don't mark the task done
+- If implementation is partial, keep status as `in_progress`
+
+#### 6. Example Workflow
+```
+1. RECEIVE spawn message:
+   - Team: "graphforge-unwind-feature"
+   - Your name: "spec-researcher"
+   - Task assignment: "Task #1"
+   - Context: "Research OpenCypher spec and create docs/reference/opencypher-spec-features.md"
+
+2. READ task details:
+   TaskGet(taskId="1")
+   # Returns full description, blockedBy list, etc.
+
+3. CHECK for blockers:
+   TaskList()
+   # Verify task #1 has empty blockedBy list
+
+4. CLAIM the task:
+   TaskUpdate(taskId="1", status="in_progress", owner="spec-researcher")
+
+5. DO THE WORK:
+   - Read existing docs to understand format
+   - Research opencypher.org documentation
+   - Create markdown file with comprehensive feature list
+   - Organize by category (clauses, functions, operators, etc.)
+
+6. MARK COMPLETE:
+   TaskUpdate(taskId="1", status="completed")
+
+7. REPORT to lead using SendMessage:
+   SendMessage(
+     type="message",
+     recipient="team-lead",
+     content="Completed task #1. Created docs/reference/opencypher-spec-features.md with 200+ OpenCypher features organized by category. Ready for next task.",
+     summary="Task #1 complete: spec features documented"
+   )
+
+8. CHECK for more work:
+   TaskList()
+   # Look for newly unblocked tasks
+
+9. CLAIM next task OR go idle:
+   - If tasks available: Repeat from step 2
+   - If no tasks: Go idle (system automatically notifies lead)
+```
+
+**Key principles:**
+- **Take initiative**: Claim your task, do the work, report completion. Don't wait for permission.
+- **Communicate explicitly**: The lead can't read your mind. Use SendMessage for all communication.
+- **Going idle is normal**: After reporting completion, going idle is expected behavior, not an error.
+
+### Instructions for Team Lead Agents
+
+**If you are the team lead (the agent that created the team), follow this protocol:**
+
+#### Team Lead Responsibilities
+
+1. **Create clear tasks**: Break work into self-contained units with clear deliverables
+   - Include ALL necessary context in task descriptions (teammates don't see your conversation history)
+   - Specify dependencies between tasks (blockedBy)
+   - Size appropriately: 5-6 tasks per teammate
+
+2. **Spawn teammates with full context**: Include detailed instructions in spawn prompts
+   - Specify exactly what files to modify and where
+   - Include architectural context and constraints
+   - Mention relevant patterns from CLAUDE.md
+
+3. **Track progress actively**:
+   - Messages from teammates arrive automatically (no polling needed)
+   - Check `TaskList()` periodically to see task status
+   - Redirect teammates if they're going off track
+
+4. **Wait for teammates**: Don't implement tasks yourself unless explicitly intended
+   - If you find yourself coding, ask: "Should a teammate do this?"
+   - Consider using delegate mode (Shift+Tab) to restrict yourself to coordination only
+
+5. **Handle idle notifications**: Teammates go idle after EVERY turn - this is normal
+   - Idle doesn't mean "done" or "broken"
+   - Check if they completed their task, then assign new work or acknowledge completion
+
+6. **Synthesize results**: Collect findings from teammates and create coherent summary
+
+7. **Clean up gracefully**:
+   - Shut down all teammates first using shutdown requests:
+     ```
+     SendMessage(type="shutdown_request", recipient="parser-agent", content="Task complete, wrapping up")
+     ```
+   - Wait for shutdown confirmations (approve=True responses)
+   - Then clean up team resources (removes ~/.claude/teams/ and ~/.claude/tasks/ for this team)
+   - **CRITICAL**: Only the lead should clean up, not teammates
+   - If cleanup fails, check for active teammates and shut them down first
+
+8. **Use delegate mode for coordination-only**: Press Shift+Tab to cycle into delegate mode
+   - Restricts you to coordination tools only (spawn, message, tasks, shutdown)
+   - Prevents you from implementing tasks yourself
+   - Useful when you want to focus purely on orchestration
+
+#### Common Lead Mistakes to Avoid
+
+- **Starting implementation too early**: Wait for teammates to report back
+- **Insufficient spawn context**: Teammates can't read your mind or conversation history
+- **Treating idle as an error**: Idle after every turn is expected behavior
+- **Skipping cleanup**: Always clean up team resources when done
+
+### When to Use Agent Teams (Team Lead Instructions)
 
 **Ideal for teams:**
 - Adding new Cypher features (parser, planner, executor work in parallel)
@@ -39,19 +288,155 @@ GraphForge is an embedded, openCypher-compatible graph database for Python, desi
 ### Team Best Practices
 
 1. **Split by architectural layer** - GraphForge's 4-layer architecture (parser → planner → executor → storage) naturally supports parallel work
-2. **Avoid file conflicts** - Use layer boundaries as natural file ownership
-3. **Give teammates context** - Include specifics in spawn prompts (teammates don't inherit lead's history)
-4. **Token awareness** - Teams use ~2-3x more tokens but complete 2-3x faster
+2. **Avoid file conflicts** - Use layer boundaries as natural file ownership. Two teammates editing the same file leads to overwrites.
+3. **Give teammates full context** - Include ALL specifics in spawn prompts:
+   - **Bad**: "Implement the parser"
+   - **Good**: "Add UNWIND grammar to cypher.lark at line 42 after the WITH clause rule. Create UnwindClause AST node with 'expression' and 'alias' fields. Update parser.py transformer with unwind() method."
+   - Remember: Teammates don't inherit lead's conversation history
+4. **Size tasks appropriately**:
+   - **Too small**: Coordination overhead exceeds benefit
+   - **Too large**: Teammates work too long without check-ins
+   - **Just right**: Self-contained units (function, test file, review) with clear deliverables
+   - **Rule of thumb**: 5-6 tasks per teammate keeps everyone productive
+5. **Token awareness** - Teams use ~2-3x more tokens but complete 2-3x faster
+6. **Monitor and steer** - Check in on teammates' progress, redirect approaches that aren't working
+7. **Wait for teammates** - If the lead starts implementing tasks itself, remind it to wait for teammates to complete their work
 
 **Example spawn prompt:**
 ```
 Create an agent team to implement UNWIND (#42). Spawn teammates:
-- parser-agent: Add grammar to cypher.lark, create UnwindClause AST
-- planner-agent: Add Unwind operator to planner
-- executor-agent: Implement _execute_unwind() + tests
+- parser-agent: Add UNWIND grammar rule to cypher.lark after the WITH clause.
+  Create UnwindClause AST node with expression and alias fields. Update
+  parser.py transformer with unwind() method that returns UnwindClause.
+- planner-agent: Add Unwind operator to operators.py with expression and alias
+  fields. Update planner.py to emit Unwind operator when it sees UnwindClause.
+- executor-agent: Implement _execute_unwind() in executor.py that evaluates
+  the expression, iterates the resulting list, and binds each element to the
+  alias. Add 15 unit tests + 8 integration tests.
 
-Each works independently on their layer, then coordinate at end.
+Each works independently on their layer. Task dependencies: parser → planner → executor.
 ```
+
+### Troubleshooting Agent Teams
+
+**Teammates not doing work / going idle immediately:**
+- This is NORMAL behavior after completing tasks
+- Check task list with `TaskList()` to see if tasks are actually complete
+- If a task appears stuck, check whether the work is actually done
+- If yes, manually mark as complete: `TaskUpdate(taskId="X", status="completed")`
+
+**Teammates not communicating:**
+- Reminder: Teammates' plain text output is NOT visible to the lead
+- Teammates must use `SendMessage` tool explicitly
+- If you're a teammate and the lead isn't responding, check that you actually called `SendMessage` (don't just type text)
+
+**Lead implementing tasks instead of delegating:**
+- Tell the lead: "Wait for your teammates to complete their tasks before proceeding"
+- Consider using delegate mode (Shift+Tab to cycle modes)
+
+**Task claiming race conditions:**
+- The system uses file locking to prevent race conditions
+- If two teammates try to claim the same task, only one succeeds
+- The other gets an error and should claim a different task
+
+**Orphaned resources after team ends:**
+- Always use the lead to clean up, not teammates
+- Shut down all teammates first, then call team cleanup
+- If cleanup fails due to active teammates, manually shut them down and retry
+
+**Context limitations:**
+- Teammates don't inherit the lead's conversation history
+- Include ALL necessary context in spawn prompts
+- Teammates can read CLAUDE.md, which provides project context automatically
+
+### Known Limitations
+
+Agent teams are experimental. Be aware of these limitations:
+
+1. **No session resumption with in-process teammates**: `/resume` and `/rewind` don't restore teammates
+   - After resuming, the lead may try to message teammates that no longer exist
+   - Solution: Tell the lead to spawn new teammates
+
+2. **Task status can lag**: Teammates sometimes forget to mark tasks as completed
+   - Blocks dependent tasks unnecessarily
+   - Solution: Manually update task status or remind the teammate
+
+3. **Shutdown can be slow**: Teammates finish their current request before shutting down
+
+4. **One team per session**: Clean up current team before starting a new one
+
+5. **No nested teams**: Only the lead can spawn teammates (teammates can't create sub-teams)
+
+6. **Lead is fixed**: Can't transfer leadership or promote a teammate to lead
+
+7. **Permissions set at spawn**: All teammates inherit lead's permission mode at creation
+   - Can change individual modes after spawning
+   - Can't set per-teammate modes at spawn time
+
+8. **Display mode limitations**:
+   - In-process mode: Works in any terminal
+   - Split panes: Requires tmux or iTerm2 (not supported in VS Code, Windows Terminal, or Ghostty)
+
+### Quick Reference: Key Tools and Commands
+
+**For Teammates:**
+```python
+# Read task details
+TaskGet(taskId="1")
+
+# Check all tasks and their status
+TaskList()
+
+# Claim a task
+TaskUpdate(taskId="1", status="in_progress", owner="your-agent-name")
+
+# Mark task complete
+TaskUpdate(taskId="1", status="completed")
+
+# Send message to lead
+SendMessage(
+  type="message",
+  recipient="team-lead",
+  content="Detailed message here",
+  summary="Brief 5-10 word summary"
+)
+
+# Respond to shutdown request
+SendMessage(
+  type="shutdown_response",
+  request_id="abc-123",  # Extract from shutdown request
+  approve=True  # or False with content explaining why
+)
+```
+
+**For Team Lead:**
+```python
+# Create task
+TaskCreate(
+  subject="Brief title",
+  description="Detailed description with context",
+  activeForm="Present continuous (e.g., 'Implementing parser')"
+)
+
+# Assign task
+TaskUpdate(taskId="1", owner="parser-agent")
+
+# Request teammate shutdown
+SendMessage(
+  type="shutdown_request",
+  recipient="parser-agent",
+  content="Task complete, wrapping up the session"
+)
+
+# Read team member roster
+# Use Read tool on: ~/.claude/teams/{team-name}/config.json
+```
+
+**Remember:**
+- Teammates: Your text output is NOT visible - ALWAYS use SendMessage
+- Going idle after every turn is NORMAL - not an error
+- Team lead: Wait for teammates, don't implement tasks yourself
+- Everyone: Include full context in messages (no shared conversation history)
 
 ## Development Workflow (CRITICAL)
 

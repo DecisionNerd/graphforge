@@ -1,7 +1,38 @@
 # OpenCypher Compatibility Status
 
-**Last Updated:** 2026-02-09
-**GraphForge Version:** v0.3.0
+**Last Updated:** 2026-02-16
+**GraphForge Version:** v0.4.0 (in progress)
+
+---
+
+## 📚 Documentation Navigation
+
+This document provides a **high-level overview** of GraphForge's OpenCypher compatibility. For comprehensive details, see:
+
+### Detailed Feature Documentation
+- **[01-clauses.md](opencypher-features/01-clauses.md)** - Complete reference for all 16 OpenCypher clauses with syntax and examples
+- **[02-functions.md](opencypher-features/02-functions.md)** - 72 functions across 9 categories (string, numeric, list, aggregation, predicate, scalar, temporal, spatial, path)
+- **[03-operators.md](opencypher-features/03-operators.md)** - All operator types with precedence and NULL handling
+- **[04-patterns.md](opencypher-features/04-patterns.md)** - Pattern matching with 90+ examples
+- **[05-data-types.md](opencypher-features/05-data-types.md)** - Complete type system and coercion rules
+
+### Implementation Status
+- **[clauses.md](implementation-status/clauses.md)** - 16/20 clauses complete (80%), with file references
+- **[functions.md](implementation-status/functions.md)** - 53/72 functions complete (74%), organized by category
+- **[operators.md](implementation-status/operators.md)** - 30/34 operators complete (88%)
+- **[patterns.md](implementation-status/patterns.md)** - 6.5/8 pattern types complete (81%)
+
+### TCK Test Coverage
+- **[tck-inventory.md](tck-inventory.md)** - Complete inventory of 1,626 TCK scenarios from 222 feature files
+- **[clause-to-tck.md](feature-mapping/clause-to-tck.md)** - Maps clauses to ~1,180 TCK scenarios
+- **[function-to-tck.md](feature-mapping/function-to-tck.md)** - Maps functions to ~380 TCK scenarios
+
+### Comprehensive Analysis
+- **[opencypher-compatibility-matrix.md](opencypher-compatibility-matrix.md)** - Complete feature-by-feature matrix with 134 features evaluated
+- **[feature-graph-schema.md](feature-graph-schema.md)** - Queryable graph schema for feature relationships
+- **[feature-graph-queries.md](feature-graph-queries.md)** - 20 example queries for analyzing features, status, and TCK coverage
+
+---
 
 ## Executive Summary
 
@@ -9,31 +40,47 @@ GraphForge implements a **practical subset of OpenCypher** focused on common gra
 
 ### Current Status
 
-| Version | TCK Scenarios | Compliance | Status |
-|---------|--------------|------------|--------|
-| v0.1.4 | 638/3,837 | 16.6% | Released |
-| v0.2.0 | 638/3,837 | 16.6% | Released |
-| v0.2.1 | 638/3,837 | 16.6% | Released |
-| v0.3.0 | ~950/3,837 | ~29% | **Released** (February 2026) |
-| v0.4.0 | ~1,500/3,837 | ~39% | Planned |
+| Version | TCK Scenarios | Feature Completeness | Status |
+|---------|--------------|---------------------|--------|
+| v0.1.4 | 638/3,837 | ~30% | Released |
+| v0.2.0 | 638/3,837 | ~40% | Released |
+| v0.2.1 | 638/3,837 | ~45% | Released |
+| v0.3.0 | 1,303/1,626 (34%) | **~78%** | **Released** (February 2026) |
 | v1.0 | >3,800/3,837 | >99% | Goal (Full OpenCypher) |
+
+**Note:** TCK scenario counts updated to reflect actual passing scenarios (1,303 of 1,626 tested).
+
+**v0.3.0 Highlights:**
+- **134 features evaluated:** 105 complete (78%), 2 partial (2%), 27 not implemented (20%)
+- **Complete categories:** Temporal functions (100%), Spatial functions (100%), Comparison operators (100%)
+- **High-impact gaps:** Predicate functions (all/any/none/single), list operations (extract/filter/reduce)
+- **New Strategy:** Patch-level releases (0.3.x) until 100% feature complete
+- **See:** [Compatibility Matrix](opencypher-compatibility-matrix.md) for complete feature-by-feature analysis
 
 ### Design Philosophy
 
 GraphForge prioritizes:
-- ✅ **Core Cypher clauses** for reading and writing
+- ✅ **Core Cypher clauses** for reading and writing (16/20 complete)
 - ✅ **Common expressions** used in 80% of queries
-- ✅ **Essential functions** for data manipulation
+- ✅ **Essential functions** for data manipulation (53/72 complete)
 - ✅ **SQLite-backed persistence** with ACID transactions
 - ✅ **Zero-configuration** embedded usage
-- ❌ Advanced temporal/spatial types
+- ✅ **Temporal/spatial types** - Complete as of v0.3.0 (date, datetime, time, duration, point, distance)
 - ❌ Full-text search capabilities
 - ❌ Multi-database features
 - ❌ Distributed query execution
 
+**See the [Compatibility Matrix](opencypher-compatibility-matrix.md) for detailed feature status.**
+
 ---
 
 ## Feature Matrix
+
+**Note:** This section provides a high-level overview. For comprehensive feature documentation with syntax, examples, and implementation status, see:
+- [Clause Documentation](opencypher-features/01-clauses.md) | [Clause Implementation Status](implementation-status/clauses.md)
+- [Function Documentation](opencypher-features/02-functions.md) | [Function Implementation Status](implementation-status/functions.md)
+- [Operator Documentation](opencypher-features/03-operators.md) | [Operator Implementation Status](implementation-status/operators.md)
+- [Pattern Documentation](opencypher-features/04-patterns.md) | [Pattern Implementation Status](implementation-status/patterns.md)
 
 ### ✅ Fully Supported (v0.1.4)
 
@@ -279,14 +326,14 @@ These features are **out of scope** for GraphForge's design goals:
 
 ## Comparison with Neo4j
 
-| Feature Category | GraphForge v0.2 | Neo4j |
+| Feature Category | GraphForge v0.4.0 | Neo4j |
 |------------------|-----------------|-------|
-| **Core Clauses** | ✅ 90% | ✅ 100% |
-| **Pattern Matching** | ⚠️ Basic patterns | ✅ Full patterns |
-| **Aggregations** | ⚠️ 6 functions | ✅ 15+ functions |
-| **Scalar Functions** | ⚠️ 15 functions | ✅ 100+ functions |
-| **Temporal Types** | ❌ None | ✅ Full support |
-| **Spatial Types** | ❌ None | ✅ Full support |
+| **Core Clauses** | ✅ 80% (16/20) | ✅ 100% |
+| **Pattern Matching** | ✅ 81% (6.5/8) | ✅ 100% |
+| **Aggregations** | ✅ 5/10 core functions | ✅ 15+ functions |
+| **Scalar Functions** | ✅ 53/72 (74%) | ✅ 100+ functions |
+| **Temporal Types** | ✅ Complete (v0.3.0) | ✅ Full support |
+| **Spatial Types** | ✅ Complete (v0.3.0) | ✅ Full support |
 | **Indexes** | ⚠️ SQLite automatic | ✅ Explicit control |
 | **Constraints** | ❌ None | ✅ Full support |
 | **Procedures** | ❌ None | ✅ CALL + APOC |
@@ -304,42 +351,55 @@ These features are **out of scope** for GraphForge's design goals:
 
 The **Technology Compatibility Kit (TCK)** is the official openCypher test suite with 3,837 scenarios.
 
-### Current Coverage (v0.1.4)
+**See [TCK Inventory](tck-inventory.md) for complete catalog of 1,626 scenarios from 222 feature files.**
 
-**1,277/7,722 scenarios passing (16.5%)**
+### Current Coverage (v0.4.0)
 
-*Note: TCK suite contains 7,722 total scenarios. Earlier documentation referenced a subset of 3,837 scenarios.*
+**1,303/1,626 scenarios passing (34% pass rate)**
 
-#### Passing Scenario Categories
-- ✅ Basic MATCH patterns
-- ✅ WHERE clause filtering
-- ✅ RETURN projection
-- ✅ ORDER BY, LIMIT, SKIP
-- ✅ CREATE nodes and relationships
-- ✅ SET property updates
-- ✅ DELETE operations
-- ✅ MERGE patterns
-- ✅ Basic aggregations (COUNT, SUM, AVG, MIN, MAX)
-- ✅ WITH clause chaining
-- ✅ String functions (length, substring, case conversion)
+*Note: GraphForge tests against a subset of 1,626 TCK scenarios. The full suite contains 3,837 total scenarios.*
+
+**Detailed TCK Mappings:**
+- [Clause to TCK Mapping](feature-mapping/clause-to-tck.md) - ~1,180 scenarios mapped to clauses
+- [Function to TCK Mapping](feature-mapping/function-to-tck.md) - ~380 scenarios mapped to functions
+
+#### Passing Scenario Categories (v0.4.0)
+- ✅ Basic MATCH patterns (195 scenarios)
+- ✅ WHERE clause filtering (53 scenarios)
+- ✅ RETURN projection (129 scenarios)
+- ✅ ORDER BY, LIMIT, SKIP (134 scenarios)
+- ✅ CREATE nodes and relationships (78 scenarios)
+- ✅ SET property updates (53 scenarios)
+- ✅ DELETE operations (41 scenarios)
+- ✅ MERGE patterns (75 scenarios)
+- ✅ Basic aggregations (COUNT, SUM, AVG, MIN, MAX, COLLECT)
+- ✅ WITH clause chaining (156 scenarios) — **Complete in v0.3.0**
+- ✅ String functions (11/13 complete)
 - ✅ Type conversion functions
 - ✅ NULL handling in expressions
 - ✅ List and map literals
+- ✅ OPTIONAL MATCH — **Complete in v0.3.0** (~20 scenarios)
+- ✅ Variable-length patterns — **Complete in v0.3.0** (~40 scenarios)
+- ✅ UNWIND — **Complete in v0.2.0** (14 scenarios)
+- ✅ CASE expressions — **Complete in v0.2.0**
+- ✅ Arithmetic operators — **Complete in v0.2.0**
+- ✅ String matching (STARTS WITH, ENDS WITH, CONTAINS) — **Complete in v0.2.0**
+- ✅ EXISTS/COUNT subqueries — **Complete in v0.3.0** (10 scenarios)
+- ✅ UNION / UNION ALL — **Complete in v0.3.0** (12 scenarios)
+- ✅ Temporal functions — **Complete in v0.3.0** (11/11, 89 scenarios)
+- ✅ Spatial functions — **Complete in v0.3.0** (2/2, ~10 scenarios)
 
 #### Failing Scenario Categories (Notable)
-- ❌ OPTIONAL MATCH (left outer joins)
-- ❌ Variable-length patterns (`-[*1..5]->`)
-- ❌ UNWIND (list iteration) — **Fixed in v0.2**
-- ❌ CASE expressions — **Fixed in v0.2**
-- ❌ COLLECT aggregation — **Fixed in v0.2**
-- ❌ Arithmetic operators — **Fixed in v0.2**
-- ❌ String matching (STARTS WITH, etc.) — **Fixed in v0.2**
-- ❌ Subqueries (EXISTS, COUNT)
-- ❌ UNION / UNION ALL
-- ❌ List comprehensions
-- ❌ Pattern predicates
-- ❌ REMOVE clause — **Fixed in v0.2**
-- ❌ Many advanced functions
+- ❌ **Predicate functions** (all, any, none, single, isEmpty) - 0/6 complete, ~36 TCK scenarios
+- ❌ **List operations** (extract, filter, reduce) - 0/3 complete, ~30 TCK scenarios
+- ❌ **Pattern comprehension** - Not implemented, 15 TCK scenarios
+- ❌ **CALL procedures** - Not implemented (no procedure system), 41 TCK scenarios
+- ❌ **Statistical aggregations** (percentile, stdev) - 0/4 complete, ~3 TCK scenarios
+- ❌ **Some mathematical functions** (sqrt, rand, pow) - 0/3 complete, minimal TCK coverage
+- ❌ **List slicing** and negative indexing - Not implemented
+- ❌ **XOR operator** - Not implemented
+
+**Priority for v0.5.0:** Predicate functions and list operations (66 TCK scenarios, high impact)
 
 ### Projected v0.2.0 Coverage
 
@@ -403,41 +463,42 @@ Adding advanced features in v0.3 will close ~550 scenarios:
 
 ## Roadmap to Full OpenCypher
 
-### Realistic Timeline
+### Patch-Level Release Strategy (v0.3.x)
 
-| Milestone | Target | TCK % | Focus |
-|-----------|--------|-------|-------|
-| v0.2.0 | Mar 2026 | 25% | Core features complete |
-| v0.3.0 | Jun 2026 | 39% | Advanced patterns |
-| v0.4.0 | Sep 2026 | 55% | Comprehensive functions |
-| v0.5.0 | Dec 2026 | 70% | Advanced expressions |
-| v0.6.0 | Mar 2027 | 82% | Subqueries & procedures |
-| v0.7.0 | Jun 2027 | 92% | Edge cases & optimization |
-| v1.0.0 | Sep 2027 | >99% | Full OpenCypher |
+**New Approach:** All remaining features will be delivered in patch releases (0.3.x) until 100% feature complete.
 
-**Goal:** GraphForge v1.0 will be a **complete production platform** with:
-- >99% OpenCypher compliance (full query language)
-- Modern APIs (REST, GraphQL, WebSocket)
-- Analytical integrations (NetworkX, iGraph, QuantumFusion)
-- Comprehensive import/export (GraphML, CSV, JSON, Parquet, Neo4j)
-- Web GUI for exploration and querying
-- Production features (monitoring, backup/restore, auth)
+| Milestone | Target | Feature % | Issues | Focus |
+|-----------|--------|-----------|--------|-------|
+| **Released** | | | | |
+| v0.1.4 | Oct 2025 | ~30% | - | Core clauses |
+| v0.2.0 | Nov 2025 | ~40% | - | Core features complete |
+| v0.3.0 | Feb 2026 | **78%** | **29 created** | **Documentation, TCK analysis, temporal, spatial** |
+| **Planned** | | | | |
+| v0.3.1 | Mar 2026 | 82% | 6 features | Predicate functions (#205-#210) |
+| v0.3.2 | Apr 2026 | 85% | 3 features | List operations (#198-#200) |
+| v0.3.3 | May 2026 | 88% | 3 features | Pattern & CALL features (#189, #216-#217) |
+| v0.3.4 | Jun 2026 | 92% | 6 features | Operators & string functions (#193-#194, #212-#215) |
+| v0.3.5 | Jul 2026 | 96% | 7 features | Math & aggregation (#195-#197, #201-#204) |
+| v0.3.6 | Aug 2026 | 99% | 4 features | Remaining clauses (#190-#192, #211) |
+| v0.3.7 | Sep 2026 | **100%** | - | **Final polish, all 134 features complete** |
 
-The remaining <1% TCK scenarios represent enterprise features (user management, distributed systems) that are incompatible with the embedded design.
+**See [Compatibility Matrix](opencypher-compatibility-matrix.md) for detailed roadmap and [Incomplete Features Issues](INCOMPLETE_FEATURES_ISSUES.md) for issue tracking.**
 
-### Target Compliance: >99%
+### Target: 100% Feature Complete by September 2026
 
-GraphForge v1.0 will target **>99% TCK compliance** (Full OpenCypher), covering:
-- ✅ All core clauses (MATCH, CREATE, MERGE, DELETE, etc.)
+GraphForge v0.3.7 will achieve **100% OpenCypher feature parity** (134/134 features), covering:
+- ✅ All core clauses (MATCH, CREATE, MERGE, DELETE, CALL, etc.)
 - ✅ All expressions (CASE, arithmetic, logical, pattern predicates)
-- ✅ All standard functions (string, list, math, aggregations)
-- ✅ Pattern matching (including variable-length, shortest path)
-- ✅ Subqueries and advanced queries (EXISTS, CALL)
-- ✅ List comprehensions and map projections
-- ✅ UNION, FOREACH, and advanced control flow
-- ⚠️ Temporal/spatial types (may defer to v1.1+)
-- ❌ Enterprise features (user management, multi-DB - out of scope for embedded design)
-- ❌ Distributed features (clustering, sharding - single-node architecture)
+- ✅ All standard functions (string, list, math, aggregations, predicates)
+- ✅ Pattern matching (including comprehension, variable-length, predicates)
+- ✅ Subqueries and advanced queries (EXISTS, CALL { }, procedures)
+- ✅ List operations (extract, filter, reduce, slicing)
+- ✅ Complete operators (logical, arithmetic, string, list, pattern)
+- ✅ Temporal/spatial types (100% complete as of v0.3.0)
+
+**Enterprise features remain out of scope:**
+- ❌ User management, multi-DB (incompatible with embedded design)
+- ❌ Distributed features (single-node architecture)
 
 ---
 
@@ -451,21 +512,34 @@ Help build GraphForge v1.0! See:
 ### High-Impact Contributions
 
 Want to make a big impact? Consider implementing:
-1. **OPTIONAL MATCH** (#planned) - Left outer joins, ~150 scenarios
-2. **Variable-length patterns** (#24) - Path queries, ~150 scenarios
-3. **List comprehensions** (#planned) - Functional list ops, ~100 scenarios
-4. **EXISTS subqueries** (#planned) - Pattern predicates, ~100 scenarios
+1. **Predicate functions** (all, any, none, single) - ~36 TCK scenarios, commonly used in WHERE clauses
+2. **List operations** (extract, filter, reduce) - ~30 TCK scenarios, useful for data transformation
+3. **Pattern comprehension** - 15 TCK scenarios, complex but powerful feature
+4. **Statistical aggregations** (percentileDisc, percentileCont, stDev) - ~3 TCK scenarios, analytics
+
+**See [Implementation Priorities](opencypher-compatibility-matrix.md#implementation-priorities-for-v040) for detailed recommendations.**
 
 ---
 
 ## References
 
+### External Resources
 - **openCypher Specification:** https://opencypher.org/resources/
 - **Neo4j Cypher Manual:** https://neo4j.com/docs/cypher-manual/
 - **openCypher TCK:** https://github.com/opencypher/openCypher/tree/master/tck
 - **GraphForge Issues:** https://github.com/DecisionNerd/graphforge/issues
 
+### GraphForge Documentation
+- **[README](README.md)** - Documentation directory structure and navigation guide
+- **[Compatibility Matrix](opencypher-compatibility-matrix.md)** - Comprehensive feature-by-feature analysis
+- **[Feature Documentation](opencypher-features/)** - Complete reference for clauses, functions, operators, patterns, and data types
+- **[Implementation Status](implementation-status/)** - Detailed status with file references for all features
+- **[Feature Mapping](feature-mapping/)** - TCK scenario mappings to clauses and functions
+- **[TCK Inventory](tck-inventory.md)** - Complete catalog of 1,626 TCK scenarios
+- **[Feature Graph Schema](feature-graph-schema.md)** - Queryable graph schema for feature relationships
+- **[Feature Graph Queries](feature-graph-queries.md)** - Example queries for analyzing features and status
+
 ---
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-16
 **Maintained by:** [@DecisionNerd](https://github.com/DecisionNerd)
