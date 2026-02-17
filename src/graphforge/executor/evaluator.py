@@ -1135,6 +1135,16 @@ def _evaluate_function(
         args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
         return _evaluate_path_function(func_name, args)
 
+    # EXISTS function for property existence checking
+    # Must be evaluated BEFORE NULL propagation to handle property access correctly
+    if func_name == "EXISTS":
+        if len(func_call.args) != 1:
+            raise ValueError("EXISTS expects exactly one argument")
+
+        arg_expr = func_call.args[0]
+        result = evaluate_expression(arg_expr, ctx, executor)
+        return CypherBool(not isinstance(result, CypherNull))
+
     # Evaluate arguments
     args = [evaluate_expression(arg, ctx, executor) for arg in func_call.args]
 
@@ -1148,6 +1158,15 @@ def _evaluate_function(
         if isinstance(arg, (CypherList, CypherString)):
             return CypherInt(len(arg.value))
         raise TypeError(f"SIZE expects list or string, got {type(arg).__name__}")
+
+    # ISEMPTY function for lists, strings, and maps
+    if func_name == "ISEMPTY":
+        if len(args) == 0:
+            raise TypeError("ISEMPTY expects exactly one argument")
+        arg = args[0]
+        if isinstance(arg, (CypherList, CypherString, CypherMap)):
+            return CypherBool(len(arg.value) == 0)
+        raise TypeError(f"ISEMPTY expects list, string, or map, got {type(arg).__name__}")
 
     # Dispatch to specific function handlers
     if func_name in STRING_FUNCTIONS:
