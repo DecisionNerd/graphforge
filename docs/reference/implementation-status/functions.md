@@ -17,12 +17,12 @@ Implementation status of OpenCypher built-in functions in GraphForge.
 | Numeric | 10 | 7 (70%) | 0 (0%) | 3 (30%) |
 | List | 8 | 6 (75%) | 0 (0%) | 2 (25%) |
 | Aggregation | 10 | 5 (50%) | 0 (0%) | 5 (50%) |
-| Predicate | 6 | 0 (0%) | 0 (0%) | 6 (100%) |
+| Predicate | 6 | 6 (100%) | 0 (0%) | 0 (0%) |
 | Scalar | 9 | 8 (89%) | 0 (0%) | 1 (11%) |
 | Temporal | 11 | 11 (100%) | 0 (0%) | 0 (0%) |
 | Spatial | 2 | 2 (100%) | 0 (0%) | 0 (0%) |
 | Path | 3 | 3 (100%) | 0 (0%) | 0 (0%) |
-| **TOTAL** | **72** | **53 (74%)** | **0 (0%)** | **19 (26%)** |
+| **TOTAL** | **72** | **55 (76%)** | **0 (0%)** | **17 (24%)** |
 
 ---
 
@@ -252,13 +252,19 @@ Implementation status of OpenCypher built-in functions in GraphForge.
 **Tests:** tests/integration/test_predicate_functions.py
 **Notes:** Tests if exactly one element in list satisfies predicate. Implements three-valued NULL logic.
 
-### exists() ❌
-**Status:** NOT_IMPLEMENTED (as function)
-**Notes:** EXISTS subquery expressions are implemented, but not exists() as a property test function in new spec.
+### exists() ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:1135-1145`
+**Signature:** `exists(property)` or `exists(expression)`
+**Tests:** tests/integration/test_exists_isEmpty.py
+**Notes:** Tests if a property exists or if an expression is not NULL. Handles property access specially to detect missing properties.
 
-### isEmpty() ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** Empty list/string test. Not yet implemented.
+### isEmpty() ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:1165-1175`
+**Signature:** `isEmpty(list)`, `isEmpty(string)`, or `isEmpty(map)`
+**Tests:** tests/integration/test_exists_isEmpty.py
+**Notes:** Tests if a list, string, or map is empty. Returns NULL for NULL input.
 
 ---
 
@@ -406,19 +412,17 @@ All temporal functions are ✅ COMPLETE with comprehensive support added in v0.3
 
 ### Limitations
 
-1. **Predicate functions missing**: all(), any(), none(), single(), isEmpty() not implemented
-2. **Statistical aggregations**: percentile and standard deviation functions missing
-3. **List operations**: extract(), filter(), reduce() not implemented
-4. **Mathematical functions**: sqrt(), rand(), pow() missing
+1. **Statistical aggregations**: percentile and standard deviation functions missing
+2. **List operations**: extract(), filter(), reduce() not implemented
+3. **Mathematical functions**: sqrt(), rand(), pow() missing
 
 ### Recommended Priority for v0.4.0+
 
-1. **High**: Predicate functions (all, any, none, single) - commonly used in WHERE clauses
-2. **High**: sqrt() - common mathematical operation
-3. **Medium**: Statistical aggregations (percentileDisc, percentileCont, stDev)
-4. **Medium**: List operations (extract, filter, reduce)
-5. **Low**: rand() - useful but low priority
-6. **Low**: pow() - can use alternative approaches
+1. **High**: sqrt() - common mathematical operation
+2. **Medium**: Statistical aggregations (percentileDisc, percentileCont, stDev)
+3. **Medium**: List operations (extract, filter, reduce)
+4. **Low**: rand() - useful but low priority
+5. **Low**: pow() - can use alternative approaches
 
 ---
 
