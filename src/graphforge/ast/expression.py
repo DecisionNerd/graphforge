@@ -69,9 +69,9 @@ class PropertyAccess(BaseModel):
     """Property access expression.
 
     Supports both variable property access and expression property access:
-    - variable.property: PropertyAccess(variable="n", property="name")
-    - {key: val}.property: PropertyAccess(base=Literal(...), property="key")
-    - [1, 2, 3][0].property: PropertyAccess(base=ListIndex(...), property="...")
+    - `variable.property`: PropertyAccess(variable="n", property="name")
+    - `{key: val}.property`: PropertyAccess(base=Literal(...), property="key")
+    - `list[0].property`: PropertyAccess(base=ListIndex(...), property="...")
 
     For backward compatibility, 'variable' can still be used for simple cases.
     When 'base' is provided, it takes precedence over 'variable'.

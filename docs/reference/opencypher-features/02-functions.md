@@ -667,7 +667,7 @@ MATCH (n:Person)
 RETURN id(n) AS nodeId, n.name
 ```
 
-### type()
+### type() (Scalar Function)
 
 Return the type of a relationship or the type of a value.
 

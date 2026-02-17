@@ -258,7 +258,7 @@ Implementation status of OpenCypher built-in functions in GraphForge.
 **Signature:** `id(node_or_relationship)`
 **Tests:** Graph function scenarios
 
-### type() ✅
+### type() (Graph Function) ✅
 **Status:** COMPLETE
 **File:** `evaluator.py:2558`
 **Signature:** `type(relationship)` or `type(value)`
