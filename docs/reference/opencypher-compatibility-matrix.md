@@ -2,8 +2,9 @@
 
 Comprehensive status matrix for GraphForge's OpenCypher implementation, showing features, implementation status, and TCK test coverage.
 
-**Last Updated:** 2026-02-16
-**GraphForge Version:** v0.4.0 (in progress)
+**Last Updated:** 2026-02-17
+**GraphForge Version:** v0.3.0 (released)
+**Release Strategy:** Patch-level releases (0.3.x) until 100% feature complete
 **TCK Scenarios:** 1,626 total, 1,303 passing (34% pass rate)
 
 ---
@@ -258,57 +259,118 @@ Comprehensive status matrix for GraphForge's OpenCypher implementation, showing 
 
 ---
 
-## Implementation Priorities for v0.4.0+
+## Roadmap to 100% Feature Completeness
 
-### High Priority (Good TCK Coverage, High Impact)
+**Strategy:** Patch-level releases (v0.3.x) to achieve 100% OpenCypher feature coverage
 
-1. **Predicate functions** (all, any, none, single)
-   - 36 TCK scenarios available
-   - Commonly used in WHERE clauses
-   - Moderate implementation complexity
+### v0.3.1 (Target: March 2026) - Predicate Functions
+**Goal:** 78% → 82% feature complete
 
-2. **Complete pattern predicates**
-   - 15+ TCK scenarios
-   - Part of core pattern matching
-   - Improves query expressiveness
+**Features (6):** #205-#210
+- all() predicate function
+- any() predicate function
+- none() predicate function
+- single() predicate function
+- exists() predicate function (property form)
+- isEmpty() predicate function
 
-3. **List slicing [start..end]**
-   - Common operation
-   - Relatively simple to implement
+**Impact:**
+- +36 TCK scenarios
+- Commonly used in WHERE clauses
+- High developer demand
 
-### Medium Priority (Some TCK Coverage, Useful)
+---
 
-4. **List operations** (extract, filter, reduce)
-   - 30 TCK scenarios
-   - Useful for data transformation
-   - Higher implementation complexity
+### v0.3.2 (Target: April 2026) - List Operations
+**Goal:** 82% → 85% feature complete
 
-5. **sqrt() function**
-   - Common mathematical operation
-   - Simple to implement
+**Features (3):** #198-#200
+- extract() list function
+- filter() list function
+- reduce() list function
 
-6. **Statistical aggregations** (percentile, stdev)
-   - 3 TCK scenarios
-   - Useful for analytics
+**Impact:**
+- +30 TCK scenarios
+- Essential for data transformation
+- Good TCK coverage
 
-### Low Priority (Minimal TCK Coverage or Low Usage)
+---
 
-7. **Pattern comprehension**
-   - 15 TCK scenarios
-   - Complex feature
-   - Can use alternatives
+### v0.3.3 (Target: May 2026) - Pattern & CALL Features
+**Goal:** 85% → 88% feature complete
 
-8. **XOR operator**
-   - 0 TCK scenarios
-   - Rarely used
+**Features (3):** #189, #216-#217
+- Complete CALL { } subquery syntax (PARTIAL → COMPLETE)
+- Complete pattern predicates (PARTIAL → COMPLETE)
+- Pattern comprehension
 
-9. **Power operator (^)**
-   - 0 TCK scenarios
-   - Can use alternatives
+**Impact:**
+- +40 TCK scenarios
+- Advanced query capabilities
 
-10. **rand() function**
-    - 0 TCK scenarios
-    - Non-deterministic
+---
+
+### v0.3.4 (Target: June 2026) - Operators & String Functions
+**Goal:** 88% → 92% feature complete
+
+**Features (6):** #193-#194, #212-#215
+- length() string function
+- toUpper/toLower camelCase variants
+- XOR logical operator
+- ^ (power) arithmetic operator
+- List slicing [start..end]
+- Negative list indexing
+
+**Impact:**
+- Operator completeness
+- String function parity
+
+---
+
+### v0.3.5 (Target: July 2026) - Math & Aggregation Functions
+**Goal:** 92% → 96% feature complete
+
+**Features (7):** #195-#197, #201-#204
+- sqrt() function
+- rand() function
+- pow() function
+- percentileDisc() aggregation
+- percentileCont() aggregation
+- stDev() aggregation
+- stDevP() aggregation
+
+**Impact:**
+- Mathematical operations complete
+- Statistical analysis support
+
+---
+
+### v0.3.6 (Target: August 2026) - Remaining Clauses
+**Goal:** 96% → 99% feature complete
+
+**Features (4):** #190-#192, #211
+- CALL procedures (with procedure registry)
+- FOREACH clause
+- LOAD CSV clause
+- elementId() scalar function
+
+**Impact:**
+- Procedural capabilities
+- Data import features
+- GQL standard compliance
+
+---
+
+### v0.3.7 (Target: September 2026) - Final Polish
+**Goal:** 99% → 100% feature complete
+
+**Focus:**
+- Edge case fixes from TCK
+- Documentation completeness
+- Performance optimization
+- API refinements
+
+**Result:** Full OpenCypher feature parity (134/134 features complete)
 
 ---
 
@@ -324,20 +386,19 @@ Comprehensive status matrix for GraphForge's OpenCypher implementation, showing 
 - UNWIND clause
 - Enhanced aggregations
 
-### v0.3.0
+### v0.3.0 (Released: February 2026)
 - **OPTIONAL MATCH** (full NULL handling)
 - **WITH clause** (full spec compliance)
 - **UNION/UNION ALL**
 - **Temporal functions** (complete)
 - **Spatial functions** (complete)
 - **EXISTS/COUNT subqueries**
-- TCK pass rate: 16.6% → 32.6%
-
-### v0.4.0 (In Progress)
-- TCK coverage improvements
-- Edge case fixes
-- Documentation expansion
-- **Goal:** Identify priority features for v0.5.0
+- Comprehensive OpenCypher feature documentation
+- TCK inventory and mapping (1,626 scenarios cataloged)
+- 29 GitHub issues created for remaining features (#189-#217)
+- 105/134 features complete (78%)
+- TCK pass rate: 16.6% → 34%
+- **New Strategy:** Patch-level releases (0.3.x) until 100% complete
 
 ---
 

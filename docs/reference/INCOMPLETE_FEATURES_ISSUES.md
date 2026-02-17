@@ -158,51 +158,91 @@ This document tracks all GitHub issues created for partially implemented and uni
 
 ---
 
-## Priority Recommendations
+## Patch-Level Release Strategy
 
-### High Priority (Good TCK Coverage, High Impact)
+**New Approach:** All features will be completed in patch releases (v0.3.x) until 100% complete.
 
-**Predicate Functions (6 issues: #205-#210)**
-- ~36 TCK scenarios total
-- Commonly used in WHERE clauses
-- Moderate implementation complexity
-- **Recommended for v0.5.0**
+### v0.3.1 (Target: March 2026) - Predicate Functions
+**Goal:** 78% → 82% feature complete
 
-**List Operations (2 issues: #198-#199)**
-- ~25 TCK scenarios (extract + filter)
-- Useful for data transformation
-- **Recommended for v0.5.0**
+**Issues (6): #205-#210**
+- all() predicate function
+- any() predicate function
+- none() predicate function
+- single() predicate function
+- exists() predicate function
+- isEmpty() predicate function
 
-### Medium Priority
+**Impact:** ~36 TCK scenarios, commonly used in WHERE clauses
 
-**Pattern Features (2 issues: #216-#217)**
-- ~30 TCK scenarios combined
-- Improves query expressiveness
+### v0.3.2 (Target: April 2026) - List Operations
+**Goal:** 82% → 85% feature complete
 
-**CALL Procedures (1 issue: #190)**
-- 41 TCK scenarios
-- Requires significant architecture (procedure registry)
+**Issues (3): #198-#200**
+- extract() list function
+- filter() list function
+- reduce() list function
 
-**List Operators (2 issues: #214-#215)**
-- Common operations, relatively simple
+**Impact:** ~30 TCK scenarios, essential for data transformation
 
-### Low Priority
+### v0.3.3 (Target: May 2026) - Pattern & CALL Features
+**Goal:** 85% → 88% feature complete
 
-**Statistical Aggregations (4 issues: #201-#204)**
-- Minimal TCK coverage (~3 scenarios)
-- Useful for analytics
+**Issues (3): #189, #216-#217**
+- Complete CALL { } subquery syntax (PARTIAL → COMPLETE)
+- Complete pattern predicates (PARTIAL → COMPLETE)
+- Pattern comprehension
 
-**Math Functions (3 issues: #195-#197)**
-- Minimal/no TCK coverage
-- Can use alternatives
+**Impact:** ~40 TCK scenarios, advanced query capabilities
 
-**XOR Operator (1 issue: #212)**
-- No TCK scenarios, rarely used
+### v0.3.4 (Target: June 2026) - Operators & String Functions
+**Goal:** 88% → 92% feature complete
 
-**Other Clauses (2 issues: #191-#192)**
-- No TCK scenarios
-- FOREACH rarely used (UNWIND alternative)
-- LOAD CSV has dataset system alternative
+**Issues (6): #193-#194, #212-#215**
+- length() string function
+- toUpper/toLower camelCase variants
+- XOR logical operator
+- ^ (power) arithmetic operator
+- List slicing [start..end]
+- Negative list indexing
+
+**Impact:** Operator completeness, string function parity
+
+### v0.3.5 (Target: July 2026) - Math & Aggregation Functions
+**Goal:** 92% → 96% feature complete
+
+**Issues (7): #195-#197, #201-#204**
+- sqrt() function
+- rand() function
+- pow() function
+- percentileDisc() aggregation
+- percentileCont() aggregation
+- stDev() aggregation
+- stDevP() aggregation
+
+**Impact:** Mathematical operations complete, statistical analysis support
+
+### v0.3.6 (Target: August 2026) - Remaining Clauses
+**Goal:** 96% → 99% feature complete
+
+**Issues (4): #190-#192, #211**
+- CALL procedures (with procedure registry)
+- FOREACH clause
+- LOAD CSV clause
+- elementId() scalar function
+
+**Impact:** Procedural capabilities, data import, GQL compliance
+
+### v0.3.7 (Target: September 2026) - Final Polish
+**Goal:** 99% → 100% feature complete
+
+**Focus:**
+- Edge case fixes from TCK
+- Documentation completeness
+- Performance optimization
+- API refinements
+
+**Result:** 134/134 features complete (100%)
 
 ---
 
@@ -238,18 +278,34 @@ All issues follow this template:
 
 ## Tracking Progress
 
-### v0.5.0 Target
-- **Focus:** Predicate functions + List operations (8 issues: #198-#199, #205-#210)
-- **Impact:** ~60 TCK scenarios, 78% → ~82% feature completeness
-- **Time Estimate:** 2-3 months (March-May 2026)
+### Overall Timeline
 
-### v0.6.0 Target
-- **Focus:** Pattern features + CALL procedures (3 issues: #190, #216-#217)
-- **Impact:** ~86 TCK scenarios, 82% → ~88% feature completeness
+**Start:** v0.3.0 (Feb 2026) - 78% complete (105/134 features)
+**End:** v0.3.7 (Sep 2026) - 100% complete (134/134 features)
+**Duration:** 7 months with 7 patch releases
 
-### v0.7.0+ Target
-- **Focus:** Remaining functions + operators (18 issues: remaining)
-- **Impact:** 88% → 95%+ feature completeness
+### Monthly Milestones
+
+| Month | Release | Features Added | Total Complete | Percentage |
+|-------|---------|----------------|----------------|------------|
+| Feb 2026 | v0.3.0 | - | 105/134 | 78% |
+| Mar 2026 | v0.3.1 | 6 predicates | 111/134 | 82% |
+| Apr 2026 | v0.3.2 | 3 list ops | 114/134 | 85% |
+| May 2026 | v0.3.3 | 3 patterns | 117/134 | 88% |
+| Jun 2026 | v0.3.4 | 6 operators | 123/134 | 92% |
+| Jul 2026 | v0.3.5 | 7 math/agg | 130/134 | 96% |
+| Aug 2026 | v0.3.6 | 4 clauses | 134/134 | 99% |
+| Sep 2026 | v0.3.7 | Polish | 134/134 | **100%** |
+
+### Feature Completion by Category
+
+| Category | v0.3.0 | v0.3.7 | Change |
+|----------|--------|--------|--------|
+| Clauses | 16/20 (80%) | 20/20 (100%) | +4 |
+| Functions | 53/72 (74%) | 72/72 (100%) | +19 |
+| Operators | 30/34 (88%) | 34/34 (100%) | +4 |
+| Patterns | 6/8 (75%) | 8/8 (100%) | +2 |
+| **TOTAL** | **105/134 (78%)** | **134/134 (100%)** | **+29** |
 
 ---
 
@@ -264,5 +320,5 @@ All issues follow this template:
 ---
 
 **Created:** 2026-02-17
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-02-17 (Updated for patch-level release strategy)
 **Maintainer:** [@DecisionNerd](https://github.com/DecisionNerd)

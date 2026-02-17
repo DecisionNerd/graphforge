@@ -45,16 +45,16 @@ GraphForge implements a **practical subset of OpenCypher** focused on common gra
 | v0.1.4 | 638/3,837 | ~30% | Released |
 | v0.2.0 | 638/3,837 | ~40% | Released |
 | v0.2.1 | 638/3,837 | ~45% | Released |
-| v0.3.0 | ~950/3,837 (25%) | ~65% | Released (February 2026) |
-| v0.4.0 | 1,303/1,626 (34%) | **~78%** | **In Progress** (February 2026) |
+| v0.3.0 | 1,303/1,626 (34%) | **~78%** | **Released** (February 2026) |
 | v1.0 | >3,800/3,837 | >99% | Goal (Full OpenCypher) |
 
 **Note:** TCK scenario counts updated to reflect actual passing scenarios (1,303 of 1,626 tested).
 
-**v0.4.0 Highlights:**
+**v0.3.0 Highlights:**
 - **134 features evaluated:** 105 complete (78%), 2 partial (2%), 27 not implemented (20%)
 - **Complete categories:** Temporal functions (100%), Spatial functions (100%), Comparison operators (100%)
 - **High-impact gaps:** Predicate functions (all/any/none/single), list operations (extract/filter/reduce)
+- **New Strategy:** Patch-level releases (0.3.x) until 100% feature complete
 - **See:** [Compatibility Matrix](opencypher-compatibility-matrix.md) for complete feature-by-feature analysis
 
 ### Design Philosophy
@@ -463,45 +463,42 @@ Adding advanced features in v0.3 will close ~550 scenarios:
 
 ## Roadmap to Full OpenCypher
 
-### Realistic Timeline
+### Patch-Level Release Strategy (v0.3.x)
 
-| Milestone | Target | Feature % | TCK Pass Rate | Focus |
-|-----------|--------|-----------|---------------|-------|
-| v0.1.4 | Released | ~30% | 16.6% | Core clauses |
-| v0.2.0 | Released | ~40% | 16.6% | Core features complete |
-| v0.3.0 | Released | ~65% | ~25% | Advanced patterns, temporal, spatial |
-| v0.4.0 | Feb 2026 | **~78%** | **34%** | **Documentation, TCK coverage analysis** |
-| v0.5.0 | Jun 2026 | ~82% | ~50% | Predicate functions, list operations |
-| v0.6.0 | Sep 2026 | ~88% | ~65% | Pattern comprehension, statistical aggregations |
-| v0.7.0 | Dec 2026 | ~92% | ~78% | Edge cases & optimization |
-| v0.8.0 | Mar 2027 | ~95% | ~88% | Advanced query features |
-| v1.0.0 | Jun 2027 | >99% | >95% | Full OpenCypher |
+**New Approach:** All remaining features will be delivered in patch releases (0.3.x) until 100% feature complete.
 
-**See [Compatibility Matrix](opencypher-compatibility-matrix.md) for detailed priority recommendations.**
+| Milestone | Target | Feature % | Issues | Focus |
+|-----------|--------|-----------|--------|-------|
+| **Released** | | | | |
+| v0.1.4 | Oct 2025 | ~30% | - | Core clauses |
+| v0.2.0 | Nov 2025 | ~40% | - | Core features complete |
+| v0.3.0 | Feb 2026 | **78%** | **29 created** | **Documentation, TCK analysis, temporal, spatial** |
+| **Planned** | | | | |
+| v0.3.1 | Mar 2026 | 82% | 6 features | Predicate functions (#205-#210) |
+| v0.3.2 | Apr 2026 | 85% | 3 features | List operations (#198-#200) |
+| v0.3.3 | May 2026 | 88% | 3 features | Pattern & CALL features (#189, #216-#217) |
+| v0.3.4 | Jun 2026 | 92% | 6 features | Operators & string functions (#193-#194, #212-#215) |
+| v0.3.5 | Jul 2026 | 96% | 7 features | Math & aggregation (#195-#197, #201-#204) |
+| v0.3.6 | Aug 2026 | 99% | 4 features | Remaining clauses (#190-#192, #211) |
+| v0.3.7 | Sep 2026 | **100%** | - | **Final polish, all 134 features complete** |
 
-**Goal:** GraphForge v1.0 will be a **complete production platform** with:
-- >99% OpenCypher compliance (full query language)
-- Modern APIs (REST, GraphQL, WebSocket)
-- Analytical integrations (NetworkX, iGraph, QuantumFusion)
-- Comprehensive import/export (GraphML, CSV, JSON, Parquet, Neo4j)
-- Web GUI for exploration and querying
-- Production features (monitoring, backup/restore, auth)
+**See [Compatibility Matrix](opencypher-compatibility-matrix.md) for detailed roadmap and [Incomplete Features Issues](INCOMPLETE_FEATURES_ISSUES.md) for issue tracking.**
 
-The remaining <1% TCK scenarios represent enterprise features (user management, distributed systems) that are incompatible with the embedded design.
+### Target: 100% Feature Complete by September 2026
 
-### Target Compliance: >99%
-
-GraphForge v1.0 will target **>99% TCK compliance** (Full OpenCypher), covering:
-- ✅ All core clauses (MATCH, CREATE, MERGE, DELETE, etc.)
+GraphForge v0.3.7 will achieve **100% OpenCypher feature parity** (134/134 features), covering:
+- ✅ All core clauses (MATCH, CREATE, MERGE, DELETE, CALL, etc.)
 - ✅ All expressions (CASE, arithmetic, logical, pattern predicates)
-- ✅ All standard functions (string, list, math, aggregations)
-- ✅ Pattern matching (including variable-length, shortest path)
-- ✅ Subqueries and advanced queries (EXISTS, CALL)
-- ✅ List comprehensions and map projections
-- ✅ UNION, FOREACH, and advanced control flow
-- ⚠️ Temporal/spatial types (may defer to v1.1+)
-- ❌ Enterprise features (user management, multi-DB - out of scope for embedded design)
-- ❌ Distributed features (clustering, sharding - single-node architecture)
+- ✅ All standard functions (string, list, math, aggregations, predicates)
+- ✅ Pattern matching (including comprehension, variable-length, predicates)
+- ✅ Subqueries and advanced queries (EXISTS, CALL { }, procedures)
+- ✅ List operations (extract, filter, reduce, slicing)
+- ✅ Complete operators (logical, arithmetic, string, list, pattern)
+- ✅ Temporal/spatial types (100% complete as of v0.3.0)
+
+**Enterprise features remain out of scope:**
+- ❌ User management, multi-DB (incompatible with embedded design)
+- ❌ Distributed features (single-node architecture)
 
 ---
 
