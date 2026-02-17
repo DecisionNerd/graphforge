@@ -224,21 +224,33 @@ Implementation status of OpenCypher built-in functions in GraphForge.
 
 ## Predicate Functions
 
-### all() ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** List predicate testing. Not yet implemented.
+### all() ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:553-629`
+**Signature:** `all(variable IN list WHERE predicate)`
+**Tests:** tests/integration/test_predicate_functions.py
+**Notes:** Tests if all elements in list satisfy predicate. Implements three-valued NULL logic.
 
-### any() ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** List predicate testing. Not yet implemented.
+### any() ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:553-629`
+**Signature:** `any(variable IN list WHERE predicate)`
+**Tests:** tests/integration/test_predicate_functions.py
+**Notes:** Tests if any element in list satisfies predicate. Implements three-valued NULL logic.
 
-### none() ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** List predicate testing. Not yet implemented.
+### none() ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:553-629`
+**Signature:** `none(variable IN list WHERE predicate)`
+**Tests:** tests/integration/test_predicate_functions.py
+**Notes:** Tests if no elements in list satisfy predicate. Implements three-valued NULL logic.
 
-### single() ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** List predicate testing. Not yet implemented.
+### single() ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:553-629`
+**Signature:** `single(variable IN list WHERE predicate)`
+**Tests:** tests/integration/test_predicate_functions.py
+**Notes:** Tests if exactly one element in list satisfies predicate. Implements three-valued NULL logic.
 
 ### exists() ❌
 **Status:** NOT_IMPLEMENTED (as function)

@@ -554,6 +554,10 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
         # Evaluate the list expression
         list_val = evaluate_expression(expr.list_expr, ctx, executor)
 
+        # NULL list returns NULL (three-valued logic)
+        if isinstance(list_val, CypherNull):
+            return CypherNull()
+
         # Must be a list
         if not isinstance(list_val, CypherList):
             raise TypeError(f"Quantifier requires a list, got {type(list_val).__name__}")
@@ -617,13 +621,13 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
         elif expr.quantifier == "SINGLE":
             # SINGLE: True if exactly one True and no NULLs,
             # False if more than one True,
-            # NULL if zero True and any NULL,
-            # else False
+            # NULL if any NULL exists (can't determine uniqueness)
             if satisfied_count == 1 and null_count == 0:
                 return CypherBool(True)
             elif satisfied_count > 1:
                 return CypherBool(False)
-            elif satisfied_count == 0 and null_count > 0:
+            elif null_count > 0:
+                # Can't determine uniqueness when NULLs exist
                 return CypherNull()
             else:
                 return CypherBool(False)
