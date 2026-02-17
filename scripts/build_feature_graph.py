@@ -40,7 +40,10 @@ def parse_implementation_status(status_file):
     # Extract features with status markers
     # Pattern: ### FeatureName followed by **Status:** ✅/⚠️/❌
     # Use negative lookahead to prevent crossing into next ### section
-    pattern = r"###\s+(.+?)\n(?:(?!###).)*?\*\*Status:\*\*\s+(✅|⚠️|❌)\s+(COMPLETE|PARTIAL|NOT_IMPLEMENTED)"
+    pattern = (
+        r"###\s+(.+?)\n(?:(?!###).)*?\*\*Status:\*\*\s+(✅|⚠️|❌)\s+"
+        r"(COMPLETE|PARTIAL|NOT_IMPLEMENTED)"
+    )
 
     matches = re.finditer(pattern, content, re.DOTALL)
 
@@ -337,7 +340,9 @@ def build_graph():
         for feature in all_features:
             if feature.get("file_path"):
                 impl_node = gf.create_node(
-                    labels=["Implementation"], file_path=feature["file_path"], status=feature["status"]
+                    labels=["Implementation"],
+                    file_path=feature["file_path"],
+                    status=feature["status"],
                 )
 
                 # Create IMPLEMENTED_IN relationship
@@ -414,7 +419,10 @@ def build_graph():
 
                 # Create TESTED_BY relationship
                 gf.create_relationship(
-                    src=feature_node, dst=tck_node, rel_type="TESTED_BY", scenario_count=scenario_count
+                    src=feature_node,
+                    dst=tck_node,
+                    rel_type="TESTED_BY",
+                    scenario_count=scenario_count,
                 )
                 tck_count += 1
 

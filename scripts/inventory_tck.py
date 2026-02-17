@@ -3,11 +3,11 @@
 Inventory all TCK test scenarios and generate a comprehensive report.
 """
 
-import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 import re
+import sys
 
 
 def extract_scenarios(feature_file):
