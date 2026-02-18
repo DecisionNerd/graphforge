@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-02-17
+
+### Added - Predicate Functions (100% Complete)
+
+#### Quantifier Functions (#205, #206, #207, #208)
+- **all()** - Tests if all elements in a list satisfy a predicate
+  - Example: `RETURN all(x IN [2, 4, 6] WHERE x % 2 = 0) AS result` → true
+  - Implements three-valued NULL logic per OpenCypher spec
+  - Returns false if any element fails, true if all pass, NULL if indeterminate
+- **any()** - Tests if any element in a list satisfies a predicate
+  - Example: `RETURN any(x IN [1, 2, 3] WHERE x > 2) AS result` → true
+  - Returns true if any element passes, NULL if no true but some NULL
+- **none()** - Tests if no elements in a list satisfy a predicate
+  - Example: `RETURN none(x IN [1, 3, 5] WHERE x % 2 = 0) AS result` → true
+  - Inverse of any() with proper NULL handling
+- **single()** - Tests if exactly one element satisfies a predicate
+  - Example: `RETURN single(x IN [1, 2, 3] WHERE x = 2) AS result` → true
+  - Returns true only if exactly one match and no NULLs
+  - Returns NULL if uniqueness cannot be determined (NULLs present)
+
+#### Property and Collection Testing (#209, #210)
+- **exists()** - Tests if a property exists or expression is not NULL
+  - Example: `MATCH (p:Person) WHERE exists(p.age) RETURN p.name`
+  - Evaluates before NULL propagation for accurate property checking
+  - Returns false for missing properties (NULL values are not stored)
+- **isEmpty()** - Tests if a list, string, or map is empty
+  - Example: `RETURN isEmpty([]) AS result` → true
+  - Works with lists, strings, and maps
+  - Returns NULL for NULL input (three-valued logic)
+
+### Testing
+- 57 comprehensive integration tests (34 quantifier + 23 exists/isEmpty)
+- Parametrized tests for better maintainability
+- Full coverage of NULL handling edge cases
+- All tests passing with 100% coverage on new code
+
+### Documentation
+- Updated implementation status: 55/72 functions complete (76%, +2%)
+- Predicate Functions: 6/6 (100%)
+- Detailed function signatures and examples in docs/reference/implementation-status/functions.md
+
+### Performance
+- No performance regressions
+- Efficient NULL propagation handling
+- Optimized list iteration for quantifiers
+
 ## [0.3.0] - 2026-02-09
 
 ### Added - Major Cypher Features
