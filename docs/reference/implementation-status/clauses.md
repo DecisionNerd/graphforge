@@ -13,8 +13,8 @@ Implementation status of OpenCypher query clauses in GraphForge.
 
 | Status | Count | Percentage |
 |--------|-------|------------|
-| ✅ Complete | 16 | 80% |
-| ⚠️ Partial | 1 | 5% |
+| ✅ Complete | 17 | 85% |
+| ⚠️ Partial | 0 | 0% |
 | ❌ Not Implemented | 3 | 15% |
 | **TOTAL** | **20** | **100%** |
 
@@ -323,22 +323,27 @@ Implementation status of OpenCypher query clauses in GraphForge.
 ## Subquery Clauses
 
 ### CALL { } (Subqueries)
-**Status:** ⚠️ PARTIAL
+**Status:** ✅ COMPLETE
 
 **Implementation:**
-- File: `src/graphforge/executor/executor.py:2954` (`_execute_subquery`)
-- Partial support via EXISTS and COUNT subqueries
+- File: `src/graphforge/executor/executor.py` (`_execute_call`)
+- File: `src/graphforge/planner/planner.py` (Call operator)
+- File: `src/graphforge/ast/clause.py` (CallClause)
+- Grammar: `src/graphforge/parser/cypher.lark:87-88`
 
 **Features:**
 - ✅ EXISTS subqueries
 - ✅ COUNT subqueries
-- ❌ General CALL { } syntax
-- ❌ UNION in subqueries
-- ❌ Importing variables with WITH
+- ✅ General CALL { } syntax
+- ✅ UNION and UNION ALL in subqueries
+- ✅ Correlated scoping (access outer variables)
+- ✅ Unit subqueries (1:1 cardinality preservation)
+- ✅ Nested CALL subqueries
+- ✅ Multiple CALL clauses (Cartesian product)
 
-**Test Coverage:** Partial (ExistentialSubquery1-3.feature)
+**Test Coverage:** Complete (13 integration tests in test_call_subqueries.py)
 
-**Notes:** Full CALL { } subquery syntax not yet supported. Only EXISTS() and COUNT() subquery expressions are implemented.
+**Notes:** Full CALL { } subquery support implemented in v0.3.3. Supports all query types including UNION, with proper correlated scoping and unit subquery semantics.
 
 ---
 
