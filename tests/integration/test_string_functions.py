@@ -256,3 +256,198 @@ class TestStringFunctionsCombined:
 
         assert len(results) == 1
         assert results[0]["len"].value == 15  # "Senior Engineer" without spaces
+
+
+@pytest.mark.integration
+class TestToUpperFunction:
+    """Tests for toUpper() camelCase alias of UPPER()."""
+
+    def test_toupper_basic(self, simple_graph):
+        """toUpper converts to uppercase."""
+        results = simple_graph.execute("""
+            MATCH (n:Person {name: 'Alice'})
+            RETURN toUpper(n.name) AS upper_name
+        """)
+
+        assert len(results) == 1
+        assert results[0]["upper_name"].value == "ALICE"
+
+    def test_toupper_multiple_rows(self, simple_graph):
+        """toUpper works on multiple rows."""
+        results = simple_graph.execute("""
+            MATCH (n:Person)
+            WHERE n.name = 'Alice' OR n.name = 'Bob'
+            RETURN toUpper(n.name) AS upper_name
+        """)
+
+        assert len(results) == 2
+        names = {results[0]["upper_name"].value, results[1]["upper_name"].value}
+        assert names == {"ALICE", "BOB"}
+
+    def test_toupper_with_null(self, simple_graph):
+        """toUpper with NULL returns NULL."""
+        results = simple_graph.execute("""
+            MATCH (n:Person {name: 'Alice'})
+            RETURN toUpper(n.missing) AS result
+        """)
+
+        assert len(results) == 1
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(results[0]["result"], CypherNull)
+
+    def test_toupper_in_where_clause(self, simple_graph):
+        """toUpper can be used in WHERE clause."""
+        results = simple_graph.execute("""
+            MATCH (n:Person)
+            WHERE toUpper(n.name) = 'ALICE'
+            RETURN n.name AS name
+        """)
+
+        assert len(results) == 1
+        assert results[0]["name"].value == "Alice"
+
+    def test_toupper_case_insensitive_keyword(self, simple_graph):
+        """toUpper is case-insensitive as a keyword."""
+        results = simple_graph.execute("""
+            MATCH (n:Person {name: 'Bob'})
+            RETURN TOUPPER(n.name) AS upper_name
+        """)
+
+        assert len(results) == 1
+        assert results[0]["upper_name"].value == "BOB"
+
+    def test_toupper_nested_with_trim(self, simple_graph):
+        """toUpper can be nested with other string functions."""
+        results = simple_graph.execute("""
+            MATCH (n:Person {name: 'Alice'})
+            RETURN toUpper(TRIM(n.title)) AS result
+        """)
+
+        assert len(results) == 1
+        assert results[0]["result"].value == "SENIOR ENGINEER"
+
+    def test_toupper_with_literal(self):
+        """toUpper works with string literals."""
+        gf = GraphForge()
+        results = gf.execute("RETURN toUpper('hello world') AS result")
+
+        assert len(results) == 1
+        assert results[0]["result"].value == "HELLO WORLD"
+
+
+@pytest.mark.integration
+class TestToLowerFunction:
+    """Tests for toLower() camelCase alias of LOWER()."""
+
+    def test_tolower_basic(self, simple_graph):
+        """toLower converts to lowercase."""
+        results = simple_graph.execute("""
+            MATCH (n:Person {name: 'Bob'})
+            RETURN toLower(n.name) AS lower_name
+        """)
+
+        assert len(results) == 1
+        assert results[0]["lower_name"].value == "bob"
+
+    def test_tolower_title(self, simple_graph):
+        """toLower works on title field."""
+        results = simple_graph.execute("""
+            MATCH (n:Person {name: 'Bob'})
+            RETURN toLower(n.title) AS lower_title
+        """)
+
+        assert len(results) == 1
+        assert results[0]["lower_title"].value == "junior developer"
+
+    def test_tolower_with_null(self, simple_graph):
+        """toLower with NULL returns NULL."""
+        results = simple_graph.execute("""
+            MATCH (n:Person {name: 'Bob'})
+            RETURN toLower(n.missing) AS result
+        """)
+
+        assert len(results) == 1
+        from graphforge.types.values import CypherNull
+
+        assert isinstance(results[0]["result"], CypherNull)
+
+    def test_tolower_in_where_clause(self, simple_graph):
+        """toLower can be used in WHERE clause."""
+        results = simple_graph.execute("""
+            MATCH (n:Person)
+            WHERE toLower(n.name) = 'bob'
+            RETURN n.name AS name
+        """)
+
+        assert len(results) == 1
+        assert results[0]["name"].value == "Bob"
+
+    def test_tolower_case_insensitive_keyword(self, simple_graph):
+        """toLower is case-insensitive as a keyword."""
+        results = simple_graph.execute("""
+            MATCH (n:Person {name: 'Alice'})
+            RETURN TOLOWER(n.name) AS lower_name
+        """)
+
+        assert len(results) == 1
+        assert results[0]["lower_name"].value == "alice"
+
+    def test_tolower_nested_with_substring(self, simple_graph):
+        """toLower can be nested with SUBSTRING."""
+        results = simple_graph.execute("""
+            MATCH (n:Person {name: 'Charlie Brown'})
+            RETURN SUBSTRING(toLower(n.name), 0, 7) AS result
+        """)
+
+        assert len(results) == 1
+        assert results[0]["result"].value == "charlie"
+
+    def test_tolower_with_literal(self):
+        """toLower works with string literals."""
+        gf = GraphForge()
+        results = gf.execute("RETURN toLower('HELLO WORLD') AS result")
+
+        assert len(results) == 1
+        assert results[0]["result"].value == "hello world"
+
+
+@pytest.mark.integration
+class TestToUpperToLowerInterop:
+    """Tests for toUpper/toLower interoperability with UPPER/LOWER."""
+
+    def test_toupper_matches_upper(self, simple_graph):
+        """toUpper produces same result as UPPER."""
+        results = simple_graph.execute("""
+            MATCH (n:Person {name: 'Alice'})
+            RETURN toUpper(n.name) AS camel, UPPER(n.name) AS legacy
+        """)
+
+        assert len(results) == 1
+        assert results[0]["camel"].value == results[0]["legacy"].value
+
+    def test_tolower_matches_lower(self, simple_graph):
+        """toLower produces same result as LOWER."""
+        results = simple_graph.execute("""
+            MATCH (n:Person {name: 'Alice'})
+            RETURN toLower(n.name) AS camel, LOWER(n.name) AS legacy
+        """)
+
+        assert len(results) == 1
+        assert results[0]["camel"].value == results[0]["legacy"].value
+
+    def test_toupper_then_tolower_roundtrip(self):
+        """toUpper followed by toLower returns lowercase."""
+        gf = GraphForge()
+        results = gf.execute("RETURN toLower(toUpper('Hello World')) AS result")
+
+        assert len(results) == 1
+        assert results[0]["result"].value == "hello world"
+
+    def test_tolower_then_toupper_roundtrip(self):
+        """toLower followed by toUpper returns uppercase."""
+        gf = GraphForge()
+        results = gf.execute("RETURN toUpper(toLower('Hello World')) AS result")
+
+        assert len(results) == 1
+        assert results[0]["result"].value == "HELLO WORLD"

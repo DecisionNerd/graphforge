@@ -156,7 +156,8 @@ skip_clause: "SKIP"i INT
 // Expressions
 ?expression: or_expr
 
-or_expr: and_expr ("OR"i and_expr)*
+or_expr: xor_expr ("OR"i xor_expr)*
+xor_expr: and_expr ("XOR"i and_expr)*
 and_expr: not_expr ("AND"i not_expr)*
 not_expr: "NOT"i not_expr     -> not_operation
         | comparison_expr     -> not_passthrough
@@ -176,12 +177,14 @@ COMP_OP: "=" | "<>" | "<" | ">" | "<=" | ">="
 
 // Arithmetic operators with precedence
 add_expr: mult_expr (ADD_OP mult_expr)*
-mult_expr: unary_expr (MULT_OP unary_expr)*
+mult_expr: power_expr (MULT_OP power_expr)*
+power_expr: unary_expr (POW_OP unary_expr)*
 unary_expr: "-" unary_expr  -> unary_minus
           | primary_expr    -> unary_passthrough
 
 ADD_OP: "+" | "-"
 MULT_OP: "*" | "/" | "%"
+POW_OP: "^"
 
 ?primary_expr: function_call
              | subscript
@@ -276,7 +279,7 @@ TRUE: /true/i
 FALSE: /false/i
 NULL: /null/i
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
-FUNCTION_NAME: /relationships|percentiledisc|percentilecont|localdatetime|substring|toboolean|tointeger|tofloat|tostring|truncate|datetime|localtime|duration|distance|dangerous|coalesce|collect|replace|isempty|length|minute|second|reverse|ltrim|rtrim|exists|count|month|lower|upper|point|nodes|split|stdevp|stdev|trim|year|type|date|time|hour|tail|head|last|right|left|floor|round|range|ceil|sign|day|sum|avg|min|max|abs|size|labels|id/i
+FUNCTION_NAME: /relationships|percentiledisc|percentilecont|localdatetime|substring|toboolean|tointeger|tofloat|tostring|toupper|tolower|truncate|datetime|localtime|duration|distance|dangerous|coalesce|collect|replace|isempty|length|minute|second|reverse|ltrim|rtrim|exists|count|month|lower|upper|point|nodes|split|stdevp|stdev|trim|year|type|date|time|hour|tail|head|last|right|left|floor|round|range|ceil|sign|day|sum|avg|min|max|abs|size|labels|id/i
 
 INT: /[0-9]+/
 FLOAT: /[0-9]+\.[0-9]+/

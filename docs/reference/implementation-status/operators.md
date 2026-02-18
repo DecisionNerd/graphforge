@@ -11,15 +11,15 @@ Implementation status of OpenCypher operators in GraphForge.
 | Category | Complete | Partial | Not Implemented | Total |
 |----------|----------|---------|-----------------|-------|
 | Comparison | 8 | 0 | 0 | 8 |
-| Logical | 3 | 0 | 1 | 4 |
-| Arithmetic | 5 | 0 | 1 | 6 |
+| Logical | 4 | 0 | 0 | 4 |
+| Arithmetic | 6 | 0 | 0 | 6 |
 | String | 5 | 0 | 0 | 5 |
-| List | 3 | 0 | 2 | 5 |
+| List | 5 | 0 | 0 | 5 |
 | Property | 1 | 0 | 0 | 1 |
 | Pattern | 5 | 0 | 0 | 5 |
-| **TOTAL** | **30** | **0** | **4** | **34** |
+| **TOTAL** | **34** | **0** | **0** | **34** |
 
-**Overall:** 30/34 operators (88%) complete
+**Overall:** 34/34 operators (100%) complete
 
 ---
 
@@ -87,9 +87,11 @@ Implementation status of OpenCypher operators in GraphForge.
 **Notes:** Ternary logic
 **Tests:** Boolean scenarios
 
-### XOR ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** Not yet implemented
+### XOR ✅
+**Status:** COMPLETE
+**File:** `evaluator.py`
+**Notes:** Ternary logic (NULL propagation), precedence: NOT > AND > XOR > OR
+**Tests:** tests/integration/test_xor_operator.py, tests/unit/parser/test_parser.py
 
 ---
 
@@ -121,9 +123,11 @@ Implementation status of OpenCypher operators in GraphForge.
 **File:** `evaluator.py`
 **Tests:** Mathematical scenarios
 
-### ^ (Power) ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** Exponentiation not yet implemented
+### ^ (Power) ✅
+**Status:** COMPLETE
+**File:** `evaluator.py`
+**Notes:** Right-associative (2^3^2 = 512). Highest arithmetic precedence (above *, /). int^int returns int if result is whole, else float. Supports negative and fractional exponents. NULL propagation.
+**Tests:** `tests/integration/test_power_operator.py` (39 tests)
 
 ---
 
@@ -173,13 +177,25 @@ Implementation status of OpenCypher operators in GraphForge.
 **File:** `evaluator.py`
 **Tests:** List scenarios
 
-### [start..end] (Slicing) ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** List slicing syntax not yet implemented
+### [start..end] (Slicing) ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:1458` (_evaluate_subscript)
+**Signature:** `list[start..end]`
+**Tests:** tests/integration/test_list_subscript.py (TestListSliceOperations)
+**Examples:**
+- `RETURN [1, 2, 3, 4, 5][1..3]` → `[2, 3]`
+- `RETURN [1, 2, 3][..2]` → `[1, 2]`
+- `RETURN [1, 2, 3][1..]` → `[2, 3]`
 
-### [] (Negative Indexing) ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** Negative indices not supported
+### [] (Negative Indexing) ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:1458` (_evaluate_subscript)
+**Signature:** `list[-index]` where -1 is last element, -2 is second-to-last, etc.
+**Tests:** tests/integration/test_list_subscript.py (TestListIndexAccess)
+**Examples:**
+- `RETURN [1, 2, 3][-1]` → `3` (last element)
+- `RETURN [1, 2, 3][-2]` → `2` (second-to-last)
+- `RETURN [1, 2, 3, 4, 5][-3..]` → `[3, 4, 5]` (last 3 elements)
 
 ---
 
@@ -225,23 +241,15 @@ Implementation status of OpenCypher operators in GraphForge.
 
 ### Strengths
 - All comparison operators with proper NULL handling
-- Core logical operators (AND, OR, NOT) with ternary logic
-- Complete arithmetic operators (except power)
+- All logical operators (AND, OR, XOR, NOT) with ternary logic
+- All arithmetic operators complete including power (^) with right-associativity
 - All string operators including regex matching
 - Pattern operators fully implemented
 - Property access complete
+- All list operators including slicing and negative indexing
 
 ### Limitations
-- XOR logical operator missing
-- Power (^) operator not implemented
-- List slicing syntax not implemented
-- Negative list indexing not supported
-
-### Priority for v0.4.0+
-1. **Medium**: List slicing [start..end]
-2. **Low**: Power operator (^)
-3. **Low**: XOR operator
-4. **Low**: Negative list indexing
+- None - all 34 operators fully implemented
 
 ---
 
