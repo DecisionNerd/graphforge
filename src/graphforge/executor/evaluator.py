@@ -15,6 +15,7 @@ from graphforge.ast.expression import (
     FunctionCall,
     ListComprehension,
     Literal,
+    PatternComprehension,
     PropertyAccess,
     QuantifierExpression,
     ReduceExpression,
@@ -127,6 +128,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                         FunctionCall,
                         CaseExpression,
                         ListComprehension,
+                        PatternComprehension,
                         QuantifierExpression,
                         SubqueryExpression,
                     ),
@@ -151,6 +153,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                         FunctionCall,
                         CaseExpression,
                         ListComprehension,
+                        PatternComprehension,
                         QuantifierExpression,
                         SubqueryExpression,
                     ),
@@ -551,6 +554,43 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
             items.append(result_val)
 
         return CypherList(items)
+
+    # Pattern comprehensions
+    if isinstance(expr, PatternComprehension):
+        from graphforge.ast.clause import MatchClause
+        from graphforge.ast.query import CypherQuery
+
+        # Create a temporary MATCH query from the pattern
+        match_clause = MatchClause(patterns=[expr.pattern])
+        temp_query = CypherQuery(clauses=[match_clause])
+
+        # Plan the query
+        operators = executor.planner.plan(temp_query)
+
+        # Execute pattern matching with current context
+        match_ctx = ExecutionContext()
+        match_ctx.bindings = dict(ctx.bindings)
+        match_rows = [match_ctx]
+
+        # Execute all operators to get pattern matches
+        for i, op in enumerate(operators):
+            match_rows = executor._execute_operator(op, match_rows, i, len(operators))
+
+        # Collect results
+        results: list[CypherValue] = []
+        for match_row in match_rows:
+            # Apply filter if present
+            if expr.filter_expr is not None:
+                filter_val = evaluate_expression(expr.filter_expr, match_row, executor)
+                # Skip if filter is false or NULL
+                if not (isinstance(filter_val, CypherBool) and filter_val.value):
+                    continue
+
+            # Evaluate map expression
+            result_val = evaluate_expression(expr.map_expr, match_row, executor)
+            results.append(result_val)
+
+        return CypherList(results)
 
     # FILTER expression - filter list by predicate
     if isinstance(expr, FilterExpression):

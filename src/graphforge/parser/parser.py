@@ -981,13 +981,13 @@ class ASTTransformer(Transformer):
         """Transform list literal.
 
         items can be empty (for []) or contain expressions.
-        Returns a Literal containing a Python list, or a ListComprehension if that's what was
-        parsed.
+        Returns a Literal containing a Python list, or a ListComprehension/PatternComprehension
+        if that's what was parsed.
         """
-        from graphforge.ast.expression import ListComprehension
+        from graphforge.ast.expression import ListComprehension, PatternComprehension
 
-        # Check if this is actually a list comprehension (alternative rule)
-        if len(items) == 1 and isinstance(items[0], ListComprehension):
+        # Check if this is actually a comprehension (alternative rule)
+        if len(items) == 1 and isinstance(items[0], (ListComprehension, PatternComprehension)):
             return items[0]
 
         # Filter out None values from optional expressions
@@ -1041,6 +1041,27 @@ class ASTTransformer(Transformer):
         return ListComprehension(
             variable=variable, list_expr=list_expr, filter_expr=filter_expr, map_expr=map_expr
         )
+
+    def pattern_comprehension(self, items):
+        """Transform pattern comprehension.
+
+        Syntax: [(pattern) WHERE predicate | expression]
+        items: [pattern, optional_comp_where_clause, map_expression]
+        """
+        from graphforge.ast.expression import PatternComprehension
+
+        pattern = items[0]
+        filter_expr = None
+        map_expr = items[-1]  # Last item is always the map expression
+
+        # Check for optional WHERE clause (tagged tuple from comp_where_clause)
+        for item in items[1:-1]:
+            if isinstance(item, tuple):
+                tag, expr = item
+                if tag == "WHERE":
+                    filter_expr = expr
+
+        return PatternComprehension(pattern=pattern, filter_expr=filter_expr, map_expr=map_expr)
 
     def map_literal(self, items):
         """Transform map literal.

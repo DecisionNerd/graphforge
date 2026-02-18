@@ -16,10 +16,10 @@ Implementation status of OpenCypher pattern matching features in GraphForge.
 | Path Variables | ✅ COMPLETE | Path binding supported |
 | Pattern Predicates | ✅ COMPLETE | WHERE predicates in patterns fully supported |
 | Optional Patterns | ✅ COMPLETE | OPTIONAL MATCH |
-| Pattern Comprehension | ❌ NOT_IMPLEMENTED | Not yet supported |
+| Pattern Comprehension | ✅ COMPLETE | All forms supported |
 | Multiple Patterns | ✅ COMPLETE | Comma-separated patterns |
 
-**Overall:** 7/8 pattern types complete (87.5%), 1 not implemented (12.5%)
+**Overall:** 8/8 pattern types complete (100%)
 
 ---
 
@@ -191,15 +191,24 @@ Implementation status of OpenCypher pattern matching features in GraphForge.
 
 ## Pattern Comprehension
 
-### [(pattern) WHERE condition | expression] ❌
-**Status:** NOT_IMPLEMENTED
+### [(pattern) WHERE condition | expression] ✅
+**Status:** COMPLETE
+**Grammar:** `cypher.lark:263` (pattern_comprehension rule)
+**Parser:** `parser.py:1047-1068` (pattern_comprehension transformer)
+**Evaluator:** `evaluator.py:559-591` (PatternComprehension evaluation)
+**Tests:** `tests/integration/test_pattern_comprehension.py` (15 comprehensive tests)
 
-**Notes:** Pattern comprehension syntax not yet supported. This is a complex feature requiring:
-- Pattern evaluation in expression context
-- Variable scoping
-- Result projection
+**Supported features:**
+- Simple node patterns: `[(p:Person) | p.name]`
+- Relationship patterns: `[(p)-[:KNOWS]->(f) | f.name]`
+- WITH WHERE filters: `[(p:Person) WHERE p.age > 18 | p.name]`
+- Complex expressions: `[(p:Person) | p.age * 2]`
+- Nested in RETURN, WHERE, WITH clauses
+- Multiple pattern comprehensions in one query
+- Correlated variables from outer scope
+- NULL property handling
 
-**Priority:** Medium for v0.4.0+
+**Notes:** Full pattern comprehension support implemented. Pattern matching is executed for each input row, with results collected into a list. All 15 integration tests passing.
 
 ---
 
@@ -224,11 +233,11 @@ Implementation status of OpenCypher pattern matching features in GraphForge.
 - **Full relationship support**: All directions, types, and properties
 - **Variable-length paths**: All quantifier forms with proper termination
 - **Path variables**: Binding and path function support
+- **Pattern predicates**: Complete WHERE predicate support in patterns
+- **Pattern comprehensions**: Full support for pattern-based list operations
 - **OPTIONAL patterns**: Complete NULL-handling outer join semantics
 
 ### Limitations
-- **Pattern comprehensions**: Not implemented (complex feature)
-- **Pattern predicates**: Partial support, needs completion
 - **Quantified path patterns**: New GQL spec feature not yet in OpenCypher
 
 ### Implementation Quality
@@ -238,9 +247,7 @@ Implementation status of OpenCypher pattern matching features in GraphForge.
 - **Tests**: Extensive TCK coverage for all pattern types
 
 ### Priority for v0.4.0+
-1. **High**: Complete pattern predicate support (WHERE in patterns)
-2. **Medium**: Pattern comprehension implementation
-3. **Low**: Quantified path patterns (new GQL spec)
+1. **Low**: Quantified path patterns (new GQL spec)
 
 ---
 
@@ -248,7 +255,7 @@ Implementation status of OpenCypher pattern matching features in GraphForge.
 - **v0.1.0**: Basic node and relationship patterns
 - **v0.2.0**: Variable-length paths, path variables
 - **v0.3.0**: OPTIONAL MATCH, pattern predicates (partial), multiple patterns
-- **v0.4.0** (in progress): Pattern predicate improvements, TCK coverage
+- **v0.3.3**: Pattern predicates (complete), pattern comprehension (complete)
 
 ---
 

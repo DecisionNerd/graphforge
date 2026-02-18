@@ -255,9 +255,12 @@ property: IDENTIFIER ":" expression
         | map_literal
 
 list_literal: list_comprehension
+            | pattern_comprehension
             | "[" [expression ("," expression)*] "]"
 
 list_comprehension: "[" variable "IN"i expression comp_where_clause? comp_map_clause? "]"
+
+pattern_comprehension: "[" pattern comp_where_clause? "|" expression "]"
 
 comp_where_clause: "WHERE"i expression
 comp_map_clause: "|" expression

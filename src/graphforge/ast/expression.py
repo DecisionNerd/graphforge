@@ -297,6 +297,24 @@ class ListComprehension(BaseModel):
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
+class PatternComprehension(BaseModel):
+    """Pattern comprehension for transforming graph pattern matches.
+
+    Syntax: [(pattern) WHERE predicate | expression]
+
+    Examples:
+        [(p:Person) | p.name]
+        [(p)-[:KNOWS]->(f) | f.name]
+        [(p)-[:KNOWS]->(f) WHERE f.age > 18 | f.name]
+    """
+
+    pattern: Any = Field(..., description="Graph pattern to match")
+    filter_expr: Any | None = Field(default=None, description="Optional WHERE filter")
+    map_expr: Any = Field(..., description="Transformation expression")
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
 class FilterExpression(BaseModel):
     """Filter expression: filter(var IN list WHERE predicate).
 
