@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-02-17
+
+### Added - List Operations (100% Complete)
+
+#### List Operation Functions (#198, #199, #200)
+- **filter()** - Filter lists by predicate
+  - Example: `RETURN filter(x IN [1,2,3,4,5] WHERE x > 3) AS result` → [4, 5]
+  - NULL list returns NULL, NULL items excluded
+  - Variable binding with proper scoping
+- **extract()** - Map transformations over lists
+  - Example: `RETURN extract(x IN [1,2,3] | x * 2) AS result` → [2, 4, 6]
+  - NULL list returns NULL, NULL items processed normally
+  - Supports complex expressions and property access
+- **reduce()** - Fold/reduce with accumulator
+  - Example: `RETURN reduce(sum = 0, x IN [1,2,3,4] | sum + x) AS result` → 10
+  - Dual variable binding (accumulator + loop variable)
+  - Empty list returns initial value
+
+### Implementation
+- Added three AST nodes: FilterExpression, ExtractExpression, ReduceExpression
+- Grammar rules for all three expressions in cypher.lark
+- Parser transformers with Pydantic validation
+- Evaluator handlers with proper NULL handling and variable scoping
+- Treated as special syntax (like list comprehensions) due to variable binding
+
+### Testing
+- 42 comprehensive integration tests
+- Full coverage of edge cases (empty lists, NULL handling, variable shadowing)
+- Composition and nesting tests
+- All tests passing with 100% coverage on new code
+
+### Documentation
+- Updated implementation status: 58/72 functions complete (81%, +4%)
+- List Functions: 8/8 (100%)
+
 ## [0.3.1] - 2026-02-17
 
 ### Added - Predicate Functions (100% Complete)
