@@ -14,12 +14,12 @@ Implementation status of OpenCypher pattern matching features in GraphForge.
 | Relationship Patterns | ✅ COMPLETE | Direction, types, properties |
 | Variable-Length Paths | ✅ COMPLETE | All quantifier forms |
 | Path Variables | ✅ COMPLETE | Path binding supported |
-| Pattern Predicates | ⚠️ PARTIAL | WHERE in patterns, missing full support |
+| Pattern Predicates | ✅ COMPLETE | WHERE predicates in patterns fully supported |
 | Optional Patterns | ✅ COMPLETE | OPTIONAL MATCH |
 | Pattern Comprehension | ❌ NOT_IMPLEMENTED | Not yet supported |
 | Multiple Patterns | ✅ COMPLETE | Comma-separated patterns |
 
-**Overall:** 6/8 pattern types complete (75%), 1 partial (12.5%), 1 not implemented (12.5%)
+**Overall:** 7/8 pattern types complete (87.5%), 1 not implemented (12.5%)
 
 ---
 
@@ -158,14 +158,24 @@ Implementation status of OpenCypher pattern matching features in GraphForge.
 
 ## Pattern Predicates
 
-### Inline WHERE (WHERE r.weight > 5) ⚠️
-**Status:** PARTIAL
-**Grammar:** `cypher.lark:119`
-**Implementation:** Basic WHERE in patterns supported
-**Missing:** Complex predicates, proper scoping
-**Tests:** Pattern predicate scenarios
+### Inline WHERE (WHERE r.weight > 5) ✅
+**Status:** COMPLETE
+**Grammar:** `cypher.lark:119` (pattern_where rule)
+**Parser:** `parser.py:481-484` (RelationshipPattern.predicate field)
+**Executor:** `executor.py:617-622` (_execute_expand), `executor.py:904-918` (_execute_variable_expand)
+**Tests:** `tests/integration/test_pattern_predicates.py` (16 comprehensive tests)
 
-**Notes:** Pattern WHERE clauses are parsed but have limited evaluation support. Full spec compliance requires more work.
+**Supported features:**
+- Property comparisons (r.since > 2020)
+- Complex expressions (AND, OR, NOT)
+- Function calls in predicates (length(r.name) = 3)
+- NULL handling (predicates with missing properties)
+- Variable-length paths with predicates
+- Undirected relationships with predicates
+- Multiple patterns with different predicates
+- Combination with external WHERE clauses
+
+**Notes:** Full openCypher pattern predicate support implemented and tested. All 16 integration tests passing.
 
 ---
 
