@@ -297,6 +297,87 @@ class ListComprehension(BaseModel):
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
+class FilterExpression(BaseModel):
+    """Filter expression: filter(var IN list WHERE predicate).
+
+    Examples:
+        filter(x IN [1,2,3,4,5] WHERE x > 3) → [4, 5]
+        filter(n IN nodes WHERE n.age >= 18) → [nodes with age >= 18]
+    """
+
+    variable: str = Field(..., min_length=1, description="Loop variable name")
+    list_expr: Any = Field(..., description="Expression that evaluates to a list")
+    predicate: Any = Field(..., description="Predicate expression (WHERE clause)")
+
+    @field_validator("variable")
+    @classmethod
+    def validate_variable(cls, v: str) -> str:
+        """Validate variable name."""
+        if not v[0].isalpha() and v[0] != "_":
+            raise ValueError(f"Variable must start with letter or underscore: {v}")
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
+class ExtractExpression(BaseModel):
+    """Extract expression: extract(var IN list | expression).
+
+    Examples:
+        extract(x IN [1,2,3] | x * 2) → [2, 4, 6]
+        extract(n IN nodes | n.name) → [node names]
+    """
+
+    variable: str = Field(..., min_length=1, description="Loop variable name")
+    list_expr: Any = Field(..., description="Expression that evaluates to a list")
+    map_expr: Any = Field(..., description="Transformation expression (after |)")
+
+    @field_validator("variable")
+    @classmethod
+    def validate_variable(cls, v: str) -> str:
+        """Validate variable name."""
+        if not v[0].isalpha() and v[0] != "_":
+            raise ValueError(f"Variable must start with letter or underscore: {v}")
+        return v
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
+class ReduceExpression(BaseModel):
+    """Reduce expression: reduce(accumulator = initial, var IN list | expression).
+
+    Examples:
+        reduce(sum = 0, x IN [1,2,3] | sum + x) → 6
+        reduce(product = 1, x IN [2,3,4] | product * x) → 24
+    """
+
+    accumulator: str = Field(..., min_length=1, description="Accumulator variable name")
+    initial_expr: Any = Field(..., description="Initial value expression")
+    variable: str = Field(..., min_length=1, description="Loop variable name")
+    list_expr: Any = Field(..., description="Expression that evaluates to a list")
+    map_expr: Any = Field(..., description="Update expression (after |)")
+
+    @field_validator("accumulator", "variable")
+    @classmethod
+    def validate_variable_names(cls, v: str) -> str:
+        """Validate variable names."""
+        if not v[0].isalpha() and v[0] != "_":
+            raise ValueError(f"Variable must start with letter or underscore: {v}")
+        return v
+
+    @model_validator(mode="after")
+    def validate_distinct_variables(self) -> "ReduceExpression":
+        """Ensure accumulator and loop variable have different names."""
+        if self.accumulator == self.variable:
+            raise ValueError(
+                f"Accumulator and loop variable must have different names, "
+                f"both are '{self.accumulator}'"
+            )
+        return self
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
 class SubqueryExpression(BaseModel):
     """Subquery expression for EXISTS and COUNT.
 

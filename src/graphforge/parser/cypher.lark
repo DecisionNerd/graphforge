@@ -181,6 +181,9 @@ MULT_OP: "*" | "/" | "%"
              | exists_expr
              | count_expr
              | quantifier_expr
+             | filter_expr
+             | extract_expr
+             | reduce_expr
              | literal
              | variable
              | "(" expression ")"
@@ -192,6 +195,10 @@ quantifier_expr: "ALL"i "(" variable "IN"i expression "WHERE"i expression ")"   
                | "ANY"i "(" variable "IN"i expression "WHERE"i expression ")"     -> any_quantifier
                | "NONE"i "(" variable "IN"i expression "WHERE"i expression ")"    -> none_quantifier
                | "SINGLE"i "(" variable "IN"i expression "WHERE"i expression ")"  -> single_quantifier
+
+filter_expr: "FILTER"i "(" variable "IN"i expression "WHERE"i expression ")"
+extract_expr: "EXTRACT"i "(" variable "IN"i expression "|" expression ")"
+reduce_expr: "REDUCE"i "(" variable "=" expression "," variable "IN"i expression "|" expression ")"
 
 function_call: FUNCTION_NAME "(" function_args? ")"
 
