@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-02-18
+
+### Added - Pattern & CALL Features (Feature Completion: 88%)
+
+#### Pattern Predicates - COMPLETE (#216)
+- **Inline WHERE in patterns** - Filter relationships during pattern matching
+  - Example: `MATCH ()-[r:KNOWS WHERE r.since > 2020]->(f) RETURN f.name`
+  - Property comparisons, complex expressions (AND, OR, NOT)
+  - Function calls in predicates, NULL handling
+  - Variable-length paths with predicates
+  - Works with undirected relationships
+  - 16 comprehensive integration tests
+
+#### CALL Subqueries - COMPLETE (#189)
+- **General CALL { } subquery support** - Execute nested queries with full openCypher syntax
+  - Example: `CALL { MATCH (p:Person) RETURN p.name AS name } RETURN name`
+  - **Correlated scoping:** Access outer variables from parent query
+  - **UNION support:** CALL can contain UNION and UNION ALL queries
+  - **Unit subqueries:** Preserve 1:1 cardinality for side-effect queries
+  - **Nested CALL:** Support for CALL within CALL
+  - **Multiple CALL:** Cartesian product of multiple subqueries
+  - 13 comprehensive integration tests
+
+#### Pattern Comprehension - COMPLETE (#217)
+- **Pattern-based list operations** - Transform graph patterns into lists
+  - Example: `[(p:Person) WHERE p.age > 18 | p.name]`
+  - Simple node patterns: `[(p:Person) | p.name]`
+  - Relationship patterns: `[(p)-[:KNOWS]->(f) | f.name]`
+  - Optional WHERE filters for pattern results
+  - Complex expressions in map clause
+  - Correlated variables from outer scope
+  - Nested in RETURN, WHERE, WITH clauses
+  - NULL property handling
+  - 15 comprehensive integration tests
+
+### Implementation
+
+**AST Nodes:**
+- PatternComprehension (expression.py) - pattern, filter_expr, map_expr
+- CallClause (clause.py) - nested query support
+
+**Grammar (cypher.lark):**
+- pattern_comprehension rule with optional WHERE
+- call_clause and call_query rules
+- Pattern WHERE predicates already existed, now fully documented
+
+**Parser (parser.py):**
+- pattern_comprehension transformer
+- call_clause and call_query transformers
+- Enhanced list_literal to handle pattern comprehension
+
+**Planner (planner.py):**
+- Call operator with UNION support
+- TypeContext preservation for nested queries
+
+**Executor (executor.py, evaluator.py):**
+- _execute_call with correlated scoping and unit subquery detection
+- PatternComprehension evaluation via temporary MATCH execution
+- Pattern predicate evaluation in relationship matching (already existed)
+
+### Testing
+- 44 new integration tests (16 + 13 + 15)
+- All tests passing with 100% coverage on new code
+- TCK pass rate: ~40% (1,530 / 3,837 tests)
+
+### Documentation
+- Updated patterns.md: 100% completion (8/8 pattern types)
+- Updated clauses.md: CALL marked as COMPLETE
+- All features documented with examples and implementation references
+- Feature completion: 85% → 88% (+3 features)
+
+### Performance
+- No performance regressions
+- Pattern comprehension uses existing pattern matching infrastructure
+- CALL subqueries properly isolated with TypeContext.copy()
+
 ## [0.3.2] - 2026-02-17
 
 ### Added - List Operations (100% Complete)
