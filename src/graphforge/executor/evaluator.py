@@ -10,11 +10,14 @@ from typing import Any
 from graphforge.ast.expression import (
     BinaryOp,
     CaseExpression,
+    ExtractExpression,
+    FilterExpression,
     FunctionCall,
     ListComprehension,
     Literal,
     PropertyAccess,
     QuantifierExpression,
+    ReduceExpression,
     SubqueryExpression,
     Subscript,
     UnaryOp,
@@ -548,6 +551,90 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
             items.append(result_val)
 
         return CypherList(items)
+
+    # FILTER expression - filter list by predicate
+    if isinstance(expr, FilterExpression):
+        # Evaluate the list expression
+        list_val = evaluate_expression(expr.list_expr, ctx, executor)
+
+        # NULL list returns NULL
+        if isinstance(list_val, CypherNull):
+            return CypherNull()
+
+        # Must be a list
+        if not isinstance(list_val, CypherList):
+            raise TypeError(f"FILTER requires a list, got {type(list_val).__name__}")
+
+        filtered_items: list[CypherValue] = []
+        for item in list_val.value:
+            # Create new context with loop variable bound
+            new_ctx = ExecutionContext()
+            new_ctx.bindings = dict(ctx.bindings)
+            new_ctx.bind(expr.variable, item)
+
+            # Evaluate predicate
+            predicate_val = evaluate_expression(expr.predicate, new_ctx, executor)
+
+            # Include item only if predicate is true (NULL treated as false)
+            if isinstance(predicate_val, CypherBool) and predicate_val.value:
+                filtered_items.append(item)
+
+        return CypherList(filtered_items)
+
+    # EXTRACT expression - map transformation over list
+    if isinstance(expr, ExtractExpression):
+        # Evaluate the list expression
+        list_val = evaluate_expression(expr.list_expr, ctx, executor)
+
+        # NULL list returns NULL
+        if isinstance(list_val, CypherNull):
+            return CypherNull()
+
+        # Must be a list
+        if not isinstance(list_val, CypherList):
+            raise TypeError(f"EXTRACT requires a list, got {type(list_val).__name__}")
+
+        extracted_items: list[CypherValue] = []
+        for item in list_val.value:
+            # Create new context with loop variable bound
+            new_ctx = ExecutionContext()
+            new_ctx.bindings = dict(ctx.bindings)
+            new_ctx.bind(expr.variable, item)
+
+            # Apply map transformation
+            result_val = evaluate_expression(expr.map_expr, new_ctx, executor)
+            extracted_items.append(result_val)
+
+        return CypherList(extracted_items)
+
+    # REDUCE expression - fold/reduce with accumulator
+    if isinstance(expr, ReduceExpression):
+        # Evaluate initial value
+        accumulator_val = evaluate_expression(expr.initial_expr, ctx, executor)
+
+        # Evaluate the list expression
+        list_val = evaluate_expression(expr.list_expr, ctx, executor)
+
+        # NULL list returns NULL
+        if isinstance(list_val, CypherNull):
+            return CypherNull()
+
+        # Must be a list
+        if not isinstance(list_val, CypherList):
+            raise TypeError(f"REDUCE requires a list, got {type(list_val).__name__}")
+
+        # Iterate and update accumulator
+        for item in list_val.value:
+            # Create new context with both accumulator and loop variable bound
+            new_ctx = ExecutionContext()
+            new_ctx.bindings = dict(ctx.bindings)
+            new_ctx.bind(expr.accumulator, accumulator_val)
+            new_ctx.bind(expr.variable, item)
+
+            # Evaluate update expression
+            accumulator_val = evaluate_expression(expr.map_expr, new_ctx, executor)
+
+        return accumulator_val
 
     # Quantifier expressions (ALL, ANY, NONE, SINGLE)
     if isinstance(expr, QuantifierExpression):

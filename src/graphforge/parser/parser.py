@@ -887,6 +887,47 @@ class ASTTransformer(Transformer):
             quantifier="SINGLE", variable=variable, list_expr=items[1], predicate=items[2]
         )
 
+    def filter_expr(self, items):
+        """Transform FILTER expression.
+
+        Syntax: FILTER(x IN list WHERE predicate)
+        """
+        from graphforge.ast.expression import FilterExpression
+
+        # items[0] = variable, items[1] = list_expr, items[2] = predicate
+        variable = items[0].name if hasattr(items[0], "name") else str(items[0])
+        return FilterExpression(variable=variable, list_expr=items[1], predicate=items[2])
+
+    def extract_expr(self, items):
+        """Transform EXTRACT expression.
+
+        Syntax: EXTRACT(x IN list | expression)
+        """
+        from graphforge.ast.expression import ExtractExpression
+
+        # items[0] = variable, items[1] = list_expr, items[2] = map_expr
+        variable = items[0].name if hasattr(items[0], "name") else str(items[0])
+        return ExtractExpression(variable=variable, list_expr=items[1], map_expr=items[2])
+
+    def reduce_expr(self, items):
+        """Transform REDUCE expression.
+
+        Syntax: REDUCE(accumulator = initial, x IN list | expression)
+        """
+        from graphforge.ast.expression import ReduceExpression
+
+        # items[0] = accumulator, items[1] = initial_expr,
+        # items[2] = variable, items[3] = list_expr, items[4] = map_expr
+        accumulator = items[0].name if hasattr(items[0], "name") else str(items[0])
+        variable = items[2].name if hasattr(items[2], "name") else str(items[2])
+        return ReduceExpression(
+            accumulator=accumulator,
+            initial_expr=items[1],
+            variable=variable,
+            list_expr=items[3],
+            map_expr=items[4],
+        )
+
     def variable(self, items):
         """Transform variable reference."""
         return Variable(name=self._get_token_value(items[0]))
