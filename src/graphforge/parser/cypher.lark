@@ -26,7 +26,7 @@ writing_clause: create_clause
 with_query: with_clause+ final_query_part
 
 // Single-part queries (without WITH)
-single_part_query: read_query | write_query | update_query | unwind_query | return_only_query | reading_only_query
+single_part_query: read_query | write_query | update_query | unwind_query | call_query | return_only_query | reading_only_query
 
 // Reading-only query: multiple reading clauses followed by RETURN
 reading_only_query: reading_clause reading_clause+ where_clause? return_clause order_by_clause? skip_clause? limit_clause?
@@ -37,6 +37,7 @@ final_query_part: read_query
                 | write_query
                 | update_query
                 | unwind_query
+                | call_query
 
 return_only_query: return_clause order_by_clause? skip_clause? limit_clause?
 
@@ -57,10 +58,15 @@ unwind_query: unwind_clause+ where_clause? return_clause? order_by_clause? skip_
             | unwind_clause+ where_clause? create_clause return_clause?
             | unwind_clause+ match_clause where_clause? return_clause? order_by_clause? skip_clause? limit_clause?
 
+call_query: call_clause+ where_clause? return_clause? order_by_clause? skip_clause? limit_clause?
+          | call_clause+ where_clause? create_clause return_clause?
+          | call_clause+ match_clause where_clause? return_clause? order_by_clause? skip_clause? limit_clause?
+
 // Reading clauses that can precede WITH
 reading_clause: match_clause where_clause?
               | optional_match_clause where_clause?
               | unwind_clause
+              | call_clause
 
 // WITH clause
 with_clause: "WITH"i DISTINCT_KW? return_item ("," return_item)* where_clause? order_by_clause? skip_clause? limit_clause?
@@ -76,6 +82,9 @@ create_clause: "CREATE"i pattern ("," pattern)*
 
 // UNWIND clause
 unwind_clause: "UNWIND"i expression "AS"i variable
+
+// CALL clause for subqueries
+call_clause: "CALL"i "{" query "}"
 
 // SET clause
 set_clause: "SET"i set_item ("," set_item)*

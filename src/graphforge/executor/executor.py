@@ -336,6 +336,11 @@ class QueryExecutor:
         if isinstance(op, Union):
             return self._execute_union(op, input_rows)
 
+        from graphforge.planner.operators import Call
+
+        if isinstance(op, Call):
+            return self._execute_call(op, input_rows)
+
         if isinstance(op, Subquery):
             return self._execute_subquery(op, input_rows)
 
@@ -2951,27 +2956,76 @@ class QueryExecutor:
 
         return all_results
 
-    def _execute_subquery(
-        self, op: Subquery, input_rows: list[ExecutionContext]
-    ) -> list[ExecutionContext]:
-        """Execute Subquery operator.
+    def _execute_call(self, op, input_rows: list[ExecutionContext]) -> list[ExecutionContext]:
+        """Execute Call operator (for CALL { } subqueries).
 
-        Executes a nested query pipeline for each input row, typically for
-        EXISTS or COUNT subquery expressions.
+        Executes a nested query pipeline for each input row, with variable scoping:
+        - Correlated: Subquery inherits outer scope bindings and can return new variables
+        - Used for CALL { } clauses that produce rows
 
         Args:
-            op: Subquery operator with nested pipeline
+            op: Call operator with nested pipeline
             input_rows: Input execution contexts (outer query context)
 
         Returns:
-            Input contexts unchanged (subquery results are evaluated in expression context)
+            Execution contexts with combined bindings from outer and inner queries
         """
-        # NOTE: This is a placeholder implementation.
-        # In practice, subqueries are typically evaluated as part of expressions
-        # (e.g., WHERE EXISTS {...}) rather than as standalone operators.
-        # The actual evaluation logic should be in evaluator.py when processing
-        # subquery expressions.
+        from graphforge.planner.operators import Aggregate, Union
 
-        # For now, just pass through input rows
-        # Real implementation will be in evaluator.py when we add subquery expression support
+        result = []
+
+        # Detect if this is a unit subquery (no Project/Aggregate/Union)
+        # Unit subqueries produce exactly 1 row per input (execute side effects only)
+        is_unit_subquery = not any(
+            isinstance(nested_op, (Project, Aggregate, Union)) for nested_op in op.operators
+        )
+
+        for outer_ctx in input_rows:
+            # Create subquery context with inherited bindings (correlated subquery)
+            sub_ctx = ExecutionContext()
+            sub_ctx.bindings = dict(outer_ctx.bindings)
+
+            # Execute nested query pipeline
+            sub_rows = [sub_ctx]
+            for i, nested_op in enumerate(op.operators):
+                sub_rows = self._execute_operator(nested_op, sub_rows, i, len(op.operators))
+
+            if is_unit_subquery:
+                # Unit subquery: always produce exactly 1 output row per input row
+                # (Ignore sub_rows cardinality - just preserve outer bindings)
+                combined_ctx = ExecutionContext()
+                combined_ctx.bindings = dict(outer_ctx.bindings)
+                result.append(combined_ctx)
+            else:
+                # Row-producing subquery: merge each sub_row with outer bindings
+                # Dict from Project: merge returned columns into outer scope
+                # ExecutionContext (non-unit): preserve cardinality
+                for sub_row in sub_rows:
+                    combined_ctx = ExecutionContext()
+                    if isinstance(sub_row, dict):
+                        # Dict from Project - merge returned columns into outer bindings
+                        combined_ctx.bindings = {**outer_ctx.bindings, **sub_row}
+                    else:
+                        # ExecutionContext (no RETURN) - preserve outer bindings only
+                        combined_ctx.bindings = dict(outer_ctx.bindings)
+                    result.append(combined_ctx)
+
+        return result
+
+    def _execute_subquery(
+        self, _op: Subquery, input_rows: list[ExecutionContext]
+    ) -> list[ExecutionContext]:
+        """Execute Subquery operator (for EXISTS/COUNT expressions).
+
+        NOTE: This is a placeholder - subqueries are evaluated in expression context
+        via evaluator.py, not as standalone operators.
+
+        Args:
+            _op: Subquery operator with nested pipeline (unused - placeholder)
+            input_rows: Input execution contexts
+
+        Returns:
+            Input contexts unchanged
+        """
+        # Subqueries are evaluated as expressions, not operators
         return input_rows

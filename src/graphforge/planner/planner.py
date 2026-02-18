@@ -6,6 +6,7 @@ This module converts parsed AST into executable logical plans.
 from typing import Any
 
 from graphforge.ast.clause import (
+    CallClause,
     CreateClause,
     DeleteClause,
     LimitClause,
@@ -26,6 +27,7 @@ from graphforge.ast.pattern import Direction, NodePattern, RelationshipPattern
 from graphforge.ast.query import CypherQuery
 from graphforge.planner.operators import (
     Aggregate,
+    Call,
     Create,
     Delete,
     ExpandEdges,
@@ -39,6 +41,7 @@ from graphforge.planner.operators import (
     Set,
     Skip,
     Sort,
+    Union,
     Unwind,
     With,
 )
@@ -105,6 +108,7 @@ class QueryPlanner:
         match_clauses = []
         optional_match_clauses = []
         unwind_clauses = []
+        call_clauses = []
         create_clauses = []
         merge_clauses = []
         set_clause = None
@@ -123,6 +127,8 @@ class QueryPlanner:
                 optional_match_clauses.append(clause)
             elif isinstance(clause, UnwindClause):
                 unwind_clauses.append(clause)
+            elif isinstance(clause, CallClause):
+                call_clauses.append(clause)
             elif isinstance(clause, CreateClause):
                 create_clauses.append(clause)
             elif isinstance(clause, MergeClause):
@@ -147,7 +153,7 @@ class QueryPlanner:
         # Build operators in execution order
         operators = []
 
-        # 1. Process reading clauses (MATCH, OPTIONAL MATCH, UNWIND) in order
+        # 1. Process reading clauses (MATCH, OPTIONAL MATCH, UNWIND, CALL) in order
         # This is important because UNWIND may depend on variables from MATCH, or vice versa
         for clause in clauses:
             if isinstance(clause, MatchClause):
@@ -156,6 +162,31 @@ class QueryPlanner:
                 operators.extend(self._plan_optional_match(clause))
             elif isinstance(clause, UnwindClause):
                 operators.append(Unwind(expression=clause.expression, variable=clause.variable))
+            elif isinstance(clause, CallClause):
+                # CALL clause executes a nested query - plan it recursively
+                # Save type context before planning nested query (self.plan resets it)
+                from graphforge.ast.query import UnionQuery
+
+                saved_type_context = self._type_context.copy()
+
+                try:
+                    if isinstance(clause.query, UnionQuery):
+                        # Handle UNION inside CALL: plan each branch and wrap in Union operator
+                        branch_operators = []
+                        for branch_ast in clause.query.branches:
+                            branch_ops = self.plan(branch_ast)
+                            branch_operators.append(branch_ops)
+
+                        union_op = Union(branches=branch_operators, all=clause.query.all)
+                        nested_operators = [union_op]
+                    else:
+                        # Regular query
+                        nested_operators = self.plan(clause.query)
+
+                    operators.append(Call(operators=nested_operators))
+                finally:
+                    # Restore outer type context so later clauses keep original type bindings
+                    self._type_context = saved_type_context
 
         # 3. CREATE
         for create in create_clauses:

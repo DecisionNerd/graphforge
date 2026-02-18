@@ -207,6 +207,10 @@ class ASTTransformer(Transformer):
         """Transform unwind query (UNWIND with optional clauses)."""
         return CypherQuery(clauses=list(items))
 
+    def call_query(self, items):
+        """Transform call query (CALL with optional clauses)."""
+        return CypherQuery(clauses=list(items))
+
     def reading_only_query(self, items):
         """Transform reading-only query (multiple reading clauses + RETURN)."""
         # Flatten reading_clause lists
@@ -318,6 +322,13 @@ class ASTTransformer(Transformer):
         expression = items[0]
         variable = items[1]
         return UnwindClause(expression=expression, variable=variable.name)
+
+    def call_clause(self, items):
+        """Transform CALL clause."""
+        # items: [query]
+        from graphforge.ast.clause import CallClause
+
+        return CallClause(query=items[0])
 
     def where_clause(self, items):
         """Transform WHERE clause."""
