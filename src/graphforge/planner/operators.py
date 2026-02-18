@@ -555,6 +555,26 @@ class Union(BaseModel):
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
+class Call(BaseModel):
+    """Operator for CALL { } subqueries.
+
+    Executes a nested query pipeline and returns rows with combined bindings from
+    outer and inner scopes (correlated subquery).
+
+    Example:
+        MATCH (p:Person)
+        CALL { MATCH (p)-[:KNOWS]->(f) RETURN f }
+        RETURN p.name, f.name
+
+    Attributes:
+        operators: List of operators in the subquery pipeline
+    """
+
+    operators: list[Any] = Field(..., min_length=1, description="Nested query pipeline")
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
+
 class Subquery(BaseModel):
     """Operator for subquery expressions (EXISTS, COUNT, etc.).
 

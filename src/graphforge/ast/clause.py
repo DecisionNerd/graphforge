@@ -11,6 +11,7 @@ This module defines the major query clauses:
 - UnwindClause: UNWIND list expansion
 - WhereClause: WHERE predicates
 - ReturnClause: RETURN projections
+- CallClause: CALL subqueries
 - WithClause: WITH query chaining
 - LimitClause: LIMIT row count
 - SkipClause: SKIP offset
@@ -279,6 +280,24 @@ class OrderByClause(BaseModel):
     items: list[OrderByItem] = Field(..., min_length=1, description="List of OrderByItems")
 
     model_config = {"frozen": True}
+
+
+class CallClause(BaseModel):
+    """CALL clause for general subqueries.
+
+    The CALL clause executes a subquery and returns its results, optionally
+    importing variables from the outer scope. Unlike EXISTS/COUNT expressions,
+    CALL can execute arbitrary queries including UNION.
+
+    Examples:
+        CALL { MATCH (p:Person) RETURN p.name }
+        CALL { MATCH (p) RETURN p UNION MATCH (c) RETURN c }
+        MATCH (p:Person) CALL { MATCH (p)-[:KNOWS]->(f) RETURN f }
+    """
+
+    query: Any = Field(..., description="Nested query (CypherQuery AST, can include UNION)")
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
 
 class WithClause(BaseModel):
