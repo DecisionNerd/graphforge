@@ -666,6 +666,89 @@ class GraphForge:
         # Clear any custom functions registered on the executor
         self.executor.custom_functions.clear()
 
+    def clone(self) -> "GraphForge":
+        """Create a deep copy of this GraphForge instance.
+
+        Creates a new GraphForge instance with an independent copy of the graph
+        data (nodes, edges, properties), but shares the parser, planner, and
+        executor infrastructure for efficiency.
+
+        Returns:
+            GraphForge: A new instance with copied graph state
+
+        Raises:
+            RuntimeError: If the instance has been closed or uses persistent storage
+
+        Examples:
+            >>> gf = GraphForge()
+            >>> gf.execute("CREATE (:Person {name: 'Alice'})")
+            >>> clone = gf.clone()
+            >>> clone.execute("CREATE (:Person {name: 'Bob'})")
+            >>> # Original has 1 node, clone has 2 nodes
+            >>> gf.execute("MATCH (n) RETURN count(n) AS c")[0]['c'].value
+            1
+            >>> clone.execute("MATCH (n) RETURN count(n) AS c")[0]['c'].value
+            2
+        """
+        from collections import defaultdict
+        import copy
+
+        if self._closed:
+            raise RuntimeError("Cannot clone a closed GraphForge instance")
+
+        if self.backend is not None:
+            raise RuntimeError(
+                "Cannot clone GraphForge instances with persistent storage. "
+                "Use in-memory instances only (GraphForge() without path)."
+            )
+
+        # Create new instance with same configuration
+        cloned = GraphForge(
+            enable_optimizer=self.optimizer is not None,
+        )
+
+        # Manually copy graph state (deepcopy doesn't work well with defaultdicts)
+        cloned.graph._nodes = copy.deepcopy(self.graph._nodes)
+        cloned.graph._edges = copy.deepcopy(self.graph._edges)
+
+        # Copy adjacency lists
+        cloned.graph._outgoing = defaultdict(list)
+        for node_id, edges in self.graph._outgoing.items():
+            cloned.graph._outgoing[node_id] = copy.deepcopy(edges)
+
+        cloned.graph._incoming = defaultdict(list)
+        for node_id, edges in self.graph._incoming.items():
+            cloned.graph._incoming[node_id] = copy.deepcopy(edges)
+
+        # Copy indexes
+        cloned.graph._label_index = defaultdict(set)
+        for label, node_ids in self.graph._label_index.items():
+            cloned.graph._label_index[label] = copy.copy(node_ids)
+
+        cloned.graph._type_index = defaultdict(set)
+        for edge_type, edge_ids in self.graph._type_index.items():
+            cloned.graph._type_index[edge_type] = copy.copy(edge_ids)
+
+        # Copy statistics
+        cloned.graph._statistics = copy.deepcopy(self.graph._statistics)
+
+        # Copy ID counters
+        cloned._next_node_id = self._next_node_id
+        cloned._next_edge_id = self._next_edge_id
+
+        # Copy transaction state (should be False/None in typical usage)
+        cloned._in_transaction = self._in_transaction
+        cloned._transaction_snapshot = (
+            copy.deepcopy(self._transaction_snapshot)
+            if self._transaction_snapshot
+            else None
+        )
+
+        # Note: Custom functions are NOT copied (executors are shared)
+        # This is intentional for TCK use case where custom functions aren't used
+
+        return cloned
+
     def _load_graph_from_backend(self) -> Graph:
         """Load graph from SQLite backend.
 
