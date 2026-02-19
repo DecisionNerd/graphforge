@@ -124,6 +124,45 @@ jobs:
       - name: Run bandit security scanner
         run: uv run bandit -c pyproject.toml -r src/
 
+  tck-regression:
+    name: TCK OpenCypher Compliance
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run TCK tests (parallel)
+        run: uv run pytest tests/tck/ -n auto -v --junitxml=test-results-tck.xml
+
+      - name: Upload TCK results to Codecov
+        uses: codecov/codecov-action@v5
+        if: always()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: test-results-tck.xml
+          flags: tck-compliance
+          report_type: test_results
+          fail_ci_if_error: false
+
+      - name: Upload TCK results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tck-test-results
+          path: test-results-tck.xml
+
   coverage:
     name: Coverage Report
     runs-on: ubuntu-latest
