@@ -690,9 +690,6 @@ class GraphForge:
             >>> clone.execute("MATCH (n) RETURN count(n) AS c")[0]['c'].value
             2
         """
-        from collections import defaultdict
-        import copy
-
         if self._closed:
             raise RuntimeError("Cannot clone a closed GraphForge instance")
 
@@ -701,6 +698,9 @@ class GraphForge:
                 "Cannot clone GraphForge instances with persistent storage. "
                 "Use in-memory instances only (GraphForge() without path)."
             )
+
+        from collections import defaultdict  # type: ignore[unreachable]
+        import copy
 
         # Create new instance with same configuration
         cloned = GraphForge(
