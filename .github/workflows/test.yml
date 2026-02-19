@@ -153,11 +153,16 @@ jobs:
         run: |
           # Extract and report pass/fail counts for tracking
           if [ -f test-results-tck.xml ]; then
-            PASSED=$(grep -c 'testcase.*passed' test-results-tck.xml || echo 0)
-            FAILED=$(grep -c 'testcase.*failed' test-results-tck.xml || echo 0)
+            # Parse pytest JUnit XML format
             TOTAL=$(grep -c '<testcase' test-results-tck.xml || echo 0)
+            FAILED=$(grep -c '<failure' test-results-tck.xml || echo 0)
+            ERRORS=$(grep -c '<error' test-results-tck.xml || echo 0)
+            SKIPPED=$(grep -c '<skipped' test-results-tck.xml || echo 0)
 
-            if [ $TOTAL -gt 0 ]; then
+            # Calculate passed (total - failures - errors - skipped)
+            PASSED=$((TOTAL - FAILED - ERRORS - SKIPPED))
+
+            if [ "$TOTAL" -gt 0 ]; then
               PASS_RATE=$((PASSED * 100 / TOTAL))
               echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
               echo "📊 OpenCypher TCK Compliance Report"
