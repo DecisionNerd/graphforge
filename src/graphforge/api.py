@@ -263,24 +263,14 @@ class GraphForge:
         if isinstance(ast, UnionQuery):
             # Handle UNION query: plan and optimize each branch separately
             branch_operators = []
-            # Get statistics once for all branches
-            stats = self.graph.get_statistics()
-            # Create optimizer once for all branches
-            optimizer_with_stats = None
+            # Update optimizer statistics for cost-based optimization
             if self.optimizer:
-                optimizer_with_stats = QueryOptimizer(
-                    enable_filter_pushdown=self.optimizer.enable_filter_pushdown,
-                    enable_join_reorder=self.optimizer.enable_join_reorder,
-                    enable_predicate_reorder=self.optimizer.enable_predicate_reorder,
-                    enable_redundant_elimination=self.optimizer.enable_redundant_elimination,
-                    enable_aggregate_pushdown=self.optimizer.enable_aggregate_pushdown,
-                    statistics=stats,
-                )
+                self.optimizer.update_statistics(self.graph.get_statistics())
             for branch_ast in ast.branches:
                 branch_ops = self.planner.plan(branch_ast)
-                # Optimize each branch independently with statistics
-                if optimizer_with_stats:
-                    branch_ops = optimizer_with_stats.optimize(branch_ops)
+                # Optimize each branch independently
+                if self.optimizer:
+                    branch_ops = self.optimizer.optimize(branch_ops)
                 branch_operators.append(branch_ops)
 
             # Create Union operator
@@ -294,18 +284,8 @@ class GraphForge:
 
             # Optimize query plan with current graph statistics
             if self.optimizer:
-                # Get current statistics for cost-based optimization
-                stats = self.graph.get_statistics()
-                # Create optimizer with statistics
-                optimizer_with_stats = QueryOptimizer(
-                    enable_filter_pushdown=self.optimizer.enable_filter_pushdown,
-                    enable_join_reorder=self.optimizer.enable_join_reorder,
-                    enable_predicate_reorder=self.optimizer.enable_predicate_reorder,
-                    enable_redundant_elimination=self.optimizer.enable_redundant_elimination,
-                    enable_aggregate_pushdown=self.optimizer.enable_aggregate_pushdown,
-                    statistics=stats,
-                )
-                operators = optimizer_with_stats.optimize(operators)
+                self.optimizer.update_statistics(self.graph.get_statistics())
+                operators = self.optimizer.optimize(operators)
 
         # Execute
         results = self.executor.execute(operators)
@@ -646,6 +626,45 @@ class GraphForge:
 
             self.backend.close()
             self._closed = True
+
+    def clear(self) -> None:
+        """Clear all graph data, resetting to an empty state.
+
+        Resets the graph, internal ID counters, and transaction state without
+        recreating the parser, planner, optimizer, or executor. This allows
+        reusing a GraphForge instance for a new workload with zero parsing
+        overhead.
+
+        Raises:
+            RuntimeError: If the instance has been closed
+
+        Examples:
+            >>> gf = GraphForge()
+            >>> gf.execute("CREATE (:Person {name: 'Alice'})")
+            >>> results = gf.execute("MATCH (n) RETURN count(n) AS c")
+            >>> results[0]['c'].value
+            1
+            >>> gf.clear()
+            >>> results = gf.execute("MATCH (n) RETURN count(n) AS c")
+            >>> results[0]['c'].value
+            0
+        """
+        if self._closed:
+            raise RuntimeError("GraphForge instance has been closed")
+
+        # Reset graph data
+        self.graph.clear()
+
+        # Reset ID counters
+        self._next_node_id = 1
+        self._next_edge_id = 1
+
+        # Reset transaction state
+        self._in_transaction = False
+        self._transaction_snapshot = None
+
+        # Clear any custom functions registered on the executor
+        self.executor.custom_functions.clear()
 
     def _load_graph_from_backend(self) -> Graph:
         """Load graph from SQLite backend.
