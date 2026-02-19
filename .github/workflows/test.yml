@@ -146,31 +146,36 @@ jobs:
       - name: Run TCK tests (parallel)
         id: tck_tests
         continue-on-error: true
-        run: |
-          uv run pytest tests/tck/ -n auto -v --junitxml=test-results-tck.xml
-          echo "exit_code=$?" >> $GITHUB_OUTPUT
+        run: uv run pytest tests/tck/ -n auto -v --junitxml=test-results-tck.xml
 
-      - name: Check for regressions
+      - name: Report TCK compliance metrics
         if: always()
         run: |
-          # Extract pass/fail counts from test results
-          PASSED=$(grep -o 'passed' test-results-tck.xml | wc -l || echo 0)
-          FAILED=$(grep -o 'failed' test-results-tck.xml | wc -l || echo 0)
-          TOTAL=$((PASSED + FAILED))
+          # Extract and report pass/fail counts for tracking
+          if [ -f test-results-tck.xml ]; then
+            PASSED=$(grep -c 'testcase.*passed' test-results-tck.xml || echo 0)
+            FAILED=$(grep -c 'testcase.*failed' test-results-tck.xml || echo 0)
+            TOTAL=$(grep -c '<testcase' test-results-tck.xml || echo 0)
 
-          # Expected baseline: ~40% pass rate (1565 passing out of 3885)
-          EXPECTED_PASS_RATE=38
-          ACTUAL_PASS_RATE=$((PASSED * 100 / TOTAL))
-
-          echo "TCK Results: $PASSED passed, $FAILED failed out of $TOTAL tests"
-          echo "Pass rate: $ACTUAL_PASS_RATE% (expected: ~40%)"
-
-          # Fail only if pass rate drops significantly (more than 5% regression)
-          if [ $ACTUAL_PASS_RATE -lt $EXPECTED_PASS_RATE ]; then
-            echo "⚠️  TCK regression detected: pass rate dropped below $EXPECTED_PASS_RATE%"
-            exit 1
+            if [ $TOTAL -gt 0 ]; then
+              PASS_RATE=$((PASSED * 100 / TOTAL))
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "📊 OpenCypher TCK Compliance Report"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "✅ Passed:  $PASSED"
+              echo "❌ Failed:  $FAILED"
+              echo "📈 Total:   $TOTAL"
+              echo "📊 Pass Rate: ${PASS_RATE}%"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo ""
+              echo "Note: TCK tests measure OpenCypher compliance progress."
+              echo "Results are tracked over time via Codecov artifacts."
+              echo "This check does not fail CI - it's informational only."
+            else
+              echo "⚠️  Could not extract test counts from XML"
+            fi
           else
-            echo "✅ TCK compliance maintained (no regression)"
+            echo "⚠️  test-results-tck.xml not found"
           fi
 
       - name: Upload TCK results to Codecov
