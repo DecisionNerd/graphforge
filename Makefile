@@ -1,4 +1,4 @@
-.PHONY: help lint format type-check security test pre-push clean
+.PHONY: help lint format type-check security test pre-push clean test-tck test-tck-parallel
 
 help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -26,6 +26,12 @@ test-unit:  ## Run unit tests only
 
 test-integration:  ## Run integration tests only
 	uv run pytest tests/integration -v
+
+test-tck:  ## Run TCK compliance tests
+	uv run pytest tests/tck/ -v
+
+test-tck-parallel:  ## Run TCK tests in parallel (requires pytest-xdist)
+	uv run pytest tests/tck/ -n auto -v
 
 coverage:  ## Run tests with coverage measurement
 	@echo "Running tests with coverage..."
