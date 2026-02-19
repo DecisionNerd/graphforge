@@ -153,23 +153,29 @@ jobs:
         run: |
           # Extract and report pass/fail counts for tracking
           if [ -f test-results-tck.xml ]; then
-            # Parse pytest JUnit XML format
-            TOTAL=$(grep -c '<testcase' test-results-tck.xml || echo 0)
-            FAILED=$(grep -c '<failure' test-results-tck.xml || echo 0)
-            ERRORS=$(grep -c '<error' test-results-tck.xml || echo 0)
-            SKIPPED=$(grep -c '<skipped' test-results-tck.xml || echo 0)
+            # Parse pytest JUnit XML format - ensure variables are integers
+            TOTAL=$(grep -c '<testcase' test-results-tck.xml 2>/dev/null || echo "0")
+            FAILED=$(grep -c '<failure' test-results-tck.xml 2>/dev/null || echo "0")
+            ERRORS=$(grep -c '<error' test-results-tck.xml 2>/dev/null || echo "0")
+            SKIPPED=$(grep -c '<skipped' test-results-tck.xml 2>/dev/null || echo "0")
+
+            # Ensure all are treated as integers
+            TOTAL=${TOTAL:-0}
+            FAILED=${FAILED:-0}
+            ERRORS=${ERRORS:-0}
+            SKIPPED=${SKIPPED:-0}
 
             # Calculate passed (total - failures - errors - skipped)
             PASSED=$((TOTAL - FAILED - ERRORS - SKIPPED))
 
-            if [ "$TOTAL" -gt 0 ]; then
+            if [ "${TOTAL}" -gt 0 ]; then
               PASS_RATE=$((PASSED * 100 / TOTAL))
               echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
               echo "📊 OpenCypher TCK Compliance Report"
               echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-              echo "✅ Passed:  $PASSED"
-              echo "❌ Failed:  $FAILED"
-              echo "📈 Total:   $TOTAL"
+              echo "✅ Passed:  ${PASSED}"
+              echo "❌ Failed:  ${FAILED}"
+              echo "📈 Total:   ${TOTAL}"
               echo "📊 Pass Rate: ${PASS_RATE}%"
               echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
               echo ""
@@ -177,7 +183,7 @@ jobs:
               echo "Results are tracked over time via Codecov artifacts."
               echo "This check does not fail CI - it's informational only."
             else
-              echo "⚠️  Could not extract test counts from XML"
+              echo "⚠️  Could not extract test counts from XML (TOTAL=${TOTAL})"
             fi
           else
             echo "⚠️  test-results-tck.xml not found"
