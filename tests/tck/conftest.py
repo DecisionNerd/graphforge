@@ -77,9 +77,7 @@ def _named_graph_cache():
     for graph_name, graph_config in named_graphs.items():
         script_path = Path(__file__).parent / graph_config["script"]
         if not script_path.exists():
-            raise FileNotFoundError(
-                f"Named graph '{graph_name}': script not found: {script_path}"
-            )
+            raise FileNotFoundError(f"Named graph '{graph_name}': script not found: {script_path}")
         cypher_script = script_path.read_text()
         gf = GraphForge()
         gf.execute(cypher_script)

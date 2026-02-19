@@ -756,6 +756,7 @@ class GraphForge:
         Returns:
             Graph instance populated with nodes and edges from database
         """
+        assert self.backend is not None
         graph = Graph()
 
         # Load all nodes
@@ -793,6 +794,7 @@ class GraphForge:
 
     def _save_graph_to_backend(self):
         """Save graph to SQLite backend."""
+        assert self.backend is not None
         # Save all nodes
         for node in self.graph.get_all_nodes():
             self.backend.save_node(node)

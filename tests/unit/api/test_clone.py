@@ -199,9 +199,7 @@ class TestCloneIdCounters:
         cloned = gf.clone()
 
         # Use a node that belongs to the clone, not the original
-        alice_in_clone = cloned.execute(
-            "MATCH (n:Person {name: 'Alice'}) RETURN n"
-        )[0]["n"]
+        alice_in_clone = cloned.execute("MATCH (n:Person {name: 'Alice'}) RETURN n")[0]["n"]
         charlie = cloned.create_node(["Person"], name="Charlie")
         new_edge = cloned.create_relationship(alice_in_clone, charlie, "KNOWS")
         assert new_edge.id == 2
