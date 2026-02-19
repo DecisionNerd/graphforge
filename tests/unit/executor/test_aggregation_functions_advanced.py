@@ -22,7 +22,7 @@ class TestPercentileDiscFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNpercentileDisc(v.num, 0.5) AS median
+            RETURN percentileDisc(v.num, 0.5) AS median
             """
         )
         assert len(results) == 1
@@ -39,7 +39,7 @@ class TestPercentileDiscFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNpercentileDisc(v.num, 0.0) AS min_val
+            RETURN percentileDisc(v.num, 0.0) AS min_val
             """
         )
         assert results[0]["min_val"].value == 10.0
@@ -54,7 +54,7 @@ class TestPercentileDiscFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNpercentileDisc(v.num, 1.0) AS max_val
+            RETURN percentileDisc(v.num, 1.0) AS max_val
             """
         )
         assert results[0]["max_val"].value == 30.0
@@ -82,7 +82,7 @@ class TestPercentileDiscFunction:
         results = gf.execute(
             """
             MATCH (v:NonExistent)
-            RETURNpercentileDisc(v.num, 0.5) AS result
+            RETURN percentileDisc(v.num, 0.5) AS result
             """
         )
         # Aggregations with no matches return 1 row with NULL
@@ -99,7 +99,7 @@ class TestPercentileDiscFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNpercentileDisc(v.num, 0.5) AS median
+            RETURN percentileDisc(v.num, 0.5) AS median
             """
         )
         # Should only consider 1 and 2
@@ -114,7 +114,7 @@ class TestPercentileDiscFunction:
             gf.execute(
                 """
                 MATCH (v:Value)
-                RETURNpercentileDisc(v.num, 1.5) AS result
+                RETURN percentileDisc(v.num, 1.5) AS result
                 """
             )
 
@@ -127,7 +127,7 @@ class TestPercentileDiscFunction:
             gf.execute(
                 """
                 MATCH (v:Value)
-                RETURNpercentileDisc(v.num, -0.1) AS result
+                RETURN percentileDisc(v.num, -0.1) AS result
                 """
             )
 
@@ -139,7 +139,7 @@ class TestPercentileDiscFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNpercentileDisc(v.num, null) AS result
+            RETURN percentileDisc(v.num, null) AS result
             """
         )
         assert results[0]["result"].value is None
@@ -157,7 +157,7 @@ class TestPercentileContFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNpercentileCont(v.num, 0.5) AS median
+            RETURN percentileCont(v.num, 0.5) AS median
             """
         )
         # For [1,2,3,4,5], median is exactly 3.0
@@ -172,7 +172,7 @@ class TestPercentileContFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNpercentileCont(v.num, 0.5) AS median
+            RETURN percentileCont(v.num, 0.5) AS median
             """
         )
         # For [1,2,3,4], position = 0.5 * 3 = 1.5
@@ -189,7 +189,7 @@ class TestPercentileContFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNpercentileCont(v.num, 0.25) AS p25
+            RETURN percentileCont(v.num, 0.25) AS p25
             """
         )
         # position = 0.25 * 3 = 0.75
@@ -223,7 +223,7 @@ class TestPercentileContFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNpercentileCont(v.num, 0.95) AS p95
+            RETURN percentileCont(v.num, 0.95) AS p95
             """
         )
         # Should be close to 95 (with some interpolation)
@@ -246,7 +246,7 @@ class TestStDevFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNstDev(v.num) AS std
+            RETURN stDev(v.num) AS std
             """
         )
         expected = math.sqrt(20 / 3)
@@ -260,7 +260,7 @@ class TestStDevFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNstDev(v.num) AS std
+            RETURN stDev(v.num) AS std
             """
         )
         assert results[0]["std"].value is None
@@ -274,7 +274,7 @@ class TestStDevFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNstDev(v.num) AS std
+            RETURN stDev(v.num) AS std
             """
         )
         # Mean = 15, variance = [(10-15)^2 + (20-15)^2] / 1 = 50
@@ -293,7 +293,7 @@ class TestStDevFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNstDev(v.num) AS std
+            RETURN stDev(v.num) AS std
             """
         )
         # Should compute on [1, 2, 3] only
@@ -318,7 +318,7 @@ class TestStDevPFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNstDevP(v.num) AS std
+            RETURN stDevP(v.num) AS std
             """
         )
         expected = math.sqrt(5)
@@ -332,7 +332,7 @@ class TestStDevPFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNstDevP(v.num) AS std
+            RETURN stDevP(v.num) AS std
             """
         )
         # Single value has 0 deviation
@@ -347,7 +347,7 @@ class TestStDevPFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNstDev(v.num) AS sample_std,
+            RETURN stDev(v.num) AS sample_std,
                    stDevP(v.num) AS pop_std
             """
         )
@@ -363,7 +363,7 @@ class TestStDevPFunction:
         results = gf.execute(
             """
             MATCH (v:Value)
-            RETURNstDevP(v.num) AS std
+            RETURN stDevP(v.num) AS std
             """
         )
         # No variation = 0 standard deviation
@@ -384,7 +384,7 @@ class TestAggregationFunctionsWithGrouping:
         results = gf.execute(
             """
             MATCH (p:Product)
-            RETURNp.category AS category,
+            RETURN p.category AS category,
                    stDev(p.price) AS price_std
             """
         )

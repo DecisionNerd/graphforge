@@ -14,15 +14,15 @@ Implementation status of OpenCypher built-in functions in GraphForge.
 | Category | Total Functions | Complete | Partial | Not Implemented |
 |----------|----------------|----------|---------|-----------------|
 | String | 13 | 13 (100%) | 0 (0%) | 0 (0%) |
-| Numeric | 10 | 7 (70%) | 0 (0%) | 3 (30%) |
+| Numeric | 10 | 10 (100%) | 0 (0%) | 0 (0%) |
 | List | 8 | 7 (88%) | 0 (0%) | 1 (12%) |
-| Aggregation | 10 | 5 (50%) | 0 (0%) | 5 (50%) |
+| Aggregation | 10 | 9 (90%) | 0 (0%) | 1 (10%) |
 | Predicate | 6 | 6 (100%) | 0 (0%) | 0 (0%) |
 | Scalar | 9 | 8 (89%) | 0 (0%) | 1 (11%) |
 | Temporal | 11 | 11 (100%) | 0 (0%) | 0 (0%) |
 | Spatial | 2 | 2 (100%) | 0 (0%) | 0 (0%) |
 | Path | 3 | 3 (100%) | 0 (0%) | 0 (0%) |
-| **TOTAL** | **72** | **58 (81%)** | **0 (0%)** | **14 (19%)** |
+| **TOTAL** | **72** | **65 (90%)** | **0 (0%)** | **7 (10%)** |
 
 ---
 
@@ -119,17 +119,26 @@ Implementation status of OpenCypher built-in functions in GraphForge.
 **Signatures:** `toInteger(value)`, `toFloat(value)`
 **Tests:** Type conversion scenarios
 
-### sqrt() ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** Not yet implemented. Simple addition, low difficulty.
+### sqrt() ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:1672`
+**Signature:** `sqrt(number)`
+**Tests:** tests/integration/test_math_functions_extended.py (TestSqrtFunction)
+**Notes:** Returns CypherFloat. Negative input returns null.
 
-### rand() ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** Random float generation. Not yet implemented.
+### rand() ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:1683`
+**Signature:** `rand()`
+**Tests:** tests/integration/test_math_functions_extended.py (TestRandFunction)
+**Notes:** Returns random CypherFloat in [0.0, 1.0).
 
-### pow() / ^ operator ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** Power/exponentiation operator not implemented.
+### pow() ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:1690`
+**Signature:** `pow(base, exponent)`
+**Tests:** tests/integration/test_math_functions_extended.py (TestPowFunction)
+**Notes:** Exponentiation function, consistent with ^ operator. Returns CypherInt for int^int with non-negative exponent when result is whole.
 
 ---
 
@@ -211,13 +220,19 @@ Implementation status of OpenCypher built-in functions in GraphForge.
 **Signature:** `collect(expression)`
 **Tests:** Aggregation scenarios
 
-### percentileDisc(), percentileCont() ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** Percentile calculations. Not yet implemented.
+### percentileDisc(), percentileCont() ✅
+**Status:** COMPLETE
+**File:** `src/graphforge/executor/executor.py` (aggregation logic)
+**Signatures:** `percentileDisc(expression, percentile)`, `percentileCont(expression, percentile)`
+**Tests:** tests/unit/executor/test_aggregation_functions_advanced.py, tests/integration/test_aggregation_functions_advanced.py
+**Notes:** Discrete and continuous percentile calculations. NULL values ignored. Percentile must be between 0.0 and 1.0.
 
-### stDev(), stDevP() ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** Standard deviation calculations. Not yet implemented.
+### stDev(), stDevP() ✅
+**Status:** COMPLETE
+**File:** `src/graphforge/executor/executor.py` (aggregation logic)
+**Signatures:** `stDev(expression)`, `stDevP(expression)`
+**Tests:** tests/unit/executor/test_aggregation_functions_advanced.py, tests/integration/test_aggregation_functions_advanced.py
+**Notes:** Sample (stDev) and population (stDevP) standard deviation. NULL values ignored. stDev returns NULL for single value, stDevP returns 0.
 
 ---
 
@@ -408,20 +423,15 @@ All temporal functions are ✅ COMPLETE with comprehensive support added in v0.3
 3. **Core string/numeric/list functions**: Most commonly used functions implemented
 4. **Type conversions**: Complete conversion functions (toString, toInteger, toFloat, toBoolean)
 5. **Aggregations**: Essential aggregations (count, sum, avg, min, max, collect)
+6. **Statistical aggregations**: percentileDisc, percentileCont, stDev, stDevP (v0.3.5)
 
 ### Limitations
 
-1. **Statistical aggregations**: percentile and standard deviation functions missing
-2. **List operations**: extract(), filter(), reduce() not implemented
-3. **Mathematical functions**: sqrt(), rand(), pow() missing
+1. **List operations**: extract(), filter(), reduce() not implemented
 
 ### Recommended Priority for v0.4.0+
 
-1. **High**: sqrt() - common mathematical operation
-2. **Medium**: Statistical aggregations (percentileDisc, percentileCont, stDev)
-3. **Medium**: List operations (extract, filter, reduce)
-4. **Low**: rand() - useful but low priority
-5. **Low**: pow() - can use alternative approaches
+1. **Medium**: List operations (extract, filter, reduce)
 
 ---
 
