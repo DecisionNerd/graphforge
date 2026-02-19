@@ -1,5 +1,7 @@
 """pytest-bdd configuration for TCK tests."""
 
+import threading
+
 import pytest
 from pytest_bdd import given, parsers, then, when
 
@@ -14,53 +16,127 @@ from graphforge.types.values import (
 )
 
 
+class NamedGraphNotFoundError(ValueError):
+    """Raised when a named graph is not in the session cache."""
+
+
+class _InstancePool:
+    """Thread-safe pool of reusable GraphForge instances.
+
+    Maintains a pool of pre-initialized GraphForge instances so that TCK
+    scenarios can reuse parser/planner/executor objects instead of paying
+    the full initialization cost each time.
+    """
+
+    def __init__(self):
+        self._pool: list[GraphForge] = []
+        self._lock = threading.Lock()
+
+    def acquire(self) -> GraphForge:
+        """Get a cleared GraphForge instance from the pool, or create one."""
+        with self._lock:
+            instance = self._pool.pop() if self._pool else None
+        if instance is not None:
+            try:
+                instance.clear()
+                return instance
+            except RuntimeError:
+                pass  # Closed or persistent — discard and fall through
+        return GraphForge()
+
+    def release(self, instance: GraphForge) -> None:
+        """Return a GraphForge instance to the pool for reuse."""
+        if getattr(instance, "_closed", False):
+            return
+        with self._lock:
+            self._pool.append(instance)
+
+
+@pytest.fixture(scope="session")
+def _gf_pool():
+    """Session-scoped GraphForge instance pool."""
+    return _InstancePool()
+
+
+@pytest.fixture(scope="session")
+def _named_graph_cache():
+    """Session-scoped cache of pre-loaded named graphs.
+
+    Loads all named graphs once from tck_config.yaml and caches them
+    for the entire test session. Tests clone from this cache instead
+    of re-loading from disk every time.
+    """
+    from pathlib import Path
+
+    import yaml
+
+    cache = {}
+
+    # Load TCK config
+    config_path = Path(__file__).parent / "tck_config.yaml"
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+
+    # Pre-load all named graphs
+    named_graphs = config.get("named_graphs", {})
+    for graph_name, graph_config in named_graphs.items():
+        script_path = Path(__file__).parent / graph_config["script"]
+        if not script_path.exists():
+            raise FileNotFoundError(f"Named graph '{graph_name}': script not found: {script_path}")
+        cypher_script = script_path.read_text()
+        gf = GraphForge()
+        gf.execute(cypher_script)
+        cache[graph_name] = gf
+
+    return cache
+
+
 @pytest.fixture
-def tck_context():
+def tck_context(_gf_pool):
     """Context for TCK test execution.
 
     Maintains graph instance and query results across steps.
+    Uses instance pooling: borrows a cleared instance from the session pool,
+    and returns it after the test completes.
     """
-    return {
+    ctx = {
         "graph": None,
         "result": None,
         "side_effects": [],
+        "_pool": _gf_pool,
     }
+    yield ctx
+    # Return instance to pool after the test
+    if ctx["graph"] is not None:
+        _gf_pool.release(ctx["graph"])
 
 
 @given("an empty graph", target_fixture="tck_context")
 def empty_graph(tck_context):
-    """Initialize an empty GraphForge instance."""
-    tck_context["graph"] = GraphForge()
+    """Initialize an empty GraphForge instance from the pool."""
+    tck_context["graph"] = tck_context["_pool"].acquire()
     tck_context["result"] = None
     tck_context["side_effects"] = []
     return tck_context
 
 
 @given(parsers.parse("the {graph_name} graph"), target_fixture="tck_context")
-def named_graph(tck_context, graph_name):
-    """Load a predefined named graph from TCK graphs directory."""
-    from pathlib import Path
+def named_graph(tck_context, graph_name, _named_graph_cache):
+    """Load a predefined named graph from the session cache.
 
-    import yaml
+    Instead of loading from disk and executing Cypher every time,
+    this clones a pre-loaded graph from the session-scoped cache.
+    This eliminates file I/O and Cypher execution overhead for
+    ~10-20% of TCK scenarios that use named graphs.
+    """
+    # Get cached graph
+    if graph_name not in _named_graph_cache:
+        raise NamedGraphNotFoundError(f"Named graph '{graph_name}' not found in cache")
 
-    # Load TCK config to find graph script
-    config_path = Path(__file__).parent / "tck_config.yaml"
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
+    cached_graph = _named_graph_cache[graph_name]
 
-    # Get graph script path
-    graph_config = config.get("named_graphs", {}).get(graph_name)
-    if not graph_config:
-        raise ValueError(f"Named graph '{graph_name}' not found in tck_config.yaml")
-
-    script_path = Path(__file__).parent / graph_config["script"]
-    if not script_path.exists():
-        raise FileNotFoundError(f"Graph script not found: {script_path}")
-
-    # Load and execute graph creation script
-    cypher_script = script_path.read_text()
-    tck_context["graph"] = GraphForge()
-    tck_context["graph"].execute(cypher_script)
+    # Clone from cache instead of loading from disk
+    tck_context["graph"] = cached_graph.clone()
     tck_context["result"] = None
     tck_context["side_effects"] = []
     return tck_context
@@ -68,8 +144,8 @@ def named_graph(tck_context, graph_name):
 
 @given("any graph", target_fixture="tck_context")
 def any_graph(tck_context):
-    """Create an arbitrary graph (test doesn't depend on initial state)."""
-    tck_context["graph"] = GraphForge()
+    """Create an arbitrary graph from the pool (test doesn't depend on initial state)."""
+    tck_context["graph"] = tck_context["_pool"].acquire()
     tck_context["result"] = None
     tck_context["side_effects"] = []
     return tck_context

@@ -3,6 +3,8 @@
 This module provides the main public interface for GraphForge.
 """
 
+from collections import defaultdict
+import copy
 import datetime
 from pathlib import Path
 from typing import Any
@@ -158,6 +160,7 @@ class GraphForge:
                 raise ValueError("Path cannot be empty or whitespace only")
 
         # Initialize storage backend
+        self.backend: SQLiteBackend | None
         if path:
             # Use SQLite for persistence
             self.backend = SQLiteBackend(Path(path))
@@ -167,7 +170,7 @@ class GraphForge:
             self._next_edge_id = self.backend.get_next_edge_id()
         else:
             # Use in-memory storage
-            self.backend = None  # type: ignore[assignment]
+            self.backend = None
             self.graph = Graph()
             self._next_node_id = 1
             self._next_edge_id = 1
@@ -263,24 +266,14 @@ class GraphForge:
         if isinstance(ast, UnionQuery):
             # Handle UNION query: plan and optimize each branch separately
             branch_operators = []
-            # Get statistics once for all branches
-            stats = self.graph.get_statistics()
-            # Create optimizer once for all branches
-            optimizer_with_stats = None
+            # Update optimizer statistics for cost-based optimization
             if self.optimizer:
-                optimizer_with_stats = QueryOptimizer(
-                    enable_filter_pushdown=self.optimizer.enable_filter_pushdown,
-                    enable_join_reorder=self.optimizer.enable_join_reorder,
-                    enable_predicate_reorder=self.optimizer.enable_predicate_reorder,
-                    enable_redundant_elimination=self.optimizer.enable_redundant_elimination,
-                    enable_aggregate_pushdown=self.optimizer.enable_aggregate_pushdown,
-                    statistics=stats,
-                )
+                self.optimizer.update_statistics(self.graph.get_statistics())
             for branch_ast in ast.branches:
                 branch_ops = self.planner.plan(branch_ast)
-                # Optimize each branch independently with statistics
-                if optimizer_with_stats:
-                    branch_ops = optimizer_with_stats.optimize(branch_ops)
+                # Optimize each branch independently
+                if self.optimizer:
+                    branch_ops = self.optimizer.optimize(branch_ops)
                 branch_operators.append(branch_ops)
 
             # Create Union operator
@@ -294,18 +287,8 @@ class GraphForge:
 
             # Optimize query plan with current graph statistics
             if self.optimizer:
-                # Get current statistics for cost-based optimization
-                stats = self.graph.get_statistics()
-                # Create optimizer with statistics
-                optimizer_with_stats = QueryOptimizer(
-                    enable_filter_pushdown=self.optimizer.enable_filter_pushdown,
-                    enable_join_reorder=self.optimizer.enable_join_reorder,
-                    enable_predicate_reorder=self.optimizer.enable_predicate_reorder,
-                    enable_redundant_elimination=self.optimizer.enable_redundant_elimination,
-                    enable_aggregate_pushdown=self.optimizer.enable_aggregate_pushdown,
-                    statistics=stats,
-                )
-                operators = optimizer_with_stats.optimize(operators)
+                self.optimizer.update_statistics(self.graph.get_statistics())
+                operators = self.optimizer.optimize(operators)
 
         # Execute
         results = self.executor.execute(operators)
@@ -647,12 +630,141 @@ class GraphForge:
             self.backend.close()
             self._closed = True
 
+    def clear(self) -> None:
+        """Clear all graph data, resetting to an empty state.
+
+        Resets the graph, internal ID counters, and transaction state without
+        recreating the parser, planner, optimizer, or executor. This allows
+        reusing a GraphForge instance for a new workload with zero parsing
+        overhead.
+
+        Raises:
+            RuntimeError: If the instance has been closed
+
+        Examples:
+            >>> gf = GraphForge()
+            >>> gf.execute("CREATE (:Person {name: 'Alice'})")
+            >>> results = gf.execute("MATCH (n) RETURN count(n) AS c")
+            >>> results[0]['c'].value
+            1
+            >>> gf.clear()
+            >>> results = gf.execute("MATCH (n) RETURN count(n) AS c")
+            >>> results[0]['c'].value
+            0
+        """
+        if self._closed:
+            raise RuntimeError("GraphForge instance has been closed")
+
+        if self.backend is not None:
+            if self._in_transaction:
+                self.backend.rollback()
+            raise RuntimeError(
+                "Cannot clear a GraphForge instance with persistent storage. "
+                "Use in-memory instances only (GraphForge() without path)."
+            )
+
+        # Reset graph data
+        self.graph.clear()
+
+        # Reset ID counters
+        self._next_node_id = 1
+        self._next_edge_id = 1
+
+        # Reset transaction state
+        self._in_transaction = False
+        self._transaction_snapshot = None
+
+        # Clear any custom functions registered on the executor
+        self.executor.custom_functions.clear()
+
+    def clone(self) -> "GraphForge":
+        """Create a deep copy of this GraphForge instance.
+
+        Creates a new GraphForge instance with a deep copy of graph state
+        (nodes, edges, properties, indexes, ID counters) and fresh
+        CypherParser, QueryPlanner, QueryOptimizer, and QueryExecutor
+        instances.  Only the compiled Lark grammar is shared, via the
+        module-level ``@lru_cache`` on ``_get_lark_parser``.
+
+        Returns:
+            GraphForge: A new instance with copied graph state
+
+        Raises:
+            RuntimeError: If the instance has been closed or uses persistent storage
+
+        Examples:
+            >>> gf = GraphForge()
+            >>> gf.execute("CREATE (:Person {name: 'Alice'})")
+            >>> clone = gf.clone()
+            >>> clone.execute("CREATE (:Person {name: 'Bob'})")
+            >>> # Original has 1 node, clone has 2 nodes
+            >>> gf.execute("MATCH (n) RETURN count(n) AS c")[0]['c'].value
+            1
+            >>> clone.execute("MATCH (n) RETURN count(n) AS c")[0]['c'].value
+            2
+        """
+        if self._closed:
+            raise RuntimeError("Cannot clone a closed GraphForge instance")
+
+        if self.backend is not None:
+            raise RuntimeError(
+                "Cannot clone GraphForge instances with persistent storage. "
+                "Use in-memory instances only (GraphForge() without path)."
+            )
+
+        # Create new instance with same configuration
+        cloned = GraphForge(
+            enable_optimizer=self.optimizer is not None,
+        )
+
+        # Manually copy graph state (deepcopy doesn't work well with defaultdicts)
+        cloned.graph._nodes = copy.deepcopy(self.graph._nodes)
+        cloned.graph._edges = copy.deepcopy(self.graph._edges)
+
+        # Copy adjacency lists
+        cloned.graph._outgoing = defaultdict(list)
+        for node_id, edges in self.graph._outgoing.items():
+            cloned.graph._outgoing[node_id] = copy.deepcopy(edges)
+
+        cloned.graph._incoming = defaultdict(list)
+        for node_id, edges in self.graph._incoming.items():
+            cloned.graph._incoming[node_id] = copy.deepcopy(edges)
+
+        # Copy indexes
+        cloned.graph._label_index = defaultdict(set)
+        for label, node_ids in self.graph._label_index.items():
+            cloned.graph._label_index[label] = copy.copy(node_ids)
+
+        cloned.graph._type_index = defaultdict(set)
+        for edge_type, edge_ids in self.graph._type_index.items():
+            cloned.graph._type_index[edge_type] = copy.copy(edge_ids)
+
+        # Copy statistics
+        cloned.graph._statistics = copy.deepcopy(self.graph._statistics)
+
+        # Copy ID counters
+        cloned._next_node_id = self._next_node_id
+        cloned._next_edge_id = self._next_edge_id
+
+        # Copy transaction state (should be False/None in typical usage)
+        cloned._in_transaction = self._in_transaction
+        cloned._transaction_snapshot = (
+            copy.deepcopy(self._transaction_snapshot) if self._transaction_snapshot else None
+        )
+
+        # Note: Custom functions are intentionally NOT copied. Each clone gets
+        # its own executor instance; custom functions must be re-registered on
+        # the clone if needed.
+
+        return cloned
+
     def _load_graph_from_backend(self) -> Graph:
         """Load graph from SQLite backend.
 
         Returns:
             Graph instance populated with nodes and edges from database
         """
+        assert self.backend is not None
         graph = Graph()
 
         # Load all nodes
@@ -690,6 +802,7 @@ class GraphForge:
 
     def _save_graph_to_backend(self):
         """Save graph to SQLite backend."""
+        assert self.backend is not None
         # Save all nodes
         for node in self.graph.get_all_nodes():
             self.backend.save_node(node)

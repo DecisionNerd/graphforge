@@ -23,7 +23,7 @@ coverage:
   range: "70...95"                     # Coverage range (red to green)
 
 comment:
-  layout: "header, diff, flags, components, footer"
+  layout: "header, diff, flags, components, footer, tests"
   behavior: default                    # Comment on every PR
   require_changes: false               # Always comment, even if no changes
 
@@ -32,6 +32,8 @@ flags:
     paths:
       - src/
     carryforward: true                 # Use previous coverage if job fails
+  tck-compliance:
+    carryforward: true                 # Show previous TCK results if job skipped
 
 component_management:
   individual_components:

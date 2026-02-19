@@ -59,6 +59,8 @@ make test
 # Run specific categories
 make test-unit           # Fast unit tests only
 make test-integration    # Integration tests only
+make test-tck            # TCK compliance tests
+make test-tck-parallel   # TCK tests in parallel (faster, uses all CPU cores)
 
 # Run with coverage reporting
 make coverage            # Run tests + generate coverage reports

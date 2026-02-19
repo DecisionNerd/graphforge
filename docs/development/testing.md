@@ -346,6 +346,9 @@ pytest tests/unit/test_data_model.py::test_node_ref_equality
 # Run in parallel (with pytest-xdist)
 pytest -n auto
 
+# Run TCK tests in parallel (recommended for large TCK suite)
+make test-tck-parallel   # or: pytest tests/tck/ -n auto
+
 # Run with verbose output
 pytest -vv
 

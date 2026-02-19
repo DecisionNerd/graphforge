@@ -4,6 +4,7 @@ This module provides the main parser interface that converts openCypher query
 strings into AST representations using Lark and custom transformers.
 """
 
+from functools import lru_cache
 from pathlib import Path
 
 from lark import Lark, Token, Transformer
@@ -40,6 +41,21 @@ from graphforge.ast.expression import (
 )
 from graphforge.ast.pattern import Direction, NodePattern, RelationshipPattern
 from graphforge.ast.query import CypherQuery
+
+
+@lru_cache(maxsize=1)
+def _get_lark_parser():
+    """Get cached Lark parser instance.
+
+    The grammar is compiled once on first call and reused across
+    all CypherParser instances, avoiding redundant compilation overhead.
+
+    Returns:
+        Lark: Compiled grammar parser instance
+    """
+    grammar_path = Path(__file__).parent / "cypher.lark"
+    with grammar_path.open() as f:
+        return Lark(f.read(), start="query", parser="earley")
 
 
 class ASTTransformer(Transformer):
@@ -1128,9 +1144,7 @@ class CypherParser:
 
     def __init__(self):
         """Initialize parser with grammar and transformer."""
-        grammar_path = Path(__file__).parent / "cypher.lark"
-        with grammar_path.open() as f:
-            self._lark = Lark(f.read(), start="query", parser="earley")
+        self._lark = _get_lark_parser()
         self._transformer = ASTTransformer()
 
     def parse(self, query: str) -> CypherQuery:

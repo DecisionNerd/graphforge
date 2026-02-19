@@ -73,6 +73,17 @@ class QueryOptimizer:
         self._max_orderings = max_orderings
         self._predicate_analysis = PredicateAnalysis()
 
+    def update_statistics(self, statistics: GraphStatistics | None) -> None:
+        """Update graph statistics for cost-based optimization.
+
+        This allows reusing the optimizer instance across multiple queries
+        while keeping statistics current with the graph state.
+
+        Args:
+            statistics: Updated graph statistics, or None to clear
+        """
+        self._statistics = statistics
+
     def optimize(self, operators: list[Any]) -> list[Any]:
         """Apply optimization passes to operator pipeline.
 
