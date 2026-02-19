@@ -127,7 +127,7 @@ class TestClearCustomFunctions:
     def test_clear_removes_custom_functions(self):
         """Custom functions should be cleared after clear()."""
         gf = GraphForge()
-        gf.register_function("MY_FUNC", lambda args, ctx, executor: CypherInt(42))
+        gf.register_function("MY_FUNC", lambda _args, _ctx, _executor: CypherInt(42))
 
         gf.clear()
 
