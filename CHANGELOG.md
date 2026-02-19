@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2026-02-19
+
+### Added - Math Functions (#195, #196, #197)
+- **sqrt(x)** - Square root function
+  - Returns `CypherFloat`; negative input returns `null`; null propagation
+  - Example: `RETURN sqrt(4) AS r` → `2.0`
+- **rand()** - Random float in [0.0, 1.0)
+  - Takes no arguments; returns a new `CypherFloat` each call
+  - Example: `RETURN rand() * 100 AS r`
+- **pow(base, exponent)** - Exponentiation function
+  - Consistent with `^` operator: `pow(2, 3) = 2^3 = 8`
+  - Null propagation for both arguments
+  - Example: `RETURN pow(2, 10) AS r` → `1024`
+
+### Fixed - Aggregation Function Tests (#201, #202, #203, #204)
+- Fixed ~24 syntax bugs (`RETURNfunc(` → `RETURN func(`) in aggregation test files
+- `percentileDisc()`, `percentileCont()`, `stDev()`, `stDevP()` were already implemented; tests now pass
+- Updated docs to reflect all four as COMPLETE
+
+### Added - TCK Step Definitions (#237)
+- Added 5 missing pytest-bdd step definitions unblocking ~129 previously failing TCK scenarios:
+  - `executing control query:` — alias for `executing query:`
+  - `the result should be (ignoring element order for lists):` — row comparison with sorted list values
+  - `the result should be, in order (ignoring element order for lists):` — ordered variant
+  - `parameters are:` — parses datatable, substitutes `$param` references in queries
+  - `there exists a procedure` — marked `xfail` (CALL procedures tracked for v0.3.6 in #190)
+- Extended `_parse_value()` to handle list literals like `['Foo', 'Bar']`
+- Extended `_row_to_comparable()` to handle `CypherList` values
+
+### Implementation Status Updates
+- Math functions: `sqrt`, `rand`, `pow` now COMPLETE (was NOT_IMPLEMENTED)
+- Aggregation functions: `percentileDisc`, `percentileCont`, `stDev`, `stDevP` now COMPLETE
+- TCK pass rate: +129 passing scenarios, +50 xfailed (procedure CALL)
+
 ## [0.3.4] - 2026-02-18
 
 ### Added - Power Arithmetic Operator (#213)
