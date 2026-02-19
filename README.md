@@ -52,25 +52,23 @@ Modern data science and ML workflows increasingly produce **graph-shaped data**�
 > *We are not building a database for applications.*
 > *We are building a graph execution environment for thinking.*
 
-### Latest Release: v0.3.4
+### Latest Release: v0.3.5
 
-Version 0.3.4 completes operator and string function enhancements:
+Version 0.3.5 adds math functions, fixes aggregation tests, and expands TCK coverage:
 
-- **String functions**: `toUpper()`, `toLower()` camelCase variants - Aliases for existing UPPER/LOWER functions
-- **Logical operators**: `XOR` - Exclusive OR with proper precedence (NOT > AND > XOR > OR) and NULL handling
-- **Arithmetic operators**: `^` (power/exponentiation) - Right-associative with full numeric support (negative and fractional exponents)
-- **List operations**: List slicing `[start..end]` and negative indexing `list[-1]` (already implemented, now documented)
-- **Comprehensive testing**: 79 new integration tests (18 string, 22 XOR, 39 power)
-- **Operator completion**: List operators 100% (5/5), Overall operators 94% (32/34, up from 88%)
-- **Function progress**: 56/72 functions (78%, up from 76%)
+- **New math functions**: `sqrt()`, `rand()`, `pow()` — all with null propagation and correct numeric types
+- **Aggregation functions**: `percentileDisc()`, `percentileCont()`, `stDev()`, `stDevP()` tests fixed and passing
+- **TCK step definitions**: 5 missing pytest-bdd steps added — +129 passing TCK scenarios, +50 xfailed (CALL procedures)
+- **Function progress**: 63/72 functions (88%, up from 78%)
 
 **Previous Releases**:
+- **v0.3.4**: `toUpper()`/`toLower()` aliases, `XOR` operator, `^` power operator, list slicing docs
 - **v0.3.3**: Pattern comprehensions, CALL subqueries, Pattern predicates
 - **v0.3.2**: List operations (`filter()`, `extract()`, `reduce()`)
 - **v0.3.1**: Quantifier functions (`all()`, `any()`, `none()`, `single()`), `exists()`, `isEmpty()`
 - **v0.3.0**: OPTIONAL MATCH, UNION, List comprehensions, EXISTS/COUNT subqueries, Variable-length paths, 109+ datasets
 
-**TCK Coverage**: ~38% openCypher compatibility
+**TCK Coverage**: ~44% of collected scenarios passing (1,694 / 3,885)
 
 See [CHANGELOG.md](CHANGELOG.md) for complete release notes.
 
@@ -1369,7 +1367,9 @@ GraphForge implements a **practical subset of OpenCypher** focused on common gra
 
 **Functions:**
 - String: length, substring, toUpper/toLower (both camelCase and UPPERCASE variants), trim, reverse, split, replace, left, right, ltrim, rtrim
+- Math: abs, ceil, floor, round, sign, sqrt, rand, pow
 - Type conversion: toInteger, toFloat, toString, toBoolean
+- Aggregation: count, sum, avg, min, max, collect, percentileDisc, percentileCont, stDev, stDevP
 - Spatial: point, distance
 - Temporal: date, datetime, time, duration
 - Graph: id, labels, type
@@ -1414,6 +1414,7 @@ GraphForge tracks compliance using the openCypher Technology Compatibility Kit (
 | v0.1.4 | 1,277/7,722 | 16.5% |
 | v0.2.0 | ~1,900/7,722 | ~25% |
 | v0.3.0 | ~3,000/7,722 | ~39% |
+| v0.3.5 | 1,694/3,885 collected | ~44% collected |
 | v0.4.0 (target) | ~4,250/7,722 | ~55% |
 | v0.5.0 (target) | ~5,400/7,722 | ~70% |
 | v0.6.0 (target) | ~6,300/7,722 | ~82% |
