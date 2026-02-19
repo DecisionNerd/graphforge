@@ -1,10 +1,13 @@
 """Unit tests for optimizer instance reuse and update_statistics method."""
 
+import pytest
+
 from graphforge.api import GraphForge
 from graphforge.optimizer.optimizer import QueryOptimizer
 from graphforge.optimizer.statistics import GraphStatistics
 
 
+@pytest.mark.unit
 class TestUpdateStatistics:
     """Tests for QueryOptimizer.update_statistics() method."""
 
@@ -59,6 +62,7 @@ class TestUpdateStatistics:
         assert optimizer._statistics.total_nodes == 100
 
 
+@pytest.mark.unit
 class TestOptimizerReuse:
     """Tests that GraphForge reuses the optimizer instance across queries."""
 

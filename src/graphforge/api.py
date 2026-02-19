@@ -3,6 +3,8 @@
 This module provides the main public interface for GraphForge.
 """
 
+from collections import defaultdict
+import copy
 import datetime
 from pathlib import Path
 from typing import Any
@@ -158,6 +160,7 @@ class GraphForge:
                 raise ValueError("Path cannot be empty or whitespace only")
 
         # Initialize storage backend
+        self.backend: SQLiteBackend | None
         if path:
             # Use SQLite for persistence
             self.backend = SQLiteBackend(Path(path))
@@ -167,7 +170,7 @@ class GraphForge:
             self._next_edge_id = self.backend.get_next_edge_id()
         else:
             # Use in-memory storage
-            self.backend = None  # type: ignore[assignment]
+            self.backend = None
             self.graph = Graph()
             self._next_node_id = 1
             self._next_edge_id = 1
@@ -669,9 +672,11 @@ class GraphForge:
     def clone(self) -> "GraphForge":
         """Create a deep copy of this GraphForge instance.
 
-        Creates a new GraphForge instance with an independent copy of the graph
-        data (nodes, edges, properties), but shares the parser, planner, and
-        executor infrastructure for efficiency.
+        Creates a new GraphForge instance with a deep copy of graph state
+        (nodes, edges, properties, indexes, ID counters) and fresh
+        CypherParser, QueryPlanner, QueryOptimizer, and QueryExecutor
+        instances.  Only the compiled Lark grammar is shared, via the
+        module-level ``@lru_cache`` on ``_get_lark_parser``.
 
         Returns:
             GraphForge: A new instance with copied graph state
@@ -698,9 +703,6 @@ class GraphForge:
                 "Cannot clone GraphForge instances with persistent storage. "
                 "Use in-memory instances only (GraphForge() without path)."
             )
-
-        from collections import defaultdict  # type: ignore[unreachable]
-        import copy
 
         # Create new instance with same configuration
         cloned = GraphForge(
@@ -742,8 +744,9 @@ class GraphForge:
             copy.deepcopy(self._transaction_snapshot) if self._transaction_snapshot else None
         )
 
-        # Note: Custom functions are NOT copied (executors are shared)
-        # This is intentional for TCK use case where custom functions aren't used
+        # Note: Custom functions are intentionally NOT copied. Each clone gets
+        # its own executor instance; custom functions must be re-registered on
+        # the clone if needed.
 
         return cloned
 

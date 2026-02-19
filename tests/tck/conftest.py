@@ -16,6 +16,10 @@ from graphforge.types.values import (
 )
 
 
+class NamedGraphNotFoundError(ValueError):
+    """Raised when a named graph is not in the session cache."""
+
+
 class _InstancePool:
     """Thread-safe pool of reusable GraphForge instances.
 
@@ -31,10 +35,10 @@ class _InstancePool:
     def acquire(self) -> GraphForge:
         """Get a cleared GraphForge instance from the pool, or create one."""
         with self._lock:
-            if self._pool:
-                instance = self._pool.pop()
-                instance.clear()
-                return instance
+            instance = self._pool.pop() if self._pool else None
+        if instance is not None:
+            instance.clear()
+            return instance
         return GraphForge()
 
     def release(self, instance: GraphForge) -> None:
@@ -72,11 +76,14 @@ def _named_graph_cache():
     named_graphs = config.get("named_graphs", {})
     for graph_name, graph_config in named_graphs.items():
         script_path = Path(__file__).parent / graph_config["script"]
-        if script_path.exists():
-            cypher_script = script_path.read_text()
-            gf = GraphForge()
-            gf.execute(cypher_script)
-            cache[graph_name] = gf
+        if not script_path.exists():
+            raise FileNotFoundError(
+                f"Named graph '{graph_name}': script not found: {script_path}"
+            )
+        cypher_script = script_path.read_text()
+        gf = GraphForge()
+        gf.execute(cypher_script)
+        cache[graph_name] = gf
 
     return cache
 
@@ -121,7 +128,7 @@ def named_graph(tck_context, graph_name, _named_graph_cache):
     """
     # Get cached graph
     if graph_name not in _named_graph_cache:
-        raise ValueError(f"Named graph '{graph_name}' not found in cache")
+        raise NamedGraphNotFoundError(f"Named graph '{graph_name}' not found in cache")
 
     cached_graph = _named_graph_cache[graph_name]
 

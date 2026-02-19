@@ -60,21 +60,17 @@ class TestParserCaching:
         assert parser._lark is _get_lark_parser()
 
     def test_cache_info_shows_hits(self):
-        """lru_cache must report cache hits after multiple instantiations."""
-        # Clear cache to start fresh
-        _get_lark_parser.cache_clear()
+        """lru_cache must report a cache hit on every call after the first."""
+        # Snapshot before; use deltas to avoid mutating module-level state
+        # and to be independent of whether earlier tests already populated the cache.
+        _get_lark_parser()  # Ensure an entry exists
+        mid = _get_lark_parser.cache_info()
 
-        # First call compiles grammar
-        _get_lark_parser()
-        info1 = _get_lark_parser.cache_info()
-        assert info1.misses == 1
-        assert info1.hits == 0
+        _get_lark_parser()  # Must always be a cache hit
+        new = _get_lark_parser.cache_info()
 
-        # Second call should be a cache hit
-        _get_lark_parser()
-        info2 = _get_lark_parser.cache_info()
-        assert info2.misses == 1
-        assert info2.hits == 1
+        assert new.hits - mid.hits == 1
+        assert new.misses - mid.misses == 0
 
     def test_different_queries_work_with_shared_parser(self):
         """Shared parser must handle diverse query types correctly."""

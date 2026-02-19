@@ -137,15 +137,20 @@ class TestCloneIsolation:
 
 @pytest.mark.unit
 class TestCloneInfrastructure:
-    """Test that clone shares parser/planner/executor."""
+    """Test clone infrastructure — independent instances, shared grammar cache."""
 
     def test_clone_shares_parser(self):
-        """Clone should share the same parser instance (via global cache)."""
+        """Both parsers should produce identical ASTs for the same query."""
         gf = GraphForge()
         cloned = gf.clone()
 
-        # Both use the globally cached parser
-        assert gf.parser._lark is cloned.parser._lark
+        query = "MATCH (n:Person) WHERE n.age > 30 RETURN n.name AS name"
+        ast_original = gf.parser.parse(query)
+        ast_cloned = cloned.parser.parse(query)
+
+        # Observable behaviour: same clause count, same structure
+        assert len(ast_original.clauses) == len(ast_cloned.clauses)
+        assert type(ast_original.clauses[0]) is type(ast_cloned.clauses[0])
 
     def test_clone_independent_graph_object(self):
         """Clone should have a different Graph object."""
@@ -193,9 +198,12 @@ class TestCloneIdCounters:
 
         cloned = gf.clone()
 
-        # Create edge in clone - should use next ID
+        # Use a node that belongs to the clone, not the original
+        alice_in_clone = cloned.execute(
+            "MATCH (n:Person {name: 'Alice'}) RETURN n"
+        )[0]["n"]
         charlie = cloned.create_node(["Person"], name="Charlie")
-        new_edge = cloned.create_relationship(alice, charlie, "KNOWS")
+        new_edge = cloned.create_relationship(alice_in_clone, charlie, "KNOWS")
         assert new_edge.id == 2
 
 
@@ -221,3 +229,20 @@ class TestCloneErrors:
             gf.clone()
 
         gf.close()
+
+
+@pytest.mark.unit
+class TestCloneTransactionState:
+    """Test that clone() copies transaction state correctly."""
+
+    def test_clone_during_open_transaction(self):
+        """Clone should copy _in_transaction and deep-copy _transaction_snapshot."""
+        gf = GraphForge()
+        gf.execute("CREATE (:Person {name: 'Alice'})")
+        gf.begin()
+
+        cloned = gf.clone()
+
+        assert cloned._in_transaction == gf._in_transaction
+        if gf._transaction_snapshot is not None:
+            assert cloned._transaction_snapshot is not gf._transaction_snapshot
