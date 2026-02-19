@@ -66,7 +66,8 @@ Version 0.3.4 completes operator and string function enhancements:
 
 **Previous Releases**:
 - **v0.3.3**: Pattern comprehensions, CALL subqueries, Pattern predicates
-- **v0.3.2**: Quantifier functions (`all()`, `any()`, `none()`, `single()`), `exists()`, `isEmpty()`
+- **v0.3.2**: List operations (`filter()`, `extract()`, `reduce()`)
+- **v0.3.1**: Quantifier functions (`all()`, `any()`, `none()`, `single()`), `exists()`, `isEmpty()`
 - **v0.3.0**: OPTIONAL MATCH, UNION, List comprehensions, EXISTS/COUNT subqueries, Variable-length paths, 109+ datasets
 
 **TCK Coverage**: ~38% openCypher compatibility

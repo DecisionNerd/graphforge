@@ -288,22 +288,22 @@ class TestPowerEdgeCases:
 
     def test_zero_to_negative_power_returns_null(self, gf):
         """0^-1 should return NULL (division by zero)."""
-        from graphforge.types.values import CypherNull
-
         result = gf.execute("RETURN 0 ^ -1 AS result")
         assert isinstance(result[0]["result"], CypherNull)
 
-    def test_negative_base_fractional_exponent_returns_null(self, gf):
-        """(-1)^0.5 should return NULL (complex result)."""
-        from graphforge.types.values import CypherNull
-
+    def test_unary_minus_lower_precedence_than_power(self, gf):
+        """-1 ^ 0.5 parses as -(1 ^ 0.5) = -1.0, not (-1)^0.5."""
+        # With correct precedence, power binds tighter than unary minus
         result = gf.execute("RETURN -1 ^ 0.5 AS result")
+        assert result[0]["result"].value == -1.0
+
+    def test_parenthesized_negative_base_fractional_exponent_returns_null(self, gf):
+        """(-1)^0.5 should return NULL (complex result) when parenthesized."""
+        result = gf.execute("RETURN (-1) ^ 0.5 AS result")
         assert isinstance(result[0]["result"], CypherNull)
 
     def test_float_overflow_returns_null(self, gf):
         """Float overflow should return NULL (result is inf)."""
-        from graphforge.types.values import CypherNull
-
         # 10.0 ^ 1000 will overflow to inf
         result = gf.execute("RETURN 10.0 ^ 1000 AS result")
         assert isinstance(result[0]["result"], CypherNull)

@@ -5,6 +5,7 @@ CypherValue results.
 """
 
 from collections.abc import Sequence
+import math
 from typing import Any
 
 from graphforge.ast.expression import (
@@ -43,6 +44,9 @@ from graphforge.types.values import (
     CypherValue,
     from_python,
 )
+
+# Error messages
+XOR_TYPE_ERROR_MSG = "XOR requires boolean operands"
 
 
 class ExecutionContext:
@@ -306,16 +310,16 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                     if isinstance(left_val, CypherNull) and not isinstance(
                         right_val, (CypherBool, CypherNull)
                     ):
-                        raise TypeError("XOR requires boolean operands")
+                        raise TypeError(XOR_TYPE_ERROR_MSG)
                     if isinstance(right_val, CypherNull) and not isinstance(
                         left_val, (CypherBool, CypherNull)
                     ):
-                        raise TypeError("XOR requires boolean operands")
+                        raise TypeError(XOR_TYPE_ERROR_MSG)
                     return CypherNull()
 
                 # Both operands must be boolean
                 if not isinstance(left_val, CypherBool) or not isinstance(right_val, CypherBool):
-                    raise TypeError("XOR requires boolean operands")
+                    raise TypeError(XOR_TYPE_ERROR_MSG)
 
                 # XOR truth table: true XOR true = false, true XOR false = true,
                 # false XOR true = true, false XOR false = false
@@ -508,8 +512,6 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                     return CypherNull()
 
                 # Check for complex or non-finite results
-                import math
-
                 if isinstance(pow_result, complex) or (
                     isinstance(pow_result, float) and not math.isfinite(pow_result)
                 ):

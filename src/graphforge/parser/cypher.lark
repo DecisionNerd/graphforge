@@ -177,10 +177,10 @@ COMP_OP: "=" | "<>" | "<" | ">" | "<=" | ">="
 
 // Arithmetic operators with precedence
 add_expr: mult_expr (ADD_OP mult_expr)*
-mult_expr: power_expr (MULT_OP power_expr)*
-power_expr: unary_expr (POW_OP unary_expr)*
+mult_expr: unary_expr (MULT_OP unary_expr)*
 unary_expr: "-" unary_expr  -> unary_minus
-          | primary_expr    -> unary_passthrough
+          | power_expr      -> unary_passthrough
+power_expr: primary_expr (POW_OP unary_expr)*
 
 ADD_OP: "+" | "-"
 MULT_OP: "*" | "/" | "%"
