@@ -150,7 +150,7 @@ jobs:
 
       - name: Report TCK compliance metrics
         if: always()
-        run: python3 scripts/tck_metrics.py test-results-tck.xml
+        run: uv run python3 scripts/tck_metrics.py test-results-tck.xml
 
       - name: Upload TCK results to Codecov
         uses: codecov/codecov-action@v5
