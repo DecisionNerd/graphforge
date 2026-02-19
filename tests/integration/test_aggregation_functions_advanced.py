@@ -18,7 +18,7 @@ class TestAdvancedAggregationIntegration:
         results = gf.execute(
             """
             MATCH (p:Person)
-            RETURNpercentileDisc(p.age, 0.5) AS median_age
+            RETURN percentileDisc(p.age, 0.5) AS median_age
             """
         )
         assert len(results) == 1
@@ -34,7 +34,7 @@ class TestAdvancedAggregationIntegration:
         results = gf.execute(
             """
             MATCH (p:Person)
-            RETURNpercentileCont(p.age, 0.5) AS median_age
+            RETURN percentileCont(p.age, 0.5) AS median_age
             """
         )
         assert len(results) == 1
@@ -103,7 +103,7 @@ class TestAdvancedAggregationIntegration:
             """
             MATCH (i:Item)
             WHERE i.category = 'A'
-            RETURNpercentileDisc(i.value, 0.5) AS median_a
+            RETURN percentileDisc(i.value, 0.5) AS median_a
             """
         )
         # Median of [1..10] at position int(0.5*10)=5 -> 6th value

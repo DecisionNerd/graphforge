@@ -1,5 +1,6 @@
 """pytest-bdd configuration for TCK tests."""
 
+import re
 import threading
 
 import pytest
@@ -11,6 +12,7 @@ from graphforge.types.values import (
     CypherBool,
     CypherFloat,
     CypherInt,
+    CypherList,
     CypherNull,
     CypherString,
 )
@@ -103,6 +105,7 @@ def tck_context(_gf_pool):
         "graph": None,
         "result": None,
         "side_effects": [],
+        "parameters": {},
         "_pool": _gf_pool,
     }
     yield ctx
@@ -117,6 +120,7 @@ def empty_graph(tck_context):
     tck_context["graph"] = tck_context["_pool"].acquire()
     tck_context["result"] = None
     tck_context["side_effects"] = []
+    tck_context["parameters"] = {}
     return tck_context
 
 
@@ -139,6 +143,7 @@ def named_graph(tck_context, graph_name, _named_graph_cache):
     tck_context["graph"] = cached_graph.clone()
     tck_context["result"] = None
     tck_context["side_effects"] = []
+    tck_context["parameters"] = {}
     return tck_context
 
 
@@ -148,6 +153,7 @@ def any_graph(tck_context):
     tck_context["graph"] = tck_context["_pool"].acquire()
     tck_context["result"] = None
     tck_context["side_effects"] = []
+    tck_context["parameters"] = {}
     return tck_context
 
 
@@ -163,11 +169,52 @@ def execute_setup_query(tck_context, docstring):
     tck_context["graph"].execute(docstring)
 
 
+@given("parameters are:")
+def step_parameters_are(tck_context, datatable):
+    """Parse parameter datatable and store in context for query substitution.
+
+    The datatable has 2 columns (name, value) with no header row.
+    Parameters are used as $paramname in subsequent queries.
+    """
+    params = {}
+    for row in datatable:
+        if len(row) >= 2:
+            name = row[0].strip()
+            value = row[1].strip()
+            params[name] = _parse_param_value(value)
+    tck_context["parameters"] = params
+
+
+@given(parsers.re(r"there exists a procedure (?P<proc_def>.+)"))
+def step_there_exists_a_procedure(proc_def, tck_context):
+    """Placeholder for CALL procedure support (not yet implemented)."""
+    pytest.xfail("CALL procedure not implemented until v0.3.6")
+
+
+def _substitute_parameters(query: str, parameters: dict) -> str:
+    """Replace $paramname references in a query with literal values."""
+    if not parameters:
+        return query
+    for name, value in parameters.items():
+        if isinstance(value, str):
+            replacement = f"'{value}'"
+        elif isinstance(value, bool):
+            replacement = "true" if value else "false"
+        elif value is None:
+            replacement = "null"
+        else:
+            replacement = str(value)
+        # Replace $name ensuring it's not part of a longer identifier
+        query = re.sub(rf"\${re.escape(name)}(?!\w)", replacement, query)
+    return query
+
+
 @when("executing query:")
 def execute_query_colon(tck_context, docstring):
     """Execute a Cypher query and store results (with colon)."""
+    query = _substitute_parameters(docstring, tck_context.get("parameters", {}))
     try:
-        result = tck_context["graph"].execute(docstring)
+        result = tck_context["graph"].execute(query)
         tck_context["result"] = result
     except Exception as e:
         tck_context["result"] = {"error": str(e)}
@@ -176,8 +223,31 @@ def execute_query_colon(tck_context, docstring):
 @when("executing query")
 def execute_query(tck_context, docstring):
     """Execute a Cypher query and store results (without colon)."""
+    query = _substitute_parameters(docstring, tck_context.get("parameters", {}))
     try:
-        result = tck_context["graph"].execute(docstring)
+        result = tck_context["graph"].execute(query)
+        tck_context["result"] = result
+    except Exception as e:
+        tck_context["result"] = {"error": str(e)}
+
+
+@when("executing control query:")
+def execute_control_query_colon(tck_context, docstring):
+    """Execute a control query (setup/teardown verification) - with colon."""
+    query = _substitute_parameters(docstring, tck_context.get("parameters", {}))
+    try:
+        result = tck_context["graph"].execute(query)
+        tck_context["result"] = result
+    except Exception as e:
+        tck_context["result"] = {"error": str(e)}
+
+
+@when("executing control query")
+def execute_control_query(tck_context, docstring):
+    """Execute a control query (setup/teardown verification) - without colon."""
+    query = _substitute_parameters(docstring, tck_context.get("parameters", {}))
+    try:
+        result = tck_context["graph"].execute(query)
         tck_context["result"] = result
     except Exception as e:
         tck_context["result"] = {"error": str(e)}
@@ -241,6 +311,58 @@ def verify_result_in_order(tck_context, datatable):
     for i, (actual_row, expected_row) in enumerate(zip(result, expected)):
         actual_comparable = _row_to_comparable(actual_row)
         expected_comparable = _row_to_comparable(expected_row)
+        assert actual_comparable == expected_comparable, (
+            f"Row {i} mismatch: expected {expected_comparable}, got {actual_comparable}"
+        )
+
+
+@then("the result should be (ignoring element order for lists):")
+def verify_result_ignoring_list_order_colon(tck_context, datatable):
+    """Verify results match expected table, sorting list values for comparison."""
+    result = tck_context["result"]
+    expected = _parse_data_table(datatable)
+
+    assert result is not None, "No result was produced"
+    assert "error" not in result, f"Query error: {result.get('error')}"
+    assert len(result) == len(expected), f"Expected {len(expected)} rows, got {len(result)}"
+
+    actual_rows = [_row_to_comparable_ignore_list_order(row) for row in result]
+    expected_rows = [_row_to_comparable_ignore_list_order(row) for row in expected]
+
+    for exp_row in expected_rows:
+        assert exp_row in actual_rows, f"Expected row not found: {exp_row}"
+
+
+@then("the result should be (ignoring element order for lists)")
+def verify_result_ignoring_list_order(tck_context, datatable):
+    """Verify results match expected table, sorting list values for comparison."""
+    result = tck_context["result"]
+    expected = _parse_data_table(datatable)
+
+    assert result is not None, "No result was produced"
+    assert "error" not in result, f"Query error: {result.get('error')}"
+    assert len(result) == len(expected), f"Expected {len(expected)} rows, got {len(result)}"
+
+    actual_rows = [_row_to_comparable_ignore_list_order(row) for row in result]
+    expected_rows = [_row_to_comparable_ignore_list_order(row) for row in expected]
+
+    for exp_row in expected_rows:
+        assert exp_row in actual_rows, f"Expected row not found: {exp_row}"
+
+
+@then("the result should be, in order (ignoring element order for lists):")
+def verify_result_in_order_ignoring_list_order(tck_context, datatable):
+    """Verify results match in order, sorting list values for comparison."""
+    result = tck_context["result"]
+    expected = _parse_data_table(datatable)
+
+    assert result is not None, "No result was produced"
+    assert "error" not in result, f"Query error: {result.get('error')}"
+    assert len(result) == len(expected), f"Expected {len(expected)} rows, got {len(result)}"
+
+    for i, (actual_row, expected_row) in enumerate(zip(result, expected)):
+        actual_comparable = _row_to_comparable_ignore_list_order(actual_row)
+        expected_comparable = _row_to_comparable_ignore_list_order(expected_row)
         assert actual_comparable == expected_comparable, (
             f"Row {i} mismatch: expected {expected_comparable}, got {actual_comparable}"
         )
@@ -380,6 +502,10 @@ def _parse_value(value_str: str):
     """Parse a value string into appropriate CypherValue or node pattern."""
     value_str = value_str.strip()
 
+    # List literal: ['a', 'b'] or []
+    if value_str.startswith("[") and value_str.endswith("]"):
+        return {"_list_literal": value_str}
+
     # Node pattern: (:Label {prop: 'value'}) or ({prop: 'value'})
     if value_str.startswith("(") and value_str.endswith(")"):
         # Return a special marker dict that represents a node pattern
@@ -438,8 +564,6 @@ def _parse_data_table(datatable: list[list[str]]) -> list[dict]:
 
 def _parse_node_pattern(pattern: str) -> dict:
     """Parse a node pattern like (:A) or (:B {name: 'b'}) into comparable dict."""
-    import re
-
     # Remove outer parentheses
     pattern = pattern.strip()[1:-1].strip()
 
@@ -473,16 +597,122 @@ def _parse_node_pattern(pattern: str) -> dict:
     return {"labels": sorted(labels), "properties": properties}
 
 
+def _parse_param_value(value_str: str):
+    """Parse a parameter value string into a Python native value.
+
+    Unlike _parse_value which returns CypherValue wrappers, this returns
+    plain Python values suitable for query substitution.
+    """
+    value_str = value_str.strip()
+
+    if value_str.startswith("'") and value_str.endswith("'"):
+        return value_str[1:-1]
+    if value_str.lower() == "true":
+        return True
+    if value_str.lower() == "false":
+        return False
+    if value_str.lower() == "null":
+        return None
+    try:
+        if "." in value_str:
+            return float(value_str)
+        return int(value_str)
+    except ValueError:
+        return value_str
+
+
+def _parse_list_literal(list_str: str) -> list:
+    """Parse a list literal like ['a', 'b'] or [] into a list of parsed elements."""
+    inner = list_str[1:-1].strip()
+    if not inner:
+        return []
+
+    # Split by comma, respecting nested brackets and quotes
+    elements = []
+    depth = 0
+    current = []
+    in_quote = False
+    for char in inner:
+        if char == "'" and depth == 0:
+            in_quote = not in_quote
+            current.append(char)
+        elif char in "([" and not in_quote:
+            depth += 1
+            current.append(char)
+        elif char in ")]" and not in_quote:
+            depth -= 1
+            current.append(char)
+        elif char == "," and depth == 0 and not in_quote:
+            elements.append("".join(current).strip())
+            current = []
+        else:
+            current.append(char)
+    if current:
+        elements.append("".join(current).strip())
+
+    return [_parse_value(elem) for elem in elements]
+
+
+def _value_to_sort_key(value):
+    """Convert a value to a string suitable for sorting."""
+    if hasattr(value, "value"):
+        return str(value.value)
+    return str(value)
+
+
+def _comparable_value_ignore_list_order(value):
+    """Convert a value to comparable form, sorting list elements."""
+    if isinstance(value, dict) and "_list_literal" in value:
+        parsed = _parse_list_literal(value["_list_literal"])
+        comparable_items = [_comparable_value_ignore_list_order(item) for item in parsed]
+        return tuple(sorted(comparable_items, key=str))
+    if isinstance(value, dict) and "_node_pattern" in value:
+        return _parse_node_pattern(value["_node_pattern"])
+    if isinstance(value, CypherList):
+        items = [_comparable_value_ignore_list_order(item) for item in value.value]
+        return tuple(sorted(items, key=str))
+    if isinstance(value, (CypherInt, CypherFloat, CypherString, CypherBool)):
+        return value.value
+    if isinstance(value, CypherNull):
+        return None
+    if isinstance(value, NodeRef):
+        return {
+            "labels": sorted(value.labels),
+            "properties": {
+                k: v.value if hasattr(v, "value") else v for k, v in value.properties.items()
+            },
+        }
+    if isinstance(value, EdgeRef):
+        return {
+            "type": value.type,
+            "properties": {
+                k: v.value if hasattr(v, "value") else v for k, v in value.properties.items()
+            },
+        }
+    return value
+
+
+def _row_to_comparable_ignore_list_order(row: dict) -> dict:
+    """Convert a result row to comparable dict, sorting list values for comparison."""
+    return {key: _comparable_value_ignore_list_order(value) for key, value in row.items()}
+
+
 def _row_to_comparable(row: dict) -> dict:
     """Convert a result row to a comparable dictionary.
 
-    Handles CypherValues, NodeRefs, node patterns, etc.
+    Handles CypherValues, NodeRefs, node patterns, list literals, etc.
     """
     comparable = {}
     for key, value in row.items():
+        # Handle list literal marker from _parse_value
+        if isinstance(value, dict) and "_list_literal" in value:
+            parsed = _parse_list_literal(value["_list_literal"])
+            comparable[key] = tuple(_row_to_comparable({"_": item})["_"] for item in parsed)
         # Handle node pattern marker from _parse_value
-        if isinstance(value, dict) and "_node_pattern" in value:
+        elif isinstance(value, dict) and "_node_pattern" in value:
             comparable[key] = _parse_node_pattern(value["_node_pattern"])
+        elif isinstance(value, CypherList):
+            comparable[key] = tuple(_row_to_comparable({"_": item})["_"] for item in value.value)
         elif isinstance(value, (CypherInt, CypherFloat, CypherString, CypherBool)):
             comparable[key] = value.value
         elif isinstance(value, CypherNull):

@@ -14,18 +14,18 @@ Comprehensive status matrix for GraphForge's OpenCypher implementation, showing 
 | Category | Total Features | Complete | Partial | Not Implemented | TCK Scenarios | Coverage |
 |----------|---------------|----------|---------|-----------------|---------------|----------|
 | **Clauses** | 20 | 16 (80%) | 1 (5%) | 3 (15%) | ~1,180 | Good |
-| **Functions** | 72 | 53 (74%) | 0 (0%) | 19 (26%) | ~380 | Good |
+| **Functions** | 72 | 60 (83%) | 0 (0%) | 12 (17%) | ~380 | Good |
 | **Operators** | 34 | 30 (88%) | 0 (0%) | 4 (12%) | ~300 | Good |
 | **Patterns** | 8 | 6 (75%) | 1 (12%) | 1 (13%) | ~200 | Good |
-| **TOTAL** | **134** | **105 (78%)** | **2 (2%)** | **27 (20%)** | **~2,060** | **Good** |
+| **TOTAL** | **134** | **112 (84%)** | **2 (2%)** | **20 (15%)** | **~2,060** | **Good** |
 
-### Overall Compliance: **~78% Feature Complete**
+### Overall Compliance: **~84% Feature Complete**
 
 ---
 
 ## Quick Reference
 
-### ✅ Fully Supported (105 features)
+### ✅ Fully Supported (112 features)
 - Core querying: MATCH, RETURN, WHERE, ORDER BY, LIMIT, SKIP
 - Query chaining: WITH (full spec compliance)
 - Writing: CREATE, MERGE, SET, REMOVE, DELETE, DETACH DELETE
@@ -38,13 +38,11 @@ Comprehensive status matrix for GraphForge's OpenCypher implementation, showing 
 - CALL { } subqueries (EXISTS/COUNT only, general syntax missing)
 - Pattern predicates (basic WHERE in patterns, needs completion)
 
-### ❌ Not Supported (27 features)
+### ❌ Not Supported (20 features)
 - CALL procedures (no procedure system)
 - Predicate functions (all, any, none, single, isEmpty)
 - List operations (extract, filter, reduce)
 - Pattern comprehension
-- Some math functions (sqrt, rand, pow)
-- Statistical aggregations (percentile, stdev)
 
 ---
 
@@ -77,7 +75,7 @@ Comprehensive status matrix for GraphForge's OpenCypher implementation, showing 
 
 ---
 
-### Functions (72 total: 53 complete, 0 partial, 19 not implemented)
+### Functions (72 total: 60 complete, 0 partial, 12 not implemented)
 
 #### String Functions (13 total: 11 complete, 2 not implemented)
 
@@ -94,7 +92,7 @@ Comprehensive status matrix for GraphForge's OpenCypher implementation, showing 
 | length() | ❌ Not Implemented | 1 | N/A | Conflicts with path length() |
 | toUpper/toLower (camelCase) | ❌ Not Implemented | 2 | N/A | Only UPPER/LOWER aliases |
 
-#### Numeric Functions (10 total: 7 complete, 3 not implemented)
+#### Numeric Functions (10 total: 10 complete) ✅ COMPLETE CATEGORY
 
 | Function | Status | TCK Scenarios | File | Notes |
 |----------|--------|---------------|------|-------|
@@ -103,9 +101,9 @@ Comprehensive status matrix for GraphForge's OpenCypher implementation, showing 
 | round() | ✅ Complete | 1 | evaluator.py:1369 | With precision |
 | sign() | ✅ Complete | 1 | evaluator.py:1409 | Sign of number |
 | toInteger(), toFloat() | ✅ Complete | 2 | evaluator.py:1556, 1600 | Type conversion |
-| sqrt() | ❌ Not Implemented | 0 | N/A | Square root |
-| rand() | ❌ Not Implemented | 0 | N/A | Random number |
-| pow() / ^ | ❌ Not Implemented | 0 | N/A | Power operator |
+| sqrt() | ✅ Complete | 7 | evaluator.py:1672 | Square root (v0.3.5) |
+| rand() | ✅ Complete | 4 | evaluator.py:1683 | Random number (v0.3.5) |
+| pow() | ✅ Complete | 9 | evaluator.py:1690 | Power function (v0.3.5) |
 
 #### List Functions (8 total: 6 complete, 2 not implemented)
 
@@ -120,7 +118,7 @@ Comprehensive status matrix for GraphForge's OpenCypher implementation, showing 
 | filter() | ❌ Not Implemented | 10 | N/A | List filtering |
 | reduce() | ❌ Not Implemented | 5 | N/A | List reduction |
 
-#### Aggregation Functions (10 total: 5 complete, 5 not implemented)
+#### Aggregation Functions (10 total: 9 complete, 1 not implemented)
 
 | Function | Status | TCK Scenarios | File | Notes |
 |----------|--------|---------------|------|-------|
@@ -129,8 +127,8 @@ Comprehensive status matrix for GraphForge's OpenCypher implementation, showing 
 | avg() | ✅ Complete | 3 | executor.py | Average |
 | min(), max() | ✅ Complete | 5 | executor.py | Min/max values |
 | collect() | ✅ Complete | 4 | executor.py | Collect to list |
-| percentileDisc(), percentileCont() | ❌ Not Implemented | 2 | N/A | Percentiles |
-| stDev(), stDevP() | ❌ Not Implemented | 1 | N/A | Standard deviation |
+| percentileDisc(), percentileCont() | ✅ Complete | 2 | executor.py | Percentiles (v0.3.5) |
+| stDev(), stDevP() | ✅ Complete | 1 | executor.py | Standard deviation (v0.3.5) |
 
 #### Predicate Functions (6 total: 0 complete, 6 not implemented) ⚠️ HIGH PRIORITY
 
@@ -490,10 +488,6 @@ Comprehensive status matrix for GraphForge's OpenCypher implementation, showing 
 4. **Pattern comprehension not supported**
    - Complex feature
    - 15 TCK scenarios failing
-
-5. **Some mathematical functions missing**
-   - sqrt(), rand(), pow()
-   - Minimal TCK impact
 
 ---
 
