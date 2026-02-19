@@ -739,9 +739,7 @@ class GraphForge:
         # Copy transaction state (should be False/None in typical usage)
         cloned._in_transaction = self._in_transaction
         cloned._transaction_snapshot = (
-            copy.deepcopy(self._transaction_snapshot)
-            if self._transaction_snapshot
-            else None
+            copy.deepcopy(self._transaction_snapshot) if self._transaction_snapshot else None
         )
 
         # Note: Custom functions are NOT copied (executors are shared)

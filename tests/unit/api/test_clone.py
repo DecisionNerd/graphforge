@@ -35,12 +35,8 @@ class TestCloneBasicBehavior:
         cloned = gf.clone()
 
         # Both have same edge count
-        original_edges = gf.execute("MATCH ()-[r]->() RETURN count(r) AS c")[0][
-            "c"
-        ].value
-        cloned_edges = cloned.execute("MATCH ()-[r]->() RETURN count(r) AS c")[0][
-            "c"
-        ].value
+        original_edges = gf.execute("MATCH ()-[r]->() RETURN count(r) AS c")[0]["c"].value
+        cloned_edges = cloned.execute("MATCH ()-[r]->() RETURN count(r) AS c")[0]["c"].value
         assert original_edges == 1
         assert cloned_edges == 1
 
@@ -128,12 +124,10 @@ class TestCloneIsolation:
 
         # Verify they have different data
         clone1_names = [
-            r["name"].value
-            for r in clone1.execute("MATCH (n:Person) RETURN n.name AS name")
+            r["name"].value for r in clone1.execute("MATCH (n:Person) RETURN n.name AS name")
         ]
         clone2_names = [
-            r["name"].value
-            for r in clone2.execute("MATCH (n:Person) RETURN n.name AS name")
+            r["name"].value for r in clone2.execute("MATCH (n:Person) RETURN n.name AS name")
         ]
         assert "Bob" in clone1_names
         assert "Bob" not in clone2_names

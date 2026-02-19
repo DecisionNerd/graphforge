@@ -208,8 +208,7 @@ class TestClearIsolation:
         gf.execute("CREATE (:Person {name: 'Alice'})")
         gf.execute("CREATE (:Person {name: 'Bob'})")
         gf.execute(
-            "MATCH (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'}) "
-            "CREATE (a)-[:KNOWS]->(b)"
+            "MATCH (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'}) CREATE (a)-[:KNOWS]->(b)"
         )
 
         gf.clear()
