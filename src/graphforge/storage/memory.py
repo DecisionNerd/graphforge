@@ -381,6 +381,20 @@ class Graph:
         """
         return list(self._incoming.get(node_id, []))
 
+    def clear(self) -> None:
+        """Clear all graph data, resetting to an empty state.
+
+        Removes all nodes, edges, indexes, and statistics.
+        This is equivalent to creating a new Graph() but reuses the same object.
+        """
+        self._nodes.clear()
+        self._edges.clear()
+        self._outgoing.clear()
+        self._incoming.clear()
+        self._label_index.clear()
+        self._type_index.clear()
+        self._statistics = GraphStatistics.empty()
+
     def snapshot(self) -> dict:
         """Create a snapshot of the current graph state.
 
