@@ -655,6 +655,14 @@ class GraphForge:
         if self._closed:
             raise RuntimeError("GraphForge instance has been closed")
 
+        if self.backend is not None:
+            if self._in_transaction:
+                self.backend.rollback()
+            raise RuntimeError(
+                "Cannot clear a GraphForge instance with persistent storage. "
+                "Use in-memory instances only (GraphForge() without path)."
+            )
+
         # Reset graph data
         self.graph.clear()
 

@@ -1,7 +1,8 @@
 """Unit tests for GraphForge.clone() method.
 
-Tests that clone() creates independent copies of GraphForge instances
-while sharing parser/planner/executor infrastructure.
+Tests that clone() creates independent copies of GraphForge instances with
+fresh CypherParser, QueryPlanner, QueryOptimizer, and QueryExecutor instances,
+sharing only the compiled Lark grammar via the @lru_cache on _get_lark_parser.
 """
 
 import pytest
@@ -242,5 +243,6 @@ class TestCloneTransactionState:
         cloned = gf.clone()
 
         assert cloned._in_transaction == gf._in_transaction
-        if gf._transaction_snapshot is not None:
-            assert cloned._transaction_snapshot is not gf._transaction_snapshot
+        assert gf._transaction_snapshot is not None
+        assert cloned._transaction_snapshot is not None
+        assert cloned._transaction_snapshot is not gf._transaction_snapshot

@@ -37,12 +37,17 @@ class _InstancePool:
         with self._lock:
             instance = self._pool.pop() if self._pool else None
         if instance is not None:
-            instance.clear()
-            return instance
+            try:
+                instance.clear()
+                return instance
+            except RuntimeError:
+                pass  # Closed or persistent — discard and fall through
         return GraphForge()
 
     def release(self, instance: GraphForge) -> None:
         """Return a GraphForge instance to the pool for reuse."""
+        if getattr(instance, "_closed", False):
+            return
         with self._lock:
             self._pool.append(instance)
 

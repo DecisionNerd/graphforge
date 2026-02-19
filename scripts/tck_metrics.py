@@ -16,7 +16,8 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
-import xml.etree.ElementTree as ET
+
+import defusedxml.ElementTree as ET  # noqa: N817
 
 
 def find_testsuite(tree: ET.ElementTree) -> ET.Element | None:
@@ -100,18 +101,18 @@ def main() -> None:
     xml_path = Path(sys.argv[1] if len(sys.argv) > 1 else "test-results-tck.xml")
 
     if not xml_path.exists():
-        print(f"Warning: {xml_path} not found -- no TCK results to report.")
+        print(f"Warning: {xml_path} not found -- no TCK results to report.", file=sys.stderr)
         return
 
     try:
         tree = ET.parse(xml_path)
     except ET.ParseError as exc:
-        print(f"Warning: could not parse {xml_path}: {exc}")
+        print(f"Warning: could not parse {xml_path}: {exc}", file=sys.stderr)
         return
 
     testsuite = find_testsuite(tree)
     if testsuite is None:
-        print(f"Warning: no <testsuite> element found in {xml_path}")
+        print(f"Warning: no <testsuite> element found in {xml_path}", file=sys.stderr)
         return
 
     counts = parse_counts(testsuite)
