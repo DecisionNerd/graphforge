@@ -285,3 +285,25 @@ class TestPowerEdgeCases:
         """Unary minus on the result of power: -2^3 = -(2^3) = -8."""
         result = gf.execute("RETURN -2^3 AS result")
         assert result[0]["result"].value == -8
+
+    def test_zero_to_negative_power_returns_null(self, gf):
+        """0^-1 should return NULL (division by zero)."""
+        from graphforge.types.values import CypherNull
+
+        result = gf.execute("RETURN 0 ^ -1 AS result")
+        assert isinstance(result[0]["result"], CypherNull)
+
+    def test_negative_base_fractional_exponent_returns_null(self, gf):
+        """(-1)^0.5 should return NULL (complex result)."""
+        from graphforge.types.values import CypherNull
+
+        result = gf.execute("RETURN -1 ^ 0.5 AS result")
+        assert isinstance(result[0]["result"], CypherNull)
+
+    def test_float_overflow_returns_null(self, gf):
+        """Float overflow should return NULL (result is inf)."""
+        from graphforge.types.values import CypherNull
+
+        # 10.0 ^ 1000 will overflow to inf
+        result = gf.execute("RETURN 10.0 ^ 1000 AS result")
+        assert isinstance(result[0]["result"], CypherNull)

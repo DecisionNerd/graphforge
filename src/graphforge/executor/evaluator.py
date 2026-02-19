@@ -500,13 +500,27 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                 arith_result = left_num % right_num
             elif expr.op == "^":
                 # Power: int^int returns int if result is whole, else float
-                pow_result = left_num**right_num
+                # Handle edge cases: division by zero, overflow, complex, non-finite
+                try:
+                    pow_result = left_num**right_num
+                except (ZeroDivisionError, OverflowError):
+                    # 0^-1, very large numbers, etc. return NULL
+                    return CypherNull()
+
+                # Check for complex or non-finite results
+                import math
+                if isinstance(pow_result, complex) or (
+                    isinstance(pow_result, float) and not math.isfinite(pow_result)
+                ):
+                    return CypherNull()
+
                 if isinstance(left_val, CypherInt) and isinstance(right_val, CypherInt):
                     # int^int: return int if result is a whole number, else float
-                    if isinstance(pow_result, float) and pow_result == int(pow_result):
-                        return CypherInt(int(pow_result))
-                    elif isinstance(pow_result, float):
-                        return CypherFloat(pow_result)
+                    if isinstance(pow_result, float):
+                        if math.isfinite(pow_result) and pow_result == int(pow_result):
+                            return CypherInt(int(pow_result))
+                        else:
+                            return CypherFloat(pow_result)
                     else:
                         return CypherInt(int(pow_result))
                 # If either operand is float, result is float
