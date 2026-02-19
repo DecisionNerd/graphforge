@@ -618,6 +618,16 @@ class ASTTransformer(Transformer):
             result = BinaryOp(op="OR", left=result, right=item)
         return result
 
+    def xor_expr(self, items):
+        """Transform XOR expression."""
+        if len(items) == 1:
+            return items[0]
+        # Build left-associative XOR chain
+        result = items[0]
+        for item in items[1:]:
+            result = BinaryOp(op="XOR", left=result, right=item)
+        return result
+
     def and_expr(self, items):
         """Transform AND expression."""
         if len(items) == 1:
@@ -692,13 +702,29 @@ class ASTTransformer(Transformer):
         """Transform multiplication/division/modulo expression."""
         if len(items) == 1:
             return items[0]
-        # Build left-associative chain: unary_expr (("*"|"/"|"%") unary_expr)*
+        # Build left-associative chain: power_expr (("*"|"/"|"%") power_expr)*
         result = items[0]
         i = 1
         while i < len(items):
             op = self._get_token_value(items[i])
             result = BinaryOp(op=op, left=result, right=items[i + 1])
             i += 2
+        return result
+
+    def power_expr(self, items):
+        """Transform power/exponentiation expression.
+
+        Right-associative: 2^3^2 = 2^(3^2) = 512, NOT (2^3)^2 = 64.
+        """
+        if len(items) == 1:
+            return items[0]
+        # Build right-associative chain: unary_expr ("^" unary_expr)*
+        # Collect operands (every other item, starting at 0)
+        operands = items[::2]
+        # Build from right to left
+        result = operands[-1]
+        for i in range(len(operands) - 2, -1, -1):
+            result = BinaryOp(op="^", left=operands[i], right=result)
         return result
 
     def unary_minus(self, items):

@@ -5,6 +5,7 @@ CypherValue results.
 """
 
 from collections.abc import Sequence
+import math
 from typing import Any
 
 from graphforge.ast.expression import (
@@ -43,6 +44,9 @@ from graphforge.types.values import (
     CypherValue,
     from_python,
 )
+
+# Error messages
+XOR_TYPE_ERROR_MSG = "XOR requires boolean operands"
 
 
 class ExecutionContext:
@@ -239,8 +243,9 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
     # Binary operations
     if isinstance(expr, BinaryOp):
         # For AND/OR, implement short-circuit evaluation
+        # XOR needs both operands but has special NULL handling
         # Other operators need both operands evaluated
-        if expr.op in ("AND", "OR"):
+        if expr.op in ("AND", "OR", "XOR"):
             left_val = evaluate_expression(expr.left, ctx, executor)
 
             # Three-valued short-circuit semantics for AND
@@ -294,6 +299,31 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                     raise TypeError("OR requires boolean operands")
 
                 raise TypeError("OR requires boolean operands")
+
+            # Three-valued logic for XOR (no short-circuit possible)
+            if expr.op == "XOR":
+                right_val = evaluate_expression(expr.right, ctx, executor)
+
+                # If either operand is NULL, result is NULL
+                if isinstance(left_val, CypherNull) or isinstance(right_val, CypherNull):
+                    # Validate the non-NULL operand is boolean (if any)
+                    if isinstance(left_val, CypherNull) and not isinstance(
+                        right_val, (CypherBool, CypherNull)
+                    ):
+                        raise TypeError(XOR_TYPE_ERROR_MSG)
+                    if isinstance(right_val, CypherNull) and not isinstance(
+                        left_val, (CypherBool, CypherNull)
+                    ):
+                        raise TypeError(XOR_TYPE_ERROR_MSG)
+                    return CypherNull()
+
+                # Both operands must be boolean
+                if not isinstance(left_val, CypherBool) or not isinstance(right_val, CypherBool):
+                    raise TypeError(XOR_TYPE_ERROR_MSG)
+
+                # XOR truth table: true XOR true = false, true XOR false = true,
+                # false XOR true = true, false XOR false = false
+                return CypherBool(left_val.value != right_val.value)
 
         # For all other operators, evaluate both operands
         left_val = evaluate_expression(expr.left, ctx, executor)
@@ -371,7 +401,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
             return CypherNull() if has_null else CypherBool(False)
 
         # Arithmetic operators
-        if expr.op in ("+", "-", "*", "/", "%"):
+        if expr.op in ("+", "-", "*", "/", "%", "^"):
             # NULL propagation: any NULL operand returns NULL
             if isinstance(left_val, CypherNull) or isinstance(right_val, CypherNull):
                 return CypherNull()
@@ -472,6 +502,32 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                 if right_num == 0:
                     return CypherNull()
                 arith_result = left_num % right_num
+            elif expr.op == "^":
+                # Power: int^int returns int if result is whole, else float
+                # Handle edge cases: division by zero, overflow, complex, non-finite
+                try:
+                    pow_result = left_num**right_num
+                except (ZeroDivisionError, OverflowError):
+                    # 0^-1, very large numbers, etc. return NULL
+                    return CypherNull()
+
+                # Check for complex or non-finite results
+                if isinstance(pow_result, complex) or (
+                    isinstance(pow_result, float) and not math.isfinite(pow_result)
+                ):
+                    return CypherNull()
+
+                if isinstance(left_val, CypherInt) and isinstance(right_val, CypherInt):
+                    # int^int: return int if result is a whole number, else float
+                    if isinstance(pow_result, float):
+                        if math.isfinite(pow_result) and pow_result == int(pow_result):
+                            return CypherInt(int(pow_result))
+                        else:
+                            return CypherFloat(pow_result)
+                    else:
+                        return CypherInt(int(pow_result))
+                # If either operand is float, result is float
+                return CypherFloat(float(pow_result))
             else:
                 raise ValueError(f"Unknown arithmetic operator: {expr.op}")
 
@@ -807,6 +863,8 @@ STRING_FUNCTIONS = {
     "SUBSTRING",
     "UPPER",
     "LOWER",
+    "TOUPPER",
+    "TOLOWER",
     "TRIM",
     "REVERSE",
     "SPLIT",
@@ -815,6 +873,12 @@ STRING_FUNCTIONS = {
     "RIGHT",
     "LTRIM",
     "RTRIM",
+}
+
+# Alias normalization: camelCase variants → canonical names
+STRING_FUNCTION_ALIASES = {
+    "TOUPPER": "UPPER",
+    "TOLOWER": "LOWER",
 }
 LIST_FUNCTIONS = {"TAIL", "HEAD", "LAST", "REVERSE", "RANGE", "SIZE"}
 TYPE_FUNCTIONS = {"TOBOOLEAN", "TOINTEGER", "TOFLOAT", "TOSTRING", "TYPE"}
@@ -1326,6 +1390,9 @@ def _evaluate_string_function(func_name: str, args: list[CypherValue]) -> Cypher
         ValueError: If function is unknown
         TypeError: If arguments have invalid types
     """
+    # Normalize aliases to canonical names
+    func_name = STRING_FUNCTION_ALIASES.get(func_name, func_name)
+
     if func_name == "LENGTH":
         # LENGTH(string) -> int
         if not isinstance(args[0], CypherString):

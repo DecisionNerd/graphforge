@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Power Arithmetic Operator (#213)
+- **^ (power/exponentiation) operator** - Full exponentiation support
+  - Right-associative: `2^3^2 = 2^(3^2) = 512`
+  - Highest arithmetic precedence (above `*`, `/`)
+  - Type handling: `int^int` returns int if whole, else float
+  - Negative exponents: `2^-1 = 0.5`
+  - Fractional exponents: `4^0.5 = 2.0`
+  - NULL propagation for both operands
+  - 39 integration tests covering associativity, precedence, types, and edge cases
+
+### Added - XOR Logical Operator (#212)
+- **XOR operator** - Exclusive OR with proper ternary logic
+  - `true XOR false = true`, `true XOR true = false`
+  - Precedence: NOT > AND > XOR > OR
+  - NULL propagation: any NULL operand yields NULL
+  - Left-associative chaining: `a XOR b XOR c`
+  - Case-insensitive keyword (`XOR`, `xor`, `Xor`)
+  - 22 integration tests + 4 unit tests
+
+### Documentation - Feature Completion Updates
+
+#### Already-Implemented Features Now Documented (#193, #214, #215)
+- **length() function** - Documented as COMPLETE for paths
+  - `length(path)` returns relationship count in path
+  - For strings/lists, use `size()` function instead
+  - File: `src/graphforge/executor/evaluator.py:2604`
+- **List slicing [start..end]** - Documented as COMPLETE
+  - Example: `RETURN [1, 2, 3, 4, 5][1..3]` → `[2, 3]`
+  - Supports open-ended slicing: `[..]`, `[1..]`, `[..3]`
+  - File: `src/graphforge/executor/evaluator.py:1458`
+- **Negative list indexing** - Documented as COMPLETE
+  - Example: `RETURN [1, 2, 3][-1]` → `3` (last element)
+  - Supports both index and slice operations: `[1, 2, 3][-2..-1]`
+  - File: `src/graphforge/executor/evaluator.py:1458`
+
+### Added - String Function Aliases
+
+#### toUpper()/toLower() camelCase variants (#194)
+- **toUpper(string)** - CamelCase alias for UPPER(), converts string to uppercase
+  - Example: `RETURN toUpper('hello') AS result` -> `'HELLO'`
+- **toLower(string)** - CamelCase alias for LOWER(), converts string to lowercase
+  - Example: `RETURN toLower('HELLO') AS result` -> `'hello'`
+- Both camelCase and legacy forms (UPPER/LOWER) supported
+- Case-insensitive keywords: toUpper, TOUPPER, toLower, TOLOWER all work
+- 18 new integration tests (7 toUpper + 7 toLower + 4 interop)
+
+### Implementation Status Updates
+- Functions: 58/72 (81%, +3%) - String functions now 13/13 (100%)
+- Operators: 32/34 (94%, +6%) - All list operators now COMPLETE
+- Documentation reflects actual implementation status
+
 ## [0.3.3] - 2026-02-18
 
 ### Added - Pattern & CALL Features (Feature Completion: 88%)

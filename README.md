@@ -52,19 +52,25 @@ Modern data science and ML workflows increasingly produce **graph-shaped data**â
 > *We are not building a database for applications.*
 > *We are building a graph execution environment for thinking.*
 
-### Latest Release: v0.3.1
+### Latest Release: v0.3.4
 
-Version 0.3.1 completes all 6 OpenCypher predicate functions:
+Version 0.3.4 completes operator and string function enhancements:
 
-- **Quantifier predicates**: `all()`, `any()`, `none()`, `single()` - Test list elements with three-valued NULL logic
-- **Property testing**: `exists()` - Check if properties or expressions are not NULL
-- **Collection testing**: `isEmpty()` - Test if lists, strings, or maps are empty
-- **Complete coverage**: 57 comprehensive tests, 100% predicate function implementation
-- **Function progress**: 55/72 functions (76%, up from 74%)
+- **String functions**: `toUpper()`, `toLower()` camelCase variants - Aliases for existing UPPER/LOWER functions
+- **Logical operators**: `XOR` - Exclusive OR with proper precedence (NOT > AND > XOR > OR) and NULL handling
+- **Arithmetic operators**: `^` (power/exponentiation) - Right-associative with full numeric support (negative and fractional exponents)
+- **List operations**: List slicing `[start..end]` and negative indexing `list[-1]` (already implemented, now documented)
+- **Comprehensive testing**: 79 new integration tests (18 string, 22 XOR, 39 power)
+- **Operator completion**: List operators 100% (5/5), Overall operators 94% (32/34, up from 88%)
+- **Function progress**: 56/72 functions (78%, up from 76%)
 
-**Previous (v0.3.0)**: OPTIONAL MATCH, UNION, List comprehensions, EXISTS/COUNT subqueries, Variable-length paths, 109+ datasets, Spatial/Temporal types
+**Previous Releases**:
+- **v0.3.3**: Pattern comprehensions, CALL subqueries, Pattern predicates
+- **v0.3.2**: List operations (`filter()`, `extract()`, `reduce()`)
+- **v0.3.1**: Quantifier functions (`all()`, `any()`, `none()`, `single()`), `exists()`, `isEmpty()`
+- **v0.3.0**: OPTIONAL MATCH, UNION, List comprehensions, EXISTS/COUNT subqueries, Variable-length paths, 109+ datasets
 
-**TCK Coverage**: 29% openCypher compatibility
+**TCK Coverage**: ~38% openCypher compatibility
 
 See [CHANGELOG.md](CHANGELOG.md) for complete release notes.
 
@@ -1350,10 +1356,11 @@ GraphForge implements a **practical subset of OpenCypher** focused on common gra
 
 **Expressions:**
 - CASE expressions (conditional logic)
-- Arithmetic operators: +, -, *, /, %
+- Arithmetic operators: +, -, *, /, %, ^ (power)
 - Comparison operators: =, <>, <, >, <=, >=
-- Logical operators: AND, OR, NOT
+- Logical operators: AND, OR, XOR, NOT
 - String matching: STARTS WITH, ENDS WITH, CONTAINS
+- List operations: Slicing `[start..end]`, negative indexing `list[-1]`
 
 **Aggregations:**
 - COUNT, SUM, AVG, MIN, MAX, COLLECT
@@ -1361,11 +1368,12 @@ GraphForge implements a **practical subset of OpenCypher** focused on common gra
 - DISTINCT modifier
 
 **Functions:**
-- String: length, substring, toUpper, toLower, trim
-- Type conversion: toInteger, toFloat, toString
+- String: length, substring, toUpper/toLower (both camelCase and UPPERCASE variants), trim, reverse, split, replace, left, right, ltrim, rtrim
+- Type conversion: toInteger, toFloat, toString, toBoolean
 - Spatial: point, distance
 - Temporal: date, datetime, time, duration
 - Graph: id, labels, type
+- Predicates: all, any, none, single, exists, isEmpty
 - Utility: coalesce
 
 **Data Types:**

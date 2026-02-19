@@ -13,16 +13,16 @@ Implementation status of OpenCypher built-in functions in GraphForge.
 
 | Category | Total Functions | Complete | Partial | Not Implemented |
 |----------|----------------|----------|---------|-----------------|
-| String | 13 | 11 (85%) | 0 (0%) | 2 (15%) |
+| String | 13 | 13 (100%) | 0 (0%) | 0 (0%) |
 | Numeric | 10 | 7 (70%) | 0 (0%) | 3 (30%) |
-| List | 8 | 6 (75%) | 0 (0%) | 2 (25%) |
+| List | 8 | 7 (88%) | 0 (0%) | 1 (12%) |
 | Aggregation | 10 | 5 (50%) | 0 (0%) | 5 (50%) |
 | Predicate | 6 | 6 (100%) | 0 (0%) | 0 (0%) |
 | Scalar | 9 | 8 (89%) | 0 (0%) | 1 (11%) |
 | Temporal | 11 | 11 (100%) | 0 (0%) | 0 (0%) |
 | Spatial | 2 | 2 (100%) | 0 (0%) | 0 (0%) |
 | Path | 3 | 3 (100%) | 0 (0%) | 0 (0%) |
-| **TOTAL** | **72** | **55 (76%)** | **0 (0%)** | **17 (24%)** |
+| **TOTAL** | **72** | **58 (81%)** | **0 (0%)** | **14 (19%)** |
 
 ---
 
@@ -41,11 +41,11 @@ Implementation status of OpenCypher built-in functions in GraphForge.
 **Tests:** String function scenarios
 
 ### toUpper(), toLower() ✅
-**Status:** COMPLETE (as UPPER, LOWER)
+**Status:** COMPLETE
 **Files:** `evaluator.py:1210`, `evaluator.py:1215`
-**Signatures:** `upper(string)`, `lower(string)`
-**Tests:** String function scenarios
-**Notes:** Implemented with UPPER/LOWER aliases, toUpper/toLower not yet added
+**Signatures:** `toUpper(string)` / `upper(string)`, `toLower(string)` / `lower(string)`
+**Tests:** tests/integration/test_string_functions.py (TestToUpperFunction, TestToLowerFunction, TestToUpperToLowerInterop)
+**Notes:** Both camelCase (toUpper/toLower) and legacy (UPPER/LOWER) forms supported. Aliases normalized in evaluator.
 
 ### split() ✅
 **Status:** COMPLETE
@@ -78,13 +78,12 @@ Implementation status of OpenCypher built-in functions in GraphForge.
 **Signature:** `toString(value)`
 **Tests:** Type conversion scenarios
 
-### length() ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** LENGTH exists for strings but conflicts with path length(). Need to resolve based on context.
-
-### toUpper(), toLower() (Camel Case) ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** Only UPPER/LOWER aliases implemented. Need toUpper/toLower for full spec compliance.
+### length() ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:2604` (path length), `size()` function for strings/lists
+**Signature:** `length(path)` for paths; use `size()` for strings and lists
+**Tests:** Path function scenarios (tests/unit/executor/test_path_functions.py)
+**Notes:** Path length returns relationship count. For string/list length, use `size()` function.
 
 ---
 

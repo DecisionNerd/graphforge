@@ -183,6 +183,58 @@ class TestWhereClause:
         assert isinstance(predicate, BinaryOp)
         assert predicate.op == "OR"
 
+    def test_xor_expression(self, parser):
+        """Parse XOR expression."""
+        ast = parser.parse("MATCH (n) WHERE n.active XOR n.verified RETURN n")
+
+        where = ast.clauses[1]
+        predicate = where.predicate
+
+        assert isinstance(predicate, BinaryOp)
+        assert predicate.op == "XOR"
+
+    def test_xor_precedence_with_and(self, parser):
+        """XOR has lower precedence than AND: a XOR b AND c = a XOR (b AND c)."""
+        ast = parser.parse("MATCH (n) WHERE n.a XOR n.b AND n.c RETURN n")
+
+        where = ast.clauses[1]
+        predicate = where.predicate
+
+        # Outer should be XOR
+        assert isinstance(predicate, BinaryOp)
+        assert predicate.op == "XOR"
+        # Right side should be AND
+        assert isinstance(predicate.right, BinaryOp)
+        assert predicate.right.op == "AND"
+
+    def test_xor_precedence_with_or(self, parser):
+        """XOR has higher precedence than OR: a OR b XOR c = a OR (b XOR c)."""
+        ast = parser.parse("MATCH (n) WHERE n.a OR n.b XOR n.c RETURN n")
+
+        where = ast.clauses[1]
+        predicate = where.predicate
+
+        # Outer should be OR
+        assert isinstance(predicate, BinaryOp)
+        assert predicate.op == "OR"
+        # Right side should be XOR
+        assert isinstance(predicate.right, BinaryOp)
+        assert predicate.right.op == "XOR"
+
+    def test_xor_left_associative(self, parser):
+        """Chained XOR is left-associative: a XOR b XOR c = (a XOR b) XOR c."""
+        ast = parser.parse("MATCH (n) WHERE n.a XOR n.b XOR n.c RETURN n")
+
+        where = ast.clauses[1]
+        predicate = where.predicate
+
+        # Outer should be XOR
+        assert isinstance(predicate, BinaryOp)
+        assert predicate.op == "XOR"
+        # Left side should also be XOR (left-associative)
+        assert isinstance(predicate.left, BinaryOp)
+        assert predicate.left.op == "XOR"
+
 
 @pytest.mark.unit
 class TestReturnClause:

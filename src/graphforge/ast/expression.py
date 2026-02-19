@@ -149,7 +149,7 @@ class BinaryOp(BaseModel):
 
     Supports:
     - Comparisons: =, <>, <, >, <=, >=
-    - Logical: AND, OR
+    - Logical: AND, OR, XOR
     - Arithmetic: +, -, *, / (future)
     """
 
@@ -170,6 +170,7 @@ class BinaryOp(BaseModel):
             ">=",
             "AND",
             "OR",
+            "XOR",
             "+",
             "-",
             "*",
