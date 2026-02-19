@@ -509,6 +509,7 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
 
                 # Check for complex or non-finite results
                 import math
+
                 if isinstance(pow_result, complex) or (
                     isinstance(pow_result, float) and not math.isfinite(pow_result)
                 ):
