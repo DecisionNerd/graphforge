@@ -14,7 +14,6 @@ Exits 0 always (informational only).
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 import sys
 import xml.etree.ElementTree as ET
@@ -97,20 +96,6 @@ def format_report(counts: dict[str, int]) -> str:
     return "\n".join(lines)
 
 
-def write_github_summary(report: str) -> None:
-    """Append the report to $GITHUB_STEP_SUMMARY if set."""
-    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
-    if not summary_path:
-        return
-    try:
-        with Path(summary_path).open("a", encoding="utf-8") as f:
-            f.write("```\n")
-            f.write(report)
-            f.write("\n```\n")
-    except OSError:
-        pass  # Non-fatal
-
-
 def main() -> None:
     xml_path = Path(sys.argv[1] if len(sys.argv) > 1 else "test-results-tck.xml")
 
@@ -132,7 +117,6 @@ def main() -> None:
     counts = parse_counts(testsuite)
     report = format_report(counts)
     print(report)
-    write_github_summary(report)
 
 
 if __name__ == "__main__":
