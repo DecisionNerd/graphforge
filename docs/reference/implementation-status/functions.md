@@ -14,7 +14,7 @@ Implementation status of OpenCypher built-in functions in GraphForge.
 | Category | Total Functions | Complete | Partial | Not Implemented |
 |----------|----------------|----------|---------|-----------------|
 | String | 13 | 13 (100%) | 0 (0%) | 0 (0%) |
-| Numeric | 10 | 7 (70%) | 0 (0%) | 3 (30%) |
+| Numeric | 10 | 10 (100%) | 0 (0%) | 0 (0%) |
 | List | 8 | 7 (88%) | 0 (0%) | 1 (12%) |
 | Aggregation | 10 | 5 (50%) | 0 (0%) | 5 (50%) |
 | Predicate | 6 | 6 (100%) | 0 (0%) | 0 (0%) |
@@ -22,7 +22,7 @@ Implementation status of OpenCypher built-in functions in GraphForge.
 | Temporal | 11 | 11 (100%) | 0 (0%) | 0 (0%) |
 | Spatial | 2 | 2 (100%) | 0 (0%) | 0 (0%) |
 | Path | 3 | 3 (100%) | 0 (0%) | 0 (0%) |
-| **TOTAL** | **72** | **58 (81%)** | **0 (0%)** | **14 (19%)** |
+| **TOTAL** | **72** | **61 (85%)** | **0 (0%)** | **11 (15%)** |
 
 ---
 
@@ -119,17 +119,26 @@ Implementation status of OpenCypher built-in functions in GraphForge.
 **Signatures:** `toInteger(value)`, `toFloat(value)`
 **Tests:** Type conversion scenarios
 
-### sqrt() ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** Not yet implemented. Simple addition, low difficulty.
+### sqrt() ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:1672`
+**Signature:** `sqrt(number)`
+**Tests:** tests/integration/test_math_functions_extended.py (TestSqrtFunction)
+**Notes:** Returns CypherFloat. Negative input returns null.
 
-### rand() ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** Random float generation. Not yet implemented.
+### rand() ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:1683`
+**Signature:** `rand()`
+**Tests:** tests/integration/test_math_functions_extended.py (TestRandFunction)
+**Notes:** Returns random CypherFloat in [0.0, 1.0).
 
-### pow() / ^ operator ❌
-**Status:** NOT_IMPLEMENTED
-**Notes:** Power/exponentiation operator not implemented.
+### pow() ✅
+**Status:** COMPLETE
+**File:** `evaluator.py:1690`
+**Signature:** `pow(base, exponent)`
+**Tests:** tests/integration/test_math_functions_extended.py (TestPowFunction)
+**Notes:** Exponentiation function, consistent with ^ operator. Returns CypherInt for int^int with non-negative exponent when result is whole.
 
 ---
 
@@ -413,15 +422,11 @@ All temporal functions are ✅ COMPLETE with comprehensive support added in v0.3
 
 1. **Statistical aggregations**: percentile and standard deviation functions missing
 2. **List operations**: extract(), filter(), reduce() not implemented
-3. **Mathematical functions**: sqrt(), rand(), pow() missing
 
 ### Recommended Priority for v0.4.0+
 
-1. **High**: sqrt() - common mathematical operation
-2. **Medium**: Statistical aggregations (percentileDisc, percentileCont, stDev)
-3. **Medium**: List operations (extract, filter, reduce)
-4. **Low**: rand() - useful but low priority
-5. **Low**: pow() - can use alternative approaches
+1. **Medium**: Statistical aggregations (percentileDisc, percentileCont, stDev)
+2. **Medium**: List operations (extract, filter, reduce)
 
 ---
 

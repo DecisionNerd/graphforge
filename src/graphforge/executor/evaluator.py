@@ -48,6 +48,10 @@ from graphforge.types.values import (
 # Error messages
 XOR_TYPE_ERROR_MSG = "XOR requires boolean operands"
 
+# INT64 bounds for overflow detection (openCypher spec §3.1.1)
+_INT64_MIN = -(1 << 63)
+_INT64_MAX = (1 << 63) - 1
+
 
 class ExecutionContext:
     """Context for query execution.
@@ -167,7 +171,13 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                     evaluated_dict[key] = from_python(val)
             return CypherMap(evaluated_dict)
         else:
-            # Simple scalar value
+            # Simple scalar value - check INT64 bounds for integer literals
+            if isinstance(value, int) and not isinstance(value, bool):
+                if not (_INT64_MIN <= value <= _INT64_MAX):
+                    raise ValueError(
+                        f"Integer overflow: literal {value!r} is outside the valid range "
+                        f"[{_INT64_MIN}, {_INT64_MAX}]"
+                    )
             return from_python(value)
 
     # Variable reference
@@ -204,6 +214,22 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
 
     # Unary operations
     if isinstance(expr, UnaryOp):
+        # Special case: -<int-literal> handles INT64_MIN = -9223372036854775808.
+        # The positive literal 9223372036854775808 (INT64_MAX + 1) would overflow
+        # alone, but negated it is exactly INT64_MIN (valid). Compute directly.
+        if (
+            expr.op == "-"
+            and isinstance(expr.operand, Literal)
+            and isinstance(expr.operand.value, int)
+            and not isinstance(expr.operand.value, bool)
+        ):
+            result = -expr.operand.value
+            if not (_INT64_MIN <= result <= _INT64_MAX):
+                raise ValueError(
+                    f"Integer overflow: result {result!r} is outside the valid range "
+                    f"[{_INT64_MIN}, {_INT64_MAX}]"
+                )
+            return CypherInt(result)
         operand_val = evaluate_expression(expr.operand, ctx, executor)
 
         # IS NULL operator
@@ -231,7 +257,13 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                 return CypherNull()
             # Must be numeric
             if isinstance(operand_val, CypherInt):
-                return CypherInt(-operand_val.value)
+                result = -operand_val.value
+                if not (_INT64_MIN <= result <= _INT64_MAX):
+                    raise ValueError(
+                        f"Integer overflow: result {result!r} is outside the valid range "
+                        f"[{_INT64_MIN}, {_INT64_MAX}]"
+                    )
+                return CypherInt(result)
             if isinstance(operand_val, CypherFloat):
                 return CypherFloat(-operand_val.value)
             raise TypeError(
@@ -898,7 +930,7 @@ TEMPORAL_FUNCTIONS = {
     "TRUNCATE",
 }
 SPATIAL_FUNCTIONS = {"POINT", "DISTANCE"}
-MATH_FUNCTIONS = {"ABS", "CEIL", "FLOOR", "ROUND", "SIGN"}
+MATH_FUNCTIONS = {"ABS", "CEIL", "FLOOR", "ROUND", "SIGN", "SQRT", "RAND", "POW"}
 GRAPH_FUNCTIONS = {"ID", "LABELS"}
 PATH_FUNCTIONS = {"LENGTH", "NODES", "RELATIONSHIPS", "HEAD", "LAST"}
 AGGREGATE_FUNCTIONS = {
@@ -1668,6 +1700,59 @@ def _evaluate_math_function(func_name: str, args: list[CypherValue]) -> CypherVa
             return CypherInt(-1)
         else:
             return CypherInt(0)
+
+    elif func_name == "SQRT":
+        # SQRT(number) -> float (square root)
+        if len(args) != 1:
+            raise TypeError(f"sqrt() requires 1 argument, got {len(args)}")
+        arg = args[0]
+        if isinstance(arg, CypherNull):
+            return CypherNull()
+        if not isinstance(arg, (CypherInt, CypherFloat)):
+            raise TypeError("sqrt() requires a numeric argument")
+        val = arg.value
+        if val < 0:
+            return CypherNull()
+        return CypherFloat(math.sqrt(val))
+
+    elif func_name == "RAND":
+        # RAND() -> float in [0.0, 1.0)
+        if len(args) != 0:
+            raise TypeError(f"rand() requires 0 arguments, got {len(args)}")
+        import random
+
+        return CypherFloat(random.random())
+
+    elif func_name == "POW":
+        # POW(base, exponent) -> number
+        if len(args) != 2:
+            raise TypeError(f"pow() requires 2 arguments, got {len(args)}")
+        left, right = args[0], args[1]
+        if isinstance(left, CypherNull) or isinstance(right, CypherNull):
+            return CypherNull()
+        if not isinstance(left, (CypherInt, CypherFloat)):
+            raise TypeError("pow() requires numeric arguments")
+        if not isinstance(right, (CypherInt, CypherFloat)):
+            raise TypeError("pow() requires numeric arguments")
+        lv = left.value
+        rv = right.value
+        try:
+            result = lv**rv
+            if isinstance(result, complex) or (
+                isinstance(result, float) and not math.isfinite(result)
+            ):
+                return CypherNull()
+            if (
+                isinstance(lv, int)
+                and isinstance(rv, int)
+                and rv >= 0
+                and isinstance(result, (int, float))
+                and float(result) == int(result)
+            ):
+                return CypherInt(int(result))
+            return CypherFloat(float(result))
+        except (OverflowError, ZeroDivisionError, ValueError):
+            return CypherNull()
 
     raise ValueError(f"Unknown math function: {func_name}")
 
