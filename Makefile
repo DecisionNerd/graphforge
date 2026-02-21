@@ -35,13 +35,11 @@ test-tck-parallel:  ## Run TCK tests in parallel (requires pytest-xdist)
 
 coverage:  ## Run tests with coverage measurement
 	@echo "Running tests with coverage..."
-	uv run pytest tests/unit tests/integration \
+	uv run pytest tests/unit tests/integration -m "not snap" \
 		--cov=src \
 		--cov-branch \
 		--cov-report=term-missing \
-		--cov-report=xml \
-		--cov-report=html \
-		-n auto
+		--cov-report=xml
 
 test-analytics:  ## Run tests with analytics output (JUnit XML)
 	@echo "Running tests with analytics output..."

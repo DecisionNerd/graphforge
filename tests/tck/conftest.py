@@ -13,6 +13,7 @@ from graphforge.types.values import (
     CypherFloat,
     CypherInt,
     CypherList,
+    CypherMap,
     CypherNull,
     CypherString,
 )
@@ -506,6 +507,10 @@ def _parse_value(value_str: str):
     if value_str.startswith("[") and value_str.endswith("]"):
         return {"_list_literal": value_str}
 
+    # Map literal: {key: value, ...}
+    if value_str.startswith("{") and value_str.endswith("}"):
+        return {"_map_literal": value_str}
+
     # Node pattern: (:Label {prop: 'value'}) or ({prop: 'value'})
     if value_str.startswith("(") and value_str.endswith(")"):
         # Return a special marker dict that represents a node pattern
@@ -653,6 +658,43 @@ def _parse_list_literal(list_str: str) -> list:
     return [_parse_value(elem) for elem in elements]
 
 
+def _parse_map_literal(map_str: str) -> dict:
+    """Parse a map literal like {F: -372036854} into a dict of parsed values."""
+    inner = map_str.strip()[1:-1].strip()
+    if not inner:
+        return {}
+
+    # Split by comma, respecting nested brackets and quotes
+    pairs = []
+    depth = 0
+    current = []
+    in_quote = False
+    for char in inner:
+        if char == "'" and depth == 0:
+            in_quote = not in_quote
+            current.append(char)
+        elif char in "({[" and not in_quote:
+            depth += 1
+            current.append(char)
+        elif char in ")}]" and not in_quote:
+            depth -= 1
+            current.append(char)
+        elif char == "," and depth == 0 and not in_quote:
+            pairs.append("".join(current).strip())
+            current = []
+        else:
+            current.append(char)
+    if current:
+        pairs.append("".join(current).strip())
+
+    result = {}
+    for pair in pairs:
+        if ":" in pair:
+            key, val = pair.split(":", 1)
+            result[key.strip()] = _parse_value(val.strip())
+    return result
+
+
 def _value_to_sort_key(value):
     """Convert a value to a string suitable for sorting."""
     if hasattr(value, "value"):
@@ -666,8 +708,13 @@ def _comparable_value_ignore_list_order(value):
         parsed = _parse_list_literal(value["_list_literal"])
         comparable_items = [_comparable_value_ignore_list_order(item) for item in parsed]
         return tuple(sorted(comparable_items, key=str))
+    if isinstance(value, dict) and "_map_literal" in value:
+        parsed = _parse_map_literal(value["_map_literal"])
+        return {k: _comparable_value_ignore_list_order(v) for k, v in parsed.items()}
     if isinstance(value, dict) and "_node_pattern" in value:
         return _parse_node_pattern(value["_node_pattern"])
+    if isinstance(value, CypherMap):
+        return {k: _comparable_value_ignore_list_order(v) for k, v in value.value.items()}
     if isinstance(value, CypherList):
         items = [_comparable_value_ignore_list_order(item) for item in value.value]
         return tuple(sorted(items, key=str))
@@ -708,9 +755,15 @@ def _row_to_comparable(row: dict) -> dict:
         if isinstance(value, dict) and "_list_literal" in value:
             parsed = _parse_list_literal(value["_list_literal"])
             comparable[key] = tuple(_row_to_comparable({"_": item})["_"] for item in parsed)
+        # Handle map literal marker from _parse_value
+        elif isinstance(value, dict) and "_map_literal" in value:
+            parsed = _parse_map_literal(value["_map_literal"])
+            comparable[key] = {k: _row_to_comparable({"_": v})["_"] for k, v in parsed.items()}
         # Handle node pattern marker from _parse_value
         elif isinstance(value, dict) and "_node_pattern" in value:
             comparable[key] = _parse_node_pattern(value["_node_pattern"])
+        elif isinstance(value, CypherMap):
+            comparable[key] = {k: _row_to_comparable({"_": v})["_"] for k, v in value.value.items()}
         elif isinstance(value, CypherList):
             comparable[key] = tuple(_row_to_comparable({"_": item})["_"] for item in value.value)
         elif isinstance(value, (CypherInt, CypherFloat, CypherString, CypherBool)):

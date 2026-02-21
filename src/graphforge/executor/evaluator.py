@@ -48,6 +48,10 @@ from graphforge.types.values import (
 # Error messages
 XOR_TYPE_ERROR_MSG = "XOR requires boolean operands"
 
+# INT64 bounds (openCypher spec §3.1.1)
+_INT64_MIN = -(1 << 63)
+_INT64_MAX = (1 << 63) - 1
+
 
 class ExecutionContext:
     """Context for query execution.
@@ -167,7 +171,13 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                     evaluated_dict[key] = from_python(val)
             return CypherMap(evaluated_dict)
         else:
-            # Simple scalar value
+            # Simple scalar value — check INT64 range for integers
+            if isinstance(value, int) and not isinstance(value, bool):
+                if not (_INT64_MIN <= value <= _INT64_MAX):
+                    raise ValueError(
+                        f"Integer overflow: literal {value!r} is outside the valid "
+                        f"INT64 range [{_INT64_MIN}, {_INT64_MAX}]"
+                    )
             return from_python(value)
 
     # Variable reference
@@ -204,6 +214,23 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
 
     # Unary operations
     if isinstance(expr, UnaryOp):
+        # Special case: fold -Literal(int) before the overflow check so that
+        # -0x8000000000000000 = INT64_MIN is accepted even though the raw literal
+        # 0x8000000000000000 exceeds INT64_MAX (openCypher §3.1.1).
+        if (
+            expr.op == "-"
+            and isinstance(expr.operand, Literal)
+            and isinstance(expr.operand.value, int)
+            and not isinstance(expr.operand.value, bool)
+        ):
+            negated = -expr.operand.value
+            if not (_INT64_MIN <= negated <= _INT64_MAX):
+                raise ValueError(
+                    f"Integer overflow: -{expr.operand.value!r} is outside the valid "
+                    f"INT64 range [{_INT64_MIN}, {_INT64_MAX}]"
+                )
+            return CypherInt(negated)
+
         operand_val = evaluate_expression(expr.operand, ctx, executor)
 
         # IS NULL operator
