@@ -691,7 +691,10 @@ def _parse_map_literal(map_str: str) -> dict:
     for pair in pairs:
         if ":" in pair:
             key, val = pair.split(":", 1)
-            result[key.strip()] = _parse_value(val.strip())
+            key = key.strip()
+            if len(key) >= 2 and key[0] == key[-1] and key[0] in ("'", '"'):
+                key = key[1:-1]
+            result[key] = _parse_value(val.strip())
     return result
 
 

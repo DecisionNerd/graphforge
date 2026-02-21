@@ -59,7 +59,9 @@ coverage-strict:  ## Strict 90% coverage check for new features
 		(echo "❌ Coverage below 90% - consider adding more tests" && exit 1)
 	@echo "✅ Coverage meets strict threshold"
 
-coverage-report:  ## Open HTML coverage report in browser
+coverage-report:  ## Generate HTML coverage report and open in browser
+	@echo "Generating HTML coverage report..."
+	uv run coverage html
 	@echo "Opening coverage report in browser..."
 	@open htmlcov/index.html || xdg-open htmlcov/index.html || \
 		echo "Coverage report generated at htmlcov/index.html"

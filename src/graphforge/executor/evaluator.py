@@ -258,7 +258,12 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                 return CypherNull()
             # Must be numeric
             if isinstance(operand_val, CypherInt):
-                return CypherInt(-operand_val.value)
+                negated = -operand_val.value
+                if not (_INT64_MIN <= negated <= _INT64_MAX):
+                    raise ValueError(
+                        f"Integer overflow: negation of {operand_val.value} exceeds INT64 range"
+                    )
+                return CypherInt(negated)
             if isinstance(operand_val, CypherFloat):
                 return CypherFloat(-operand_val.value)
             raise TypeError(
