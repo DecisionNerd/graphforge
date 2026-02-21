@@ -1,4 +1,4 @@
-.PHONY: help lint format type-check security test pre-push clean test-tck test-tck-parallel
+.PHONY: help lint format type-check security test pre-push clean test-tck test-tck-parallel docstring-coverage
 
 help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -17,6 +17,9 @@ type-check:  ## Run mypy type checker
 
 security:  ## Run Bandit security scanner
 	uv run bandit -c pyproject.toml -r src/
+
+docstring-coverage:  ## Check docstring coverage (90% minimum)
+	uv run interrogate src/graphforge --fail-under 90 --quiet
 
 test:  ## Run all tests
 	uv run pytest tests/
@@ -92,7 +95,7 @@ check-patch-coverage:  ## Validate patch coverage for changed files (90% thresho
 		echo "✅ Patch coverage meets 90% threshold"; \
 	fi
 
-pre-push: format-check lint type-check security coverage check-coverage check-patch-coverage  ## Run all pre-push checks (mirrors CI)
+pre-push: format-check lint type-check security docstring-coverage coverage check-coverage check-patch-coverage  ## Run all pre-push checks (mirrors CI)
 	@echo "✅ All pre-push checks passed!"
 
 clean:  ## Clean up cache files

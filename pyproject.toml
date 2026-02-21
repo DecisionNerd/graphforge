@@ -270,4 +270,5 @@ dev = [
     "bandit[toml]>=1.7.0",
     "pre-commit>=3.6.0",
     "types-defusedxml>=0.7.0.20250822",
+    "interrogate>=1.7.0",
 ]
