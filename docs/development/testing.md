@@ -624,6 +624,71 @@ pip install -e ".[dev]"
 
 ---
 
+## Known Issues & Investigated Solutions
+
+### pytest-xdist + pytest-cov deadlock on macOS / Python 3.13
+
+**Symptom:** `make pre-push` (or any `pytest -n auto --cov=...` invocation) hangs
+indefinitely at the very end of the test run. Progress reaches ~100% then freezes.
+CPU drops to 0%. Only `kill` escapes it.
+
+**Root cause:** `pytest-cov` collects coverage data from xdist workers via IPC
+(inter-process communication sockets). When workers finish and close their sockets,
+a coverage data-collection thread in the main process is still blocked on `read()`.
+The main thread waits for that lock → deadlock. Confirmed via `sample <PID>`:
+```
+main thread: lock_PyThread_acquire_lock → _PyMutex_LockTimed → _PySemaphore_Wait
+worker thread: read() (44020 calls pending)
+```
+Reproduced consistently on macOS (Darwin 25.x) + Python 3.13.7 + pytest-cov 7.0.0 +
+pytest-xdist 3.x. Not observed on Linux CI.
+
+**What does NOT work:**
+
+| Attempted fix | Result |
+|---|---|
+| `--cov-report=html` alone | Still deadlocks; HTML is slow but not the cause |
+| `[tool.coverage.run] parallel = true` + `-n auto` | No deadlock but **2× slower** (3:54 vs 1:30) — per-process `.coverage.PID` file I/O overwhelms the speedup from parallelism |
+| `concurrency = ["multiprocessing", "thread"]` + `parallel = true` | Same outcome as above; requires `coverage combine` step which adds no benefit |
+
+**Solution (current `Makefile`):** Run coverage serially (no `-n auto`) and exclude
+the two other causes of slowdown:
+
+```makefile
+coverage:
+    uv run pytest tests/unit tests/integration -m "not snap" \
+        --cov=src \
+        --cov-branch \
+        --cov-report=term-missing \
+        --cov-report=xml
+```
+
+Key flags:
+- **No `-n auto`** — eliminates the IPC deadlock entirely.
+- **`-m "not snap"`** — skips SNAP network-dataset tests (they download files, run
+  alphabetically last, and are already skipped in CI per their marker description).
+- **No `--cov-report=html`** — HTML generation over ~13 k lines of source is slow;
+  use `make coverage-report` on demand instead.
+
+**Timing (Apple Silicon, Python 3.13, ~3 450 tests):**
+
+| Approach | Wall time |
+|---|---|
+| `-n auto`, no coverage (baseline) | ~91 s |
+| `-n auto` + `--cov` (original, pre-fix) | ∞ (deadlock) |
+| `-n auto` + `--cov` + `parallel=true` | ~234 s |
+| Serial `--cov`, `-m "not snap"`, no HTML (current) | ~150 s |
+
+The serial run is only ~60 s slower than the parallel baseline because coverage
+overhead is modest (~38 s) and `parallel=true` file-I/O costs more than it saves.
+
+**If this is re-investigated in the future:** the deadlock is a known upstream issue
+between pytest-cov and pytest-xdist on Python 3.13's stricter GIL/semaphore
+behaviour. Check the [pytest-cov changelog](https://pytest-cov.readthedocs.io/) for
+a fix before attempting another workaround.
+
+---
+
 ## Success Metrics
 
 The testing infrastructure is successful when:
