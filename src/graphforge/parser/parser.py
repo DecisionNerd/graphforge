@@ -985,10 +985,23 @@ class ASTTransformer(Transformer):
         """Transform variable reference."""
         return Variable(name=self._get_token_value(items[0]))
 
+    def _parse_int_token(self, s: str) -> int:
+        """Decode a decimal, hexadecimal (0x/0X), or octal (0o/0O) integer token.
+
+        Returns the raw Python int value without overflow checking.
+        INT64 range validation is performed by the evaluator so that
+        negation (-0x8000000000000000 = INT64_MIN) is handled correctly.
+        """
+        if s.startswith(("0x", "0X")):
+            return int(s, 16)
+        if s.startswith(("0o", "0O")):
+            return int(s, 8)
+        return int(s)
+
     # Literals
     def int_literal(self, items):
         """Transform integer literal."""
-        return Literal(value=int(items[0]))
+        return Literal(value=self._parse_int_token(str(items[0])))
 
     def float_literal(self, items):
         """Transform float literal."""

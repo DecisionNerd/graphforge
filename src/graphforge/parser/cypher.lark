@@ -281,7 +281,7 @@ NULL: /null/i
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
 FUNCTION_NAME: /relationships|percentiledisc|percentilecont|localdatetime|substring|toboolean|tointeger|tofloat|tostring|toupper|tolower|truncate|datetime|localtime|duration|distance|dangerous|coalesce|collect|replace|isempty|length|minute|second|reverse|ltrim|rtrim|exists|count|month|lower|upper|point|nodes|split|stdevp|stdev|sqrt|trim|year|type|date|time|hour|tail|head|last|right|left|floor|round|range|rand|ceil|sign|pow|day|sum|avg|min|max|abs|size|labels|id/i
 
-INT: /[0-9]+/
+INT: /0[xX][0-9a-fA-F]+|0[oO][0-7]+|[0-9]+/
 FLOAT: /[0-9]+\.[0-9]+/
 STRING: /"([^"\\]|\\.)*"/ | /'([^'\\]|\\.)*'/
 

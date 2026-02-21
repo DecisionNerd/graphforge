@@ -1,4 +1,4 @@
-.PHONY: help lint format type-check security test pre-push clean test-tck test-tck-parallel
+.PHONY: help lint format type-check security test pre-push clean test-tck test-tck-parallel docstring-coverage test-network
 
 help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -18,14 +18,20 @@ type-check:  ## Run mypy type checker
 security:  ## Run Bandit security scanner
 	uv run bandit -c pyproject.toml -r src/
 
-test:  ## Run all tests
-	uv run pytest tests/
+docstring-coverage:  ## Check docstring coverage (90% minimum)
+	uv run interrogate src/graphforge --fail-under 90 --quiet
 
-test-unit:  ## Run unit tests only
-	uv run pytest tests/unit -v
+test:  ## Run all tests in parallel (excludes snap/network downloads)
+	uv run pytest tests/ -n auto -m "not snap"
 
-test-integration:  ## Run integration tests only
-	uv run pytest tests/integration -v
+test-unit:  ## Run unit tests in parallel
+	uv run pytest tests/unit -n auto
+
+test-integration:  ## Run integration tests in parallel (excludes snap/network downloads)
+	uv run pytest tests/integration -n auto -m "not snap"
+
+test-network:  ## Run external network/download tests (snap datasets; requires internet)
+	uv run pytest tests/ -m "snap" -v
 
 test-tck:  ## Run TCK compliance tests
 	uv run pytest tests/tck/ -v
@@ -35,13 +41,11 @@ test-tck-parallel:  ## Run TCK tests in parallel (requires pytest-xdist)
 
 coverage:  ## Run tests with coverage measurement
 	@echo "Running tests with coverage..."
-	uv run pytest tests/unit tests/integration \
+	uv run pytest tests/unit tests/integration -m "not snap" \
 		--cov=src \
 		--cov-branch \
 		--cov-report=term-missing \
-		--cov-report=xml \
-		--cov-report=html \
-		-n auto
+		--cov-report=xml
 
 test-analytics:  ## Run tests with analytics output (JUnit XML)
 	@echo "Running tests with analytics output..."
@@ -61,7 +65,9 @@ coverage-strict:  ## Strict 90% coverage check for new features
 		(echo "❌ Coverage below 90% - consider adding more tests" && exit 1)
 	@echo "✅ Coverage meets strict threshold"
 
-coverage-report:  ## Open HTML coverage report in browser
+coverage-report:  ## Generate HTML coverage report and open in browser
+	@echo "Generating HTML coverage report..."
+	uv run coverage html
 	@echo "Opening coverage report in browser..."
 	@open htmlcov/index.html || xdg-open htmlcov/index.html || \
 		echo "Coverage report generated at htmlcov/index.html"
@@ -92,7 +98,7 @@ check-patch-coverage:  ## Validate patch coverage for changed files (90% thresho
 		echo "✅ Patch coverage meets 90% threshold"; \
 	fi
 
-pre-push: format-check lint type-check security coverage check-coverage check-patch-coverage  ## Run all pre-push checks (mirrors CI)
+pre-push: format-check lint type-check security docstring-coverage coverage check-coverage check-patch-coverage  ## Run all pre-push checks (mirrors CI)
 	@echo "✅ All pre-push checks passed!"
 
 clean:  ## Clean up cache files
