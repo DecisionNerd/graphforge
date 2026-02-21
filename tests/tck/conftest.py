@@ -592,12 +592,13 @@ def _parse_node_pattern(pattern: str) -> dict:
                 if ":" in pair:
                     key, val = pair.split(":", 1)
                     key = key.strip()
-                    val = val.strip()
-                    # Remove quotes from string values
-                    if val.startswith("'") and val.endswith("'"):
-                        properties[key] = val[1:-1]
+                    parsed = _parse_value(val.strip())
+                    if hasattr(parsed, "value"):
+                        properties[key] = parsed.value
+                    elif isinstance(parsed, CypherNull):
+                        properties[key] = None
                     else:
-                        properties[key] = val
+                        properties[key] = parsed
 
     return {"labels": sorted(labels), "properties": properties}
 
