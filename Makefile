@@ -1,4 +1,4 @@
-.PHONY: help lint format type-check security test pre-push clean test-tck test-tck-parallel docstring-coverage
+.PHONY: help lint format type-check security test pre-push clean test-tck test-tck-parallel docstring-coverage test-network
 
 help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -21,14 +21,17 @@ security:  ## Run Bandit security scanner
 docstring-coverage:  ## Check docstring coverage (90% minimum)
 	uv run interrogate src/graphforge --fail-under 90 --quiet
 
-test:  ## Run all tests
-	uv run pytest tests/
+test:  ## Run all tests in parallel (excludes snap/network downloads)
+	uv run pytest tests/ -n auto -m "not snap"
 
-test-unit:  ## Run unit tests only
-	uv run pytest tests/unit -v
+test-unit:  ## Run unit tests in parallel
+	uv run pytest tests/unit -n auto
 
-test-integration:  ## Run integration tests only
-	uv run pytest tests/integration -v
+test-integration:  ## Run integration tests in parallel (excludes snap/network downloads)
+	uv run pytest tests/integration -n auto -m "not snap"
+
+test-network:  ## Run external network/download tests (snap datasets; requires internet)
+	uv run pytest tests/ -m "snap" -v
 
 test-tck:  ## Run TCK compliance tests
 	uv run pytest tests/tck/ -v
