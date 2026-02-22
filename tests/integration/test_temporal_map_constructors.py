@@ -251,7 +251,7 @@ class TestTemporalMapErrorCases:
 
     def test_date_invalid_type(self, gf):
         """Date with invalid type raises error."""
-        with pytest.raises(TypeError, match="DATE expects string or map"):
+        with pytest.raises(TypeError, match="DATE expects string"):
             gf.execute("RETURN date(123) AS d")
 
     def test_datetime_invalid_type(self, gf):

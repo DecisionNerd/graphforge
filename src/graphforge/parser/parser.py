@@ -6,6 +6,7 @@ strings into AST representations using Lark and custom transformers.
 
 from functools import lru_cache
 from pathlib import Path
+from typing import cast
 
 from lark import Lark, Token, Transformer
 
@@ -55,7 +56,7 @@ def _get_lark_parser():
     """
     grammar_path = Path(__file__).parent / "cypher.lark"
     with grammar_path.open() as f:
-        return Lark(f.read(), start="query", parser="earley")
+        return Lark(f.read(), start="script", parser="earley")
 
 
 class ASTTransformer(Transformer):
@@ -66,6 +67,11 @@ class ASTTransformer(Transformer):
         if isinstance(item, Token):
             return str(item.value)
         return str(item)
+
+    # Script (multi-statement support)
+    def script(self, items):
+        """Transform script rule (one or more queries)."""
+        return list(items)
 
     # Query
     def query(self, items):
@@ -831,6 +837,20 @@ class ASTTransformer(Transformer):
                 args = args_item
         return FunctionCall(name=func_name, args=args, distinct=distinct)
 
+    def namespaced_function_call(self, items):
+        """Transform namespaced function call (e.g. date.truncate, duration.between)."""
+        namespace = self._get_token_value(items[0]).upper()
+        method = self._get_token_value(items[1]).upper()
+        func_name = f"{namespace}.{method}"
+        args = []
+        if len(items) > 2:
+            args_item = items[2]
+            if isinstance(args_item, tuple):
+                args, _ = args_item
+            else:
+                args = args_item if args_item else []
+        return FunctionCall(name=func_name, args=args, distinct=False)
+
     def count_star(self, items):
         """Transform COUNT(*) - no arguments."""
         return []  # Empty args list
@@ -1160,31 +1180,34 @@ class CypherParser:
         self._lark = _get_lark_parser()
         self._transformer = ASTTransformer()
 
-    def parse(self, query: str) -> CypherQuery:
+    def parse(self, query: str) -> "CypherQuery | list[CypherQuery]":
         """Parse a Cypher query string into an AST.
 
         Args:
             query: The Cypher query string to parse
 
         Returns:
-            CypherQuery AST node
+            CypherQuery AST node, or list of CypherQuery for multi-statement scripts
 
         Raises:
             lark.exceptions.LarkError: If the query is syntactically invalid
         """
         tree = self._lark.parse(query)
-        ast = self._transformer.transform(tree)
-        return ast  # type: ignore[no-any-return]
+        result = self._transformer.transform(tree)
+        # script rule always returns a list; unwrap single queries for backward compat
+        if isinstance(result, list) and len(result) == 1:
+            return cast("CypherQuery", result[0])
+        return cast("list[CypherQuery]", result)
 
 
-def parse_cypher(query: str) -> CypherQuery:
+def parse_cypher(query: str) -> "CypherQuery | list[CypherQuery]":
     """Convenience function to parse a Cypher query.
 
     Args:
         query: The Cypher query string to parse
 
     Returns:
-        CypherQuery AST node
+        CypherQuery AST node, or list of CypherQuery for multi-statement scripts
     """
     parser = CypherParser()
     return parser.parse(query)

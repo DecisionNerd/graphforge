@@ -478,6 +478,41 @@ def evaluate_expression(expr: Any, ctx: ExecutionContext, executor: Any = None) 
                     ):
                         return _add_duration(right_val, left_val)
 
+                # Duration + Duration or Duration - Duration
+                if isinstance(left_val, CypherDuration) and isinstance(right_val, CypherDuration):
+                    import isodate  # type: ignore[import-untyped]
+
+                    lv = left_val.value
+                    rv = right_val.value
+                    if expr.op == "+":
+                        if isinstance(lv, isodate.Duration) or isinstance(rv, isodate.Duration):
+                            ly = getattr(lv, "years", 0) or 0
+                            lm = getattr(lv, "months", 0) or 0
+                            ltd = lv.tdelta if isinstance(lv, isodate.Duration) else lv
+                            ry = getattr(rv, "years", 0) or 0
+                            rm = getattr(rv, "months", 0) or 0
+                            rtd = rv.tdelta if isinstance(rv, isodate.Duration) else rv
+                            result_dur = isodate.Duration(years=ly + ry, months=lm + rm, days=0) + (
+                                ltd + rtd
+                            )
+                            return CypherDuration(result_dur)
+                        else:
+                            return CypherDuration(lv + rv)
+                    elif expr.op == "-":
+                        if isinstance(lv, isodate.Duration) or isinstance(rv, isodate.Duration):
+                            ly = getattr(lv, "years", 0) or 0
+                            lm = getattr(lv, "months", 0) or 0
+                            ltd = lv.tdelta if isinstance(lv, isodate.Duration) else lv
+                            ry = getattr(rv, "years", 0) or 0
+                            rm = getattr(rv, "months", 0) or 0
+                            rtd = rv.tdelta if isinstance(rv, isodate.Duration) else rv
+                            result_dur = isodate.Duration(years=ly - ry, months=lm - rm, days=0) + (
+                                ltd - rtd
+                            )
+                            return CypherDuration(result_dur)
+                        else:
+                            return CypherDuration(lv - rv)
+
                 # Subtraction: temporal - duration or temporal - temporal
                 if expr.op == "-":
                     if isinstance(
@@ -973,7 +1008,7 @@ def _add_duration(temporal: CypherValue, duration: CypherDuration) -> CypherValu
     """
     import datetime
 
-    import isodate  # type: ignore[import-untyped]
+    import isodate
 
     duration_val = duration.value
 
@@ -1161,8 +1196,14 @@ def _truncate_temporal(temporal: CypherValue, unit: str) -> CypherValue:
     import datetime
 
     valid_units = {
+        "millennium",
+        "century",
+        "decade",
         "year",
+        "weekyear",
+        "quarter",
         "month",
+        "week",
         "day",
         "hour",
         "minute",
@@ -1175,15 +1216,57 @@ def _truncate_temporal(temporal: CypherValue, unit: str) -> CypherValue:
             f"Invalid truncation unit: {unit}. Valid units: {', '.join(sorted(valid_units))}"
         )
 
+    def _truncate_date(date_val: "datetime.date") -> "datetime.date":
+        """Truncate a date to the given unit."""
+        if unit == "millennium":
+            trunc_year = (date_val.year - 1) // 1000 * 1000 + 1
+            return datetime.date(trunc_year, 1, 1)
+        elif unit == "century":
+            trunc_year = (date_val.year - 1) // 100 * 100 + 1
+            return datetime.date(trunc_year, 1, 1)
+        elif unit == "decade":
+            trunc_year = date_val.year // 10 * 10
+            return datetime.date(trunc_year or 1, 1, 1)
+        elif unit == "year":
+            return datetime.date(date_val.year, 1, 1)
+        elif unit == "weekyear":
+            # First Monday of ISO week 1
+            jan4 = datetime.date(date_val.year, 1, 4)
+            return jan4 - datetime.timedelta(days=jan4.weekday())
+        elif unit == "quarter":
+            first_month = ((date_val.month - 1) // 3) * 3 + 1
+            return datetime.date(date_val.year, first_month, 1)
+        elif unit == "month":
+            return datetime.date(date_val.year, date_val.month, 1)
+        elif unit == "week":
+            # Monday of current ISO week
+            return date_val - datetime.timedelta(days=date_val.weekday())
+        elif unit == "day":
+            return date_val
+        else:
+            raise TypeError(
+                f"Cannot truncate date to {unit}. "
+                "Date supports: millennium, century, decade, year, weekYear, "
+                "quarter, month, week, day"
+            )
+
     if isinstance(temporal, CypherDateTime):
         dt = temporal.value
         tz = dt.tzinfo
 
         dt_result: datetime.datetime
-        if unit == "year":
-            dt_result = datetime.datetime(dt.year, 1, 1, 0, 0, 0, 0, tz)
-        elif unit == "month":
-            dt_result = datetime.datetime(dt.year, dt.month, 1, 0, 0, 0, 0, tz)
+        if unit in (
+            "millennium",
+            "century",
+            "decade",
+            "year",
+            "weekyear",
+            "quarter",
+            "month",
+            "week",
+        ):
+            trunc_d = _truncate_date(dt.date())
+            dt_result = datetime.datetime(trunc_d.year, trunc_d.month, trunc_d.day, 0, 0, 0, 0, tz)
         elif unit == "day":
             dt_result = datetime.datetime(dt.year, dt.month, dt.day, 0, 0, 0, 0, tz)
         elif unit == "hour":
@@ -1212,16 +1295,23 @@ def _truncate_temporal(temporal: CypherValue, unit: str) -> CypherValue:
         date_val = temporal.value
 
         date_result: datetime.date
-        if unit == "year":
-            date_result = datetime.date(date_val.year, 1, 1)
-        elif unit == "month":
-            date_result = datetime.date(date_val.year, date_val.month, 1)
-        elif unit == "day":
-            date_result = date_val  # Already at day precision
+        if unit in (
+            "millennium",
+            "century",
+            "decade",
+            "year",
+            "weekyear",
+            "quarter",
+            "month",
+            "week",
+            "day",
+        ):
+            date_result = _truncate_date(date_val)
         else:
             raise TypeError(
                 f"Cannot truncate date to {unit}. "
-                "Date only supports truncation to: year, month, day"
+                "Date only supports truncation to: millennium, century, decade, year, "
+                "weekYear, quarter, month, week, day"
             )
 
         return CypherDate(date_result)
@@ -1404,6 +1494,8 @@ def _evaluate_function(
         return _evaluate_temporal_function(func_name, args)
     elif func_name in SPATIAL_FUNCTIONS:
         return _evaluate_spatial_function(func_name, args)
+    elif "." in func_name:
+        return _evaluate_namespaced_function(func_name, args)
     else:
         raise ValueError(f"Unknown function: {func_name}")
 
@@ -2006,6 +2098,34 @@ def _evaluate_type_function(func_name: str, args: list[CypherValue]) -> CypherVa
 _MISSING = object()
 
 
+def _parse_timezone_str(timezone: str):
+    """Parse a timezone string, accepting both IANA names and ±HH:MM numeric offsets.
+
+    Args:
+        timezone: IANA name (e.g. 'Europe/Stockholm') or offset (e.g. '+01:00', '-08:00')
+
+    Returns:
+        tzinfo object
+
+    Raises:
+        ValueError: If the timezone string is not recognised
+    """
+    import datetime
+    import re
+
+    offset_match = re.match(r"^([+-])(\d{2}):(\d{2})$", timezone)
+    if offset_match:
+        sign, hours, minutes = offset_match.groups()
+        total_minutes = (int(hours) * 60 + int(minutes)) * (1 if sign == "+" else -1)
+        return datetime.timezone(datetime.timedelta(minutes=total_minutes))
+    from dateutil import tz
+
+    tzinfo = tz.gettz(timezone)
+    if tzinfo is None:
+        raise ValueError(f"Invalid timezone: {timezone}")
+    return tzinfo
+
+
 def _extract_map_param(map_val: CypherMap, key: str, default: Any = _MISSING) -> Any:
     """Extract a parameter from a CypherMap.
 
@@ -2063,8 +2183,12 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
             if isinstance(arg, CypherString):
                 # date(string) parses ISO 8601 date
                 return CypherDate(arg.value)
+            elif isinstance(arg, (CypherDate, CypherDateTime)):
+                # date(temporal) extracts the date component
+                if isinstance(arg, CypherDate):
+                    return arg
+                return CypherDate(arg.value.date() if hasattr(arg.value, "date") else arg.value)
             elif isinstance(arg, CypherMap):
-                # date(map) builds from components
                 year = _extract_map_param(arg, "year")
                 month = _extract_map_param(arg, "month")
                 day = _extract_map_param(arg, "day")
@@ -2088,40 +2212,65 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 if any(isinstance(p, CypherNull) for p in all_params):
                     return CypherNull()
 
-                # Calendar date: year, month, day
+                # "Select" form: {date: base_date, ...overrides}
+                base_cypher = arg.value.get("date")
+                if base_cypher is not None and isinstance(
+                    base_cypher, (CypherDate, CypherDateTime)
+                ):
+                    base = (
+                        base_cypher.value
+                        if isinstance(base_cypher, CypherDate)
+                        else base_cypher.value.date()
+                    )
+                    if year is not _MISSING:
+                        base = base.replace(year=year)
+                    if month is not _MISSING:
+                        base = base.replace(month=month)
+                    if day is not _MISSING:
+                        base = base.replace(day=day)
+                    if week is not _MISSING:
+                        import calendar
+
+                        current_dow = base.isoweekday()  # 1=Mon, 7=Sun
+                        jan4 = datetime.date(base.year, 1, 4)
+                        week1_mon = jan4 - datetime.timedelta(days=jan4.weekday())
+                        base = week1_mon + datetime.timedelta(weeks=week - 1, days=current_dow - 1)
+                    elif ordinal_day is not _MISSING:
+                        jan1 = datetime.date(base.year, 1, 1)
+                        base = jan1 + datetime.timedelta(days=ordinal_day - 1)
+                    elif quarter is not _MISSING:
+                        import calendar
+
+                        orig_q = (base.month - 1) // 3 + 1
+                        orig_q_start = datetime.date(base.year, (orig_q - 1) * 3 + 1, 1)
+                        day_in_q = (base - orig_q_start).days
+                        new_q_start = datetime.date(base.year, (quarter - 1) * 3 + 1, 1)
+                        base = new_q_start + datetime.timedelta(days=day_in_q)
+                    return CypherDate(base)
+
+                # Standard component forms
                 if year is not _MISSING and month is not _MISSING and day is not _MISSING:
                     return CypherDate(datetime.date(year, month, day))
-                # Week date: year, week, dayOfWeek
                 elif year is not _MISSING and week is not _MISSING and day_of_week is not _MISSING:
-                    # Validate week and dayOfWeek ranges
                     if not (1 <= week <= 53):
                         raise ValueError(f"week must be between 1 and 53, got {week}")
                     if not (1 <= day_of_week <= 7):
                         raise ValueError(f"dayOfWeek must be between 1 and 7, got {day_of_week}")
-                    # ISO week date to calendar date
                     jan4 = datetime.date(year, 1, 4)
                     week_one_monday = jan4 - datetime.timedelta(days=jan4.weekday())
                     target_date = week_one_monday + datetime.timedelta(
                         weeks=week - 1, days=day_of_week - 1
                     )
                     return CypherDate(target_date)
-                # Quarter date: year, quarter, dayOfQuarter
                 elif (
                     year is not _MISSING
                     and quarter is not _MISSING
                     and day_of_quarter is not _MISSING
                 ):
-                    # Validate quarter and dayOfQuarter ranges
                     if not (1 <= quarter <= 4):
                         raise ValueError(f"quarter must be between 1 and 4, got {quarter}")
-                    # Quarter to month: Q1=Jan, Q2=Apr, Q3=Jul, Q4=Oct
                     first_month = (quarter - 1) * 3 + 1
-                    # Calculate last day of quarter for validation
-                    if quarter == 4:
-                        last_month = 12
-                    else:
-                        last_month = first_month + 2
-                    # Calculate days in quarter
+                    last_month = first_month + 2 if quarter < 4 else 12
                     import calendar
 
                     days_in_quarter = sum(
@@ -2135,9 +2284,7 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                     first_day = datetime.date(year, first_month, 1)
                     target_date = first_day + datetime.timedelta(days=day_of_quarter - 1)
                     return CypherDate(target_date)
-                # Ordinal date: year, ordinalDay
                 elif year is not _MISSING and ordinal_day is not _MISSING:
-                    # Validate ordinalDay range (366 for leap years, 365 otherwise)
                     import calendar
 
                     max_ordinal_day = 366 if calendar.isleap(year) else 365
@@ -2156,7 +2303,7 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                         "(year, ordinalDay)"
                     )
             else:
-                raise TypeError(f"DATE expects string or map, got {type(arg).__name__}")
+                raise TypeError(f"DATE expects string, date, or map, got {type(arg).__name__}")
         else:
             raise TypeError(f"DATE expects 0 or 1 argument, got {len(args)}")
 
@@ -2228,7 +2375,48 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 minute = minute % 60
                 hour += carry_hours
 
-                # Determine date part
+                # "Select" form: {datetime: base, ...overrides} — check before standard forms
+                base_dt_cypher = arg.value.get("datetime")
+                if base_dt_cypher is None:
+                    base_dt_cypher = arg.value.get("date")
+                if base_dt_cypher is not None and isinstance(
+                    base_dt_cypher, (CypherDate, CypherDateTime)
+                ):
+                    if isinstance(base_dt_cypher, CypherDateTime):
+                        base_dt = base_dt_cypher.value
+                    else:
+                        base_dt = datetime.datetime.combine(base_dt_cypher.value, datetime.time())
+                    base_d = base_dt.date()
+                    if year is not _MISSING:
+                        base_d = base_d.replace(year=year)
+                    if month is not _MISSING:
+                        base_d = base_d.replace(month=month)
+                    if day is not _MISSING:
+                        base_d = base_d.replace(day=day)
+                    if week is not _MISSING:
+                        current_dow = base_d.isoweekday()
+                        jan4 = datetime.date(base_d.year, 1, 4)
+                        week1_mon = jan4 - datetime.timedelta(days=jan4.weekday())
+                        base_d = week1_mon + datetime.timedelta(
+                            weeks=week - 1, days=current_dow - 1
+                        )
+                    elif ordinal_day is not _MISSING:
+                        jan1 = datetime.date(base_d.year, 1, 1)
+                        base_d = jan1 + datetime.timedelta(days=ordinal_day - 1)
+                    elif quarter is not _MISSING:
+                        orig_q = (base_d.month - 1) // 3 + 1
+                        orig_q_start = datetime.date(base_d.year, (orig_q - 1) * 3 + 1, 1)
+                        day_in_q = (base_d - orig_q_start).days
+                        new_q_start = datetime.date(base_d.year, (quarter - 1) * 3 + 1, 1)
+                        base_d = new_q_start + datetime.timedelta(days=day_in_q)
+                    result_dt = base_dt.replace(
+                        year=base_d.year, month=base_d.month, day=base_d.day
+                    )
+                    if timezone is not _MISSING:
+                        result_dt = result_dt.replace(tzinfo=_parse_timezone_str(timezone))
+                    return CypherDateTime(result_dt)
+
+                # Determine date part from standard component forms
                 if year is not _MISSING and month is not _MISSING and day is not _MISSING:
                     # Calendar date
                     date_part = datetime.date(year, month, day)
@@ -2254,12 +2442,7 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                         raise ValueError(f"quarter must be between 1 and 4, got {quarter}")
                     # Quarter date
                     first_month = (quarter - 1) * 3 + 1
-                    # Calculate last day of quarter for validation
-                    if quarter == 4:
-                        last_month = 12
-                    else:
-                        last_month = first_month + 2
-                    # Get last day of quarter's last month
+                    last_month = first_month + 2 if quarter < 4 else 12
                     import calendar
 
                     days_in_quarter = sum(
@@ -2273,7 +2456,6 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                     first_day = datetime.date(year, first_month, 1)
                     date_part = first_day + datetime.timedelta(days=day_of_quarter - 1)
                 elif year is not _MISSING and ordinal_day is not _MISSING:
-                    # Validate ordinalDay range (366 for leap years, 365 otherwise)
                     import calendar
 
                     max_ordinal_day = 366 if calendar.isleap(year) else 365
@@ -2282,7 +2464,6 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                             f"ordinalDay must be between 1 and {max_ordinal_day} "
                             f"for year {year}, got {ordinal_day}"
                         )
-                    # Ordinal date
                     jan1 = datetime.date(year, 1, 1)
                     date_part = jan1 + datetime.timedelta(days=ordinal_day - 1)
                 else:
@@ -2305,12 +2486,7 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
 
                 # Handle timezone if provided
                 if timezone is not _MISSING:
-                    from dateutil import tz
-
-                    tzinfo = tz.gettz(timezone)
-                    if tzinfo is None:
-                        raise ValueError(f"Invalid timezone: {timezone}")
-                    dt = dt.replace(tzinfo=tzinfo)
+                    dt = dt.replace(tzinfo=_parse_timezone_str(timezone))
 
                 return CypherDateTime(dt)
             else:
@@ -2373,12 +2549,7 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
 
                 # Handle timezone if provided
                 if timezone is not _MISSING:
-                    from dateutil import tz
-
-                    tzinfo = tz.gettz(timezone)
-                    if tzinfo is None:
-                        raise ValueError(f"Invalid timezone: {timezone}")
-                    t = t.replace(tzinfo=tzinfo)
+                    t = t.replace(tzinfo=_parse_timezone_str(timezone))
 
                 return CypherTime(t)
             else:
@@ -2455,6 +2626,47 @@ def _evaluate_temporal_function(func_name: str, args: list[CypherValue]) -> Cyph
                 carry_hours = minute // 60
                 minute = minute % 60
                 hour += carry_hours
+
+                # "Select" form: {localdatetime: base, ...overrides} — check before standard forms
+                base_ldt_cypher = arg.value.get("localdatetime")
+                if base_ldt_cypher is None:
+                    base_ldt_cypher = arg.value.get("datetime")
+                if base_ldt_cypher is None:
+                    base_ldt_cypher = arg.value.get("date")
+                if base_ldt_cypher is not None and isinstance(
+                    base_ldt_cypher, (CypherDate, CypherDateTime)
+                ):
+                    if isinstance(base_ldt_cypher, CypherDateTime):
+                        base_ldt = base_ldt_cypher.value.replace(tzinfo=None)
+                    else:
+                        base_ldt = datetime.datetime.combine(base_ldt_cypher.value, datetime.time())
+                    base_d = base_ldt.date()
+                    if year is not _MISSING:
+                        base_d = base_d.replace(year=year)
+                    if month is not _MISSING:
+                        base_d = base_d.replace(month=month)
+                    if day is not _MISSING:
+                        base_d = base_d.replace(day=day)
+                    if week is not _MISSING:
+                        current_dow = base_d.isoweekday()
+                        jan4 = datetime.date(base_d.year, 1, 4)
+                        week1_mon = jan4 - datetime.timedelta(days=jan4.weekday())
+                        base_d = week1_mon + datetime.timedelta(
+                            weeks=week - 1, days=current_dow - 1
+                        )
+                    elif ordinal_day is not _MISSING:
+                        jan1 = datetime.date(base_d.year, 1, 1)
+                        base_d = jan1 + datetime.timedelta(days=ordinal_day - 1)
+                    elif quarter is not _MISSING:
+                        orig_q = (base_d.month - 1) // 3 + 1
+                        orig_q_start = datetime.date(base_d.year, (orig_q - 1) * 3 + 1, 1)
+                        day_in_q = (base_d - orig_q_start).days
+                        new_q_start = datetime.date(base_d.year, (quarter - 1) * 3 + 1, 1)
+                        base_d = new_q_start + datetime.timedelta(days=day_in_q)
+                    result_ldt = base_ldt.replace(
+                        year=base_d.year, month=base_d.month, day=base_d.day
+                    )
+                    return CypherDateTime(result_ldt)
 
                 # Determine date part (same logic as DATETIME)
                 if year is not _MISSING and month is not _MISSING and day is not _MISSING:
@@ -2834,6 +3046,216 @@ def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> f
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     return earth_radius * c
+
+
+def _evaluate_namespaced_function(func_name: str, args: list[CypherValue]) -> CypherValue:
+    """Evaluate namespaced functions like date.truncate(), duration.between(), etc.
+
+    Args:
+        func_name: Uppercase namespaced name, e.g. 'DATE.TRUNCATE'
+        args: Evaluated arguments
+
+    Returns:
+        CypherValue result
+
+    Raises:
+        ValueError: If function is unknown
+        TypeError: If arguments have invalid types
+    """
+    import datetime
+
+    if func_name in (
+        "DATE.TRUNCATE",
+        "DATETIME.TRUNCATE",
+        "LOCALDATETIME.TRUNCATE",
+        "TIME.TRUNCATE",
+        "LOCALTIME.TRUNCATE",
+    ):
+        # date.truncate(unit, temporal[, {components}])
+        if len(args) < 2:
+            raise TypeError(f"{func_name} expects at least 2 arguments, got {len(args)}")
+        if not isinstance(args[0], CypherString):
+            raise TypeError(
+                f"{func_name} first argument (unit) must be a string, got {type(args[0]).__name__}"
+            )
+        unit = args[0].value.lower()
+        temporal = args[1]
+        if not isinstance(temporal, (CypherDateTime, CypherDate, CypherTime)):
+            raise TypeError(
+                f"{func_name} second argument must be a temporal value, "
+                f"got {type(temporal).__name__}"
+            )
+        result = _truncate_temporal(temporal, unit)
+        # Optional third argument: map of sub-unit components to set after truncation
+        if len(args) == 3 and isinstance(args[2], CypherMap):
+            components = args[2].value
+            if isinstance(result, CypherDateTime):
+                dt = result.value
+                tz = dt.tzinfo
+                year = int(components["year"].value) if "year" in components else dt.year
+                month = int(components["month"].value) if "month" in components else dt.month
+                day = int(components["day"].value) if "day" in components else dt.day
+                hour = int(components["hour"].value) if "hour" in components else dt.hour
+                minute = int(components["minute"].value) if "minute" in components else dt.minute
+                second = int(components["second"].value) if "second" in components else dt.second
+                microsecond = (
+                    int(components["microsecond"].value)
+                    if "microsecond" in components
+                    else dt.microsecond
+                )
+                result = CypherDateTime(
+                    datetime.datetime(year, month, day, hour, minute, second, microsecond, tz)
+                )
+            elif isinstance(result, CypherDate):
+                d = result.value
+                year = int(components["year"].value) if "year" in components else d.year
+                month = int(components["month"].value) if "month" in components else d.month
+                day = int(components["day"].value) if "day" in components else d.day
+                result = CypherDate(datetime.date(year, month, day))
+            elif isinstance(result, CypherTime):
+                t = result.value
+                tz = t.tzinfo
+                hour = int(components["hour"].value) if "hour" in components else t.hour
+                minute = int(components["minute"].value) if "minute" in components else t.minute
+                second = int(components["second"].value) if "second" in components else t.second
+                microsecond = (
+                    int(components["microsecond"].value)
+                    if "microsecond" in components
+                    else t.microsecond
+                )
+                result = CypherTime(datetime.time(hour, minute, second, microsecond, tz))
+        return result
+
+    elif func_name == "DURATION.BETWEEN":
+        # duration.between(t1, t2) -> duration FROM t1 TO t2 (= t2 - t1)
+        if len(args) != 2:
+            raise TypeError(f"duration.between() expects 2 arguments, got {len(args)}")
+        return _duration_between_calendar(args[1], args[0])
+
+    elif func_name == "DURATION.INMONTHS":
+        # duration.inMonths(t1, t2) -> duration in months FROM t1 TO t2
+        if len(args) != 2:
+            raise TypeError(f"duration.inMonths() expects 2 arguments, got {len(args)}")
+        return _duration_in_months(args[1], args[0])
+
+    elif func_name == "DURATION.INDAYS":
+        # duration.inDays(t1, t2) -> duration in days FROM t1 TO t2
+        if len(args) != 2:
+            raise TypeError(f"duration.inDays() expects 2 arguments, got {len(args)}")
+        return _duration_in_days(args[1], args[0])
+
+    elif func_name == "DURATION.INSECONDS":
+        # duration.inSeconds(t1, t2) -> duration in seconds FROM t1 TO t2
+        if len(args) != 2:
+            raise TypeError(f"duration.inSeconds() expects 2 arguments, got {len(args)}")
+        return _duration_in_seconds(args[1], args[0])
+
+    raise ValueError(f"Unknown namespaced function: {func_name}")
+
+
+def _to_datetime(val: CypherValue) -> Any:
+    """Convert a temporal CypherValue to a datetime.datetime for comparison."""
+    import datetime
+
+    if isinstance(val, CypherDateTime):
+        return val.value
+    elif isinstance(val, CypherDate):
+        return datetime.datetime.combine(val.value, datetime.time.min)
+    elif isinstance(val, CypherTime):
+        return datetime.datetime.combine(datetime.date(2000, 1, 1), val.value)
+    raise TypeError(f"Expected temporal value, got {type(val).__name__}")
+
+
+def _duration_between_calendar(t1: CypherValue, t2: CypherValue) -> CypherDuration:
+    """Calculate a calendar-aware duration from t2 to t1 (t1 - t2).
+
+    Returns an isodate.Duration capturing years, months, days, and sub-day components.
+    """
+    import datetime
+
+    import isodate
+
+    dt1 = _to_datetime(t1)
+    dt2 = _to_datetime(t2)
+
+    # Normalize timezone awareness
+    if dt1.tzinfo is not None and dt2.tzinfo is None:
+        dt2 = dt2.replace(tzinfo=dt1.tzinfo)
+    elif dt1.tzinfo is None and dt2.tzinfo is not None:
+        dt1 = dt1.replace(tzinfo=dt2.tzinfo)
+
+    # Calculate calendar delta (years and months)
+    y1, m1 = dt1.year, dt1.month
+    y2, m2, d2 = dt2.year, dt2.month, dt2.day
+
+    total_months = (y1 - y2) * 12 + (m1 - m2)
+    years = total_months // 12
+    months = total_months % 12
+
+    # Remaining days after subtracting year/month portion
+    try:
+        adjusted_dt2 = dt2.replace(
+            year=dt2.year + years,
+            month=((dt2.month - 1 + months) % 12) + 1,
+        )
+    except ValueError:
+        # e.g. March 31 + 1 month = April 30 (clamped)
+        import calendar
+
+        new_month = ((dt2.month - 1 + months) % 12) + 1
+        new_year = dt2.year + years + ((dt2.month - 1 + months) // 12)
+        max_day = calendar.monthrange(new_year, new_month)[1]
+        adjusted_dt2 = dt2.replace(year=new_year, month=new_month, day=min(d2, max_day))
+
+    remaining = dt1 - adjusted_dt2
+    days = remaining.days
+    seconds = remaining.seconds
+    microseconds = remaining.microseconds
+
+    dur = isodate.Duration(years=years, months=months, days=days) + datetime.timedelta(
+        seconds=seconds, microseconds=microseconds
+    )
+    return CypherDuration(dur)
+
+
+def _duration_in_months(t1: CypherValue, t2: CypherValue) -> CypherDuration:
+    """Return duration between t2 and t1 expressed in whole months only."""
+    import isodate
+
+    dt1 = _to_datetime(t1)
+    dt2 = _to_datetime(t2)
+    total_months = (dt1.year - dt2.year) * 12 + (dt1.month - dt2.month)
+    return CypherDuration(isodate.Duration(months=total_months))
+
+
+def _duration_in_days(t1: CypherValue, t2: CypherValue) -> CypherDuration:
+    """Return duration between t2 and t1 expressed in whole days only."""
+    import datetime
+
+    dt1 = _to_datetime(t1)
+    dt2 = _to_datetime(t2)
+    if dt1.tzinfo is not None and dt2.tzinfo is None:
+        dt2 = dt2.replace(tzinfo=dt1.tzinfo)
+    elif dt1.tzinfo is None and dt2.tzinfo is not None:
+        dt1 = dt1.replace(tzinfo=dt2.tzinfo)
+    delta = dt1 - dt2
+    return CypherDuration(datetime.timedelta(days=delta.days))
+
+
+def _duration_in_seconds(t1: CypherValue, t2: CypherValue) -> CypherDuration:
+    """Return duration between t2 and t1 expressed in seconds (+ microseconds)."""
+    import datetime
+
+    dt1 = _to_datetime(t1)
+    dt2 = _to_datetime(t2)
+    if dt1.tzinfo is not None and dt2.tzinfo is None:
+        dt2 = dt2.replace(tzinfo=dt1.tzinfo)
+    elif dt1.tzinfo is None and dt2.tzinfo is not None:
+        dt1 = dt1.replace(tzinfo=dt2.tzinfo)
+    delta = dt1 - dt2
+    total_seconds = int(delta.total_seconds())
+    microseconds = delta.microseconds if delta.days >= 0 else 0
+    return CypherDuration(datetime.timedelta(seconds=total_seconds, microseconds=microseconds))
 
 
 def _evaluate_graph_function(

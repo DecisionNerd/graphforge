@@ -1,7 +1,8 @@
 // openCypher Grammar (v1 Subset)
 // Supports: MATCH, CREATE, SET, REMOVE, DELETE, MERGE, UNWIND, WHERE, RETURN, ORDER BY, LIMIT, SKIP, WITH
 
-?start: query
+// A script is one or more queries (multi-statement support)
+script: query+
 
 query: union_query | single_part_query | multi_part_query | with_query
 
@@ -186,7 +187,8 @@ ADD_OP: "+" | "-"
 MULT_OP: "*" | "/" | "%"
 POW_OP: "^"
 
-?primary_expr: function_call
+?primary_expr: namespaced_function_call
+             | function_call
              | subscript
              | property_access
              | case_expr
@@ -212,6 +214,9 @@ filter_expr: "FILTER"i "(" variable "IN"i expression "WHERE"i expression ")"
 extract_expr: "EXTRACT"i "(" variable "IN"i expression "|" expression ")"
 reduce_expr: "REDUCE"i "(" variable "=" expression "," variable "IN"i expression "|" expression ")"
 
+// Namespaced calls: date.truncate(...), duration.between(...), etc.
+namespaced_function_call: (FUNCTION_NAME | IDENTIFIER) "." IDENTIFIER "(" function_args? ")"
+
 function_call: FUNCTION_NAME "(" function_args? ")"
 
 function_args: "*"                              -> count_star
@@ -230,7 +235,7 @@ subscript_index: expression ".." expression  -> slice_range
                | ".."                        -> slice_all
                | expression                  -> index_access
 
-property_access: (variable | map_literal | list_literal) "." IDENTIFIER
+property_access: (variable | map_literal | list_literal | function_call | namespaced_function_call) "." IDENTIFIER
 
 // Labels and types
 labels: ":" label_disjunction
