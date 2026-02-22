@@ -57,11 +57,12 @@ class NodePattern(BaseModel):
 
     @field_validator("labels")
     @classmethod
-    def validate_labels(cls, v: list[str]) -> list[str]:
+    def validate_labels(cls, v: list[list[str]]) -> list[list[str]]:
         """Validate label names."""
-        for label in v:
-            if not label or not label[0].isalpha():
-                raise ValueError(f"Label must start with a letter: {label}")
+        for label_group in v:
+            for label in label_group:
+                if not label or not label[0].isalpha():
+                    raise ValueError(f"Label must start with a letter: {label}")
         return v
 
     model_config = {"frozen": True, "arbitrary_types_allowed": True}

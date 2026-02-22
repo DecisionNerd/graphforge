@@ -10,12 +10,16 @@ from graphforge import GraphForge
 from graphforge.types.graph import EdgeRef, NodeRef
 from graphforge.types.values import (
     CypherBool,
+    CypherDate,
+    CypherDateTime,
+    CypherDuration,
     CypherFloat,
     CypherInt,
     CypherList,
     CypherMap,
     CypherNull,
     CypherString,
+    CypherTime,
 )
 
 
@@ -499,6 +503,80 @@ def verify_error_any_time(tck_context, error_type):
     pass
 
 
+_TEMPORAL_ISO_PATTERNS = (
+    # Duration: P... or -P...
+    re.compile(
+        r"^-?P(?:\d+Y)?(?:\d+M)?(?:\d+W)?(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?$"
+    ),
+    # DateTime: YYYY-MM-DDTHH:MM...
+    re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}"),
+    # Date: YYYY-MM-DD (no T)
+    re.compile(r"^\d{4}-\d{2}-\d{2}$"),
+    # Time: HH:MM[:SS[.fff]][Z|+/-HH:MM] (must have at least HH:MM)
+    re.compile(r"^\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$"),
+)
+
+
+def _normalize_temporal_string(s: str) -> str:
+    """Normalize a temporal ISO string to microsecond precision for comparison.
+
+    Python's datetime only supports microseconds, so nanoseconds (e.g.,
+    '2020-01-01T01:01:01.000000001') are truncated to microseconds
+    ('2020-01-01T01:01:01.000000').
+    """
+    # Truncate sub-microsecond precision: .XXXXXXXXX → strip to 6 digits
+    s = re.sub(r"(\.\d{6})\d+", r"\1", s)
+    # Remove trailing zeros in microseconds (e.g., .000000 → empty)
+    s = re.sub(r"\.(\d*?)0+(?=[Z+\-]|$)", lambda m: f".{m.group(1)}" if m.group(1) else "", s)
+    return s
+
+
+def _parse_temporal_string(s: str):
+    """Try to parse a string as a temporal CypherValue.
+
+    Returns the ISO-normalized string if the string looks temporal,
+    or None if not recognized.
+    """
+    for pattern in _TEMPORAL_ISO_PATTERNS:
+        if pattern.match(s):
+            s_norm = _normalize_temporal_string(s)
+            try:
+                if s_norm.startswith("P") or s_norm.startswith("-P"):
+                    return CypherDuration(s_norm).value
+                elif "T" in s_norm and re.match(r"^\d{4}-", s_norm):
+                    return CypherDateTime(s_norm).value
+                elif re.match(r"^\d{4}-\d{2}-\d{2}$", s_norm):
+                    return CypherDate(s_norm).value
+                elif re.match(r"^\d{2}:\d{2}", s_norm):
+                    return CypherTime(s_norm).value
+            except Exception:
+                pass
+    return None
+
+
+def _normalize_prop_value(v):
+    """Normalize a property value (from NodeRef/EdgeRef) to a comparable form.
+
+    Handles raw Python datetime types stored in graph properties as well as
+    CypherValue wrappers.
+    """
+    import datetime as _dt
+
+    if isinstance(v, (CypherDate, CypherDateTime, CypherTime)):
+        return v.value
+    if isinstance(v, CypherDuration):
+        return v.value
+    if isinstance(v, (CypherInt, CypherFloat, CypherBool, CypherString)):
+        return v.value
+    if isinstance(v, CypherNull):
+        return None
+    if isinstance(v, (_dt.datetime, _dt.date, _dt.time)):
+        return v
+    if hasattr(v, "value"):
+        return v.value
+    return v
+
+
 def _parse_value(value_str: str):
     """Parse a value string into appropriate CypherValue or node pattern."""
     value_str = value_str.strip()
@@ -517,9 +595,13 @@ def _parse_value(value_str: str):
         # This will be used for comparison in _row_to_comparable
         return {"_node_pattern": value_str}
 
-    # String
+    # String — may be a temporal ISO value
     if value_str.startswith("'") and value_str.endswith("'"):
-        return CypherString(value_str[1:-1])
+        inner = value_str[1:-1]
+        parsed = _parse_temporal_string(inner)
+        if parsed is not None:
+            return parsed  # Return the Python datetime/date/time/duration object directly
+        return CypherString(inner)
 
     # Boolean
     if value_str.lower() == "true":
@@ -726,19 +808,17 @@ def _comparable_value_ignore_list_order(value):
         return value.value
     if isinstance(value, CypherNull):
         return None
+    if isinstance(value, (CypherDate, CypherDateTime, CypherTime, CypherDuration)):
+        return value.value
     if isinstance(value, NodeRef):
         return {
             "labels": sorted(value.labels),
-            "properties": {
-                k: v.value if hasattr(v, "value") else v for k, v in value.properties.items()
-            },
+            "properties": {k: _normalize_prop_value(v) for k, v in value.properties.items()},
         }
     if isinstance(value, EdgeRef):
         return {
             "type": value.type,
-            "properties": {
-                k: v.value if hasattr(v, "value") else v for k, v in value.properties.items()
-            },
+            "properties": {k: _normalize_prop_value(v) for k, v in value.properties.items()},
         }
     return value
 
@@ -774,21 +854,20 @@ def _row_to_comparable(row: dict) -> dict:
             comparable[key] = value.value
         elif isinstance(value, CypherNull):
             comparable[key] = None
+        elif isinstance(value, (CypherDate, CypherDateTime, CypherTime, CypherDuration)):
+            # Temporal values: use the underlying Python object for comparison
+            comparable[key] = value.value
         elif isinstance(value, NodeRef):
             # Convert node to comparable dict
             comparable[key] = {
                 "labels": sorted(value.labels),
-                "properties": {
-                    k: v.value if hasattr(v, "value") else v for k, v in value.properties.items()
-                },
+                "properties": {k: _normalize_prop_value(v) for k, v in value.properties.items()},
             }
         elif isinstance(value, EdgeRef):
             # Convert edge to comparable dict
             comparable[key] = {
                 "type": value.type,
-                "properties": {
-                    k: v.value if hasattr(v, "value") else v for k, v in value.properties.items()
-                },
+                "properties": {k: _normalize_prop_value(v) for k, v in value.properties.items()},
             }
         else:
             comparable[key] = value

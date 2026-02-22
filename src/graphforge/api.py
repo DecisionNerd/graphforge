@@ -257,10 +257,20 @@ class GraphForge:
         # Validate query input
         QueryInput(query=query)
 
-        # Parse query
+        # Parse query (may return a single CypherQuery or a list for multi-statement scripts)
         ast = self.parser.parse(query)
 
-        # Check if this is a UNION query
+        # Multi-statement script: execute each query sequentially, return last result
+        if isinstance(ast, list):
+            results: list[dict] = []
+            for single_ast in ast:
+                results = self._execute_single_ast(single_ast)
+            return results
+
+        return self._execute_single_ast(ast)
+
+    def _execute_single_ast(self, ast: Any) -> list[dict]:
+        """Execute a single parsed AST and return results."""
         from graphforge.ast.query import UnionQuery
 
         if isinstance(ast, UnionQuery):
@@ -290,10 +300,7 @@ class GraphForge:
                 self.optimizer.update_statistics(self.graph.get_statistics())
                 operators = self.optimizer.optimize(operators)
 
-        # Execute
-        results = self.executor.execute(operators)
-
-        return results
+        return self.executor.execute(operators)
 
     def create_node(self, labels: list[str] | None = None, **properties: Any) -> NodeRef:
         """Create a node with labels and properties.
